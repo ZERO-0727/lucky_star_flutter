@@ -4,17 +4,18 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:demo_flutter/main.dart';
 
 void main() {
-  testWidgets('Chat app smoke test', (WidgetTester tester) async {
+  testWidgets('Lucky Star app smoke test', (WidgetTester tester) async {
     // Build our app and trigger a frame.
-    await tester.pumpWidget(const ChatApp());
+    await tester.pumpWidget(const LuckyStarApp());
 
-    // Verify that the app bar title is correct
-    expect(find.text('AI Chat'), findsOneWidget);
+    // Verify that the main navigation is present
+    expect(find.byType(MainNavigation), findsOneWidget);
 
-    // Verify that the message input field is present
-    expect(find.byType(TextField), findsOneWidget);
-
-    // Verify that the send button is present
-    expect(find.byIcon(Icons.send), findsOneWidget);
+    // Verify that the bottom navigation bar has 4 items
+    expect(find.byType(BottomNavigationBar), findsOneWidget);
+    expect(find.byIcon(Icons.explore), findsOneWidget); // Plaza
+    expect(find.byIcon(Icons.star), findsOneWidget); // Wish Wall
+    expect(find.byIcon(Icons.people), findsOneWidget); // User Plaza
+    expect(find.byIcon(Icons.home), findsOneWidget); // Home
   });
 }

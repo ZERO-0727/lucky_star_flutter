@@ -9,30 +9,14 @@ class SettingsScreen extends StatefulWidget {
 }
 
 class _SettingsScreenState extends State<SettingsScreen> {
-  final _apiKeyController = TextEditingController();
-  bool _isSaving = false;
-
   @override
   void initState() {
     super.initState();
-    _loadApiKey();
   }
 
-  Future<void> _loadApiKey() async {
+  Future<String> _loadProvider() async {
     final prefs = await SharedPreferences.getInstance();
-    setState(() {
-      _apiKeyController.text = prefs.getString('api_key') ?? '';
-    });
-  }
-
-  Future<void> _saveApiKey() async {
-    setState(() => _isSaving = true);
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString('api_key', _apiKeyController.text);
-    setState(() => _isSaving = false);
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('API Key saved successfully!')),
-    );
+    return prefs.getString('ai_provider') ?? 'OpenAI';
   }
 
   Future<String> _loadModel() async {
@@ -50,30 +34,38 @@ class _SettingsScreenState extends State<SettingsScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             const Text(
-              'OpenAI API Key',
+              'AI Provider',
               style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
             ),
             const SizedBox(height: 8),
-            TextField(
-              controller: _apiKeyController,
-              decoration: const InputDecoration(
-                hintText: 'Enter your OpenAI API key',
-                border: OutlineInputBorder(),
-              ),
-              obscureText: true,
+            FutureBuilder<String>(
+              future: _loadProvider(),
+              builder: (context, snapshot) {
+                return DropdownButtonFormField<String>(
+                  value: snapshot.data ?? 'OpenAI',
+                  items: const [
+                    DropdownMenuItem(value: 'OpenAI', child: Text('OpenAI')),
+                    DropdownMenuItem(
+                      value: 'OpenRouter',
+                      child: Text('OpenRouter'),
+                    ),
+                    DropdownMenuItem(
+                      value: 'Google Gemini',
+                      child: Text('Google Gemini'),
+                    ),
+                  ],
+                  onChanged: (value) async {
+                    if (value != null) {
+                      final prefs = await SharedPreferences.getInstance();
+                      await prefs.setString('ai_provider', value);
+                    }
+                  },
+                  decoration: const InputDecoration(
+                    border: OutlineInputBorder(),
+                  ),
+                );
+              },
             ),
-            const SizedBox(height: 16),
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton(
-                onPressed: _isSaving ? null : _saveApiKey,
-                child:
-                    _isSaving
-                        ? const CircularProgressIndicator()
-                        : const Text('Save API Key'),
-              ),
-            ),
-            const SizedBox(height: 16),
             const SizedBox(height: 16),
             const Text(
               'Model',
@@ -113,7 +105,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
             ),
             const SizedBox(height: 16),
             const Text(
-              'Note: Your API key is stored securely on your device and never sent anywhere else.',
+              'Note: API keys are now stored in .env file',
               style: TextStyle(color: Colors.grey, fontSize: 12),
             ),
           ],
