@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'plaza_post_detail_screen.dart';
+import 'create_plaza_post_page.dart';
 
 class PlazaFeedScreen extends StatefulWidget {
   const PlazaFeedScreen({super.key});
@@ -44,7 +45,12 @@ class _PlazaFeedScreenState extends State<PlazaFeedScreen>
         ),
       ),
       floatingActionButton: FloatingActionButton(
-        onPressed: () {},
+        onPressed: () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(builder: (context) => const CreatePlazaPostPage()),
+          );
+        },
         backgroundColor: const Color(0xFF7153DF),
         child: const Icon(Icons.add, color: Colors.white),
       ),

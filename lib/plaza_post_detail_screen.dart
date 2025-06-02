@@ -9,14 +9,14 @@ class PlazaPostDetailScreen extends StatefulWidget {
   final List<String> comments;
 
   const PlazaPostDetailScreen({
-    Key? key,
+    super.key,
     this.title = 'Post Details',
     this.displayName = 'Anonymous',
     this.timestamp = 'Just now',
     this.description = 'No description provided',
     this.categories = const [],
     this.comments = const [],
-  }) : super(key: key);
+  });
 
   @override
   _PlazaPostDetailScreenState createState() => _PlazaPostDetailScreenState();
@@ -189,7 +189,7 @@ class _PlazaPostDetailScreenState extends State<PlazaPostDetailScreen> {
                         onPressed: () {},
                       ),
                     );
-                  }).toList(),
+                  }),
                   const SizedBox(height: 80), // Spacer for fixed input
                 ],
               ),

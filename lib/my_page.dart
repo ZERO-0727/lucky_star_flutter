@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'widgets/avatar_placeholder.dart';
 
 class MyPage extends StatefulWidget {
   const MyPage({super.key});
@@ -119,18 +120,20 @@ class _MyPageState extends State<MyPage> with SingleTickerProviderStateMixin {
         backgroundColor: Colors.white,
         elevation: 0,
       ),
-      body: SingleChildScrollView(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            _buildProfileHeader(),
-            _buildStatisticsPanel(),
-            _buildTabsSection(),
-            _buildTagSection('Languages', _userData['languages']),
-            _buildTagSection('Interests', _userData['interests']),
-            _buildTagSection('My Experiences', _userData['experiences']),
-            const SizedBox(height: 30),
-          ],
+      body: SafeArea(
+        child: SingleChildScrollView(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _buildProfileHeader(),
+              _buildStatisticsPanel(),
+              _buildTabsSection(),
+              _buildTagSection('Languages', _userData['languages']),
+              _buildTagSection('Interests', _userData['interests']),
+              _buildTagSection('My Experiences', _userData['experiences']),
+              const SizedBox(height: 30),
+            ],
+          ),
         ),
       ),
     );
@@ -138,7 +141,7 @@ class _MyPageState extends State<MyPage> with SingleTickerProviderStateMixin {
 
   Widget _buildProfileHeader() {
     return Container(
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: Colors.white,
         boxShadow: [
@@ -153,95 +156,53 @@ class _MyPageState extends State<MyPage> with SingleTickerProviderStateMixin {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          // Avatar and user info row
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               // Avatar with verification badges
               Stack(
                 children: [
+                  // Avatar
                   Container(
                     width: 100,
                     height: 100,
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
-                      border: Border.all(color: Colors.white, width: 3),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.grey.withOpacity(0.2),
-                          spreadRadius: 1,
-                          blurRadius: 5,
-                          offset: const Offset(0, 2),
-                        ),
-                      ],
-                      image: const DecorationImage(
-                        image: NetworkImage(
-                          'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=200',
-                        ),
-                        fit: BoxFit.cover,
+                      border: Border.all(
+                        color: const Color(0xFF7153DF),
+                        width: 2,
                       ),
                     ),
+                    child: const AvatarPlaceholder(size: 100),
                   ),
                   // Verification badges
-                  if (_userData['verifications']['worldcoin'] || _userData['verifications']['traditionalId'])
+                  if (_userData['verifications']['worldcoin'] == true)
+                    Positioned(
+                      bottom: 0,
+                      right: 25,
+                      child: Container(
+                        padding: const EdgeInsets.all(4),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF00C853),
+                          shape: BoxShape.circle,
+                          border: Border.all(color: Colors.white, width: 2),
+                        ),
+                        child: const Icon(Icons.verified_user, color: Colors.white, size: 14),
+                      ),
+                    ),
+                  if (_userData['verifications']['traditionalId'] == true)
                     Positioned(
                       bottom: 0,
                       right: 0,
-                      child: Row(
-                        children: [
-                          if (_userData['verifications']['worldcoin'])
-                            Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                              decoration: BoxDecoration(
-                                color: const Color(0xFF7153DF),
-                                borderRadius: BorderRadius.circular(12),
-                                boxShadow: [
-                                  BoxShadow(
-                                    color: Colors.grey.withOpacity(0.3),
-                                    spreadRadius: 1,
-                                    blurRadius: 3,
-                                    offset: const Offset(0, 1),
-                                  ),
-                                ],
-                              ),
-                              child: const Row(
-                                children: [
-                                  Icon(Icons.verified, color: Colors.white, size: 14),
-                                  SizedBox(width: 2),
-                                  Text(
-                                    'Worldcoin',
-                                    style: TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          const SizedBox(width: 4),
-                          if (_userData['verifications']['traditionalId'])
-                            Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                              decoration: BoxDecoration(
-                                color: const Color(0xFF2E7D32),
-                                borderRadius: BorderRadius.circular(12),
-                                boxShadow: [
-                                  BoxShadow(
-                                    color: Colors.grey.withOpacity(0.3),
-                                    spreadRadius: 1,
-                                    blurRadius: 3,
-                                    offset: const Offset(0, 1),
-                                  ),
-                                ],
-                              ),
-                              child: const Row(
-                                children: [
-                                  Icon(Icons.badge, color: Colors.white, size: 14),
-                                  SizedBox(width: 2),
-                                  Text(
-                                    'ID Verified',
-                                    style: TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold),
-                                  ),
-                                ],
-                              ),
-                            ),
-                        ],
+                      child: Container(
+                        padding: const EdgeInsets.all(4),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF2196F3),
+                          shape: BoxShape.circle,
+                          border: Border.all(color: Colors.white, width: 2),
+                        ),
+                        child: const Icon(Icons.badge, color: Colors.white, size: 14),
                       ),
                     ),
                 ],
@@ -292,8 +253,9 @@ class _MyPageState extends State<MyPage> with SingleTickerProviderStateMixin {
               ),
             ],
           ),
-          const SizedBox(height: 16),
-          // Bio
+          const SizedBox(height: 20),
+          
+          // About section
           Text(
             'About You',
             style: GoogleFonts.poppins(
@@ -310,6 +272,7 @@ class _MyPageState extends State<MyPage> with SingleTickerProviderStateMixin {
             ),
           ),
           const SizedBox(height: 20),
+          
           // Action buttons
           Row(
             children: [
@@ -432,6 +395,7 @@ class _MyPageState extends State<MyPage> with SingleTickerProviderStateMixin {
 
   Widget _buildTabsSection() {
     return Container(
+      height: 320,
       margin: const EdgeInsets.only(top: 16),
       decoration: BoxDecoration(
         color: Colors.white,
@@ -459,7 +423,7 @@ class _MyPageState extends State<MyPage> with SingleTickerProviderStateMixin {
             ],
           ),
           SizedBox(
-            height: 300,
+            height: 250,
             child: TabBarView(
               controller: _tabController,
               children: [
@@ -476,275 +440,275 @@ class _MyPageState extends State<MyPage> with SingleTickerProviderStateMixin {
   }
 
   Widget _buildFavoritesTab() {
-    return _favorites.isEmpty
-        ? const Center(child: Text('No favorites yet'))
-        : ListView.builder(
-            padding: const EdgeInsets.all(16),
-            itemCount: _favorites.length,
-            itemBuilder: (context, index) {
-              final item = _favorites[index];
-              return Card(
-                margin: const EdgeInsets.only(bottom: 16),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                child: Row(
-                  children: [
-                    ClipRRect(
-                      borderRadius: const BorderRadius.only(
-                        topLeft: Radius.circular(12),
-                        bottomLeft: Radius.circular(12),
-                      ),
-                      child: Image.network(
-                        item['image'],
-                        width: 100,
-                        height: 100,
-                        fit: BoxFit.cover,
-                      ),
-                    ),
-                    Expanded(
-                      child: Padding(
-                        padding: const EdgeInsets.all(12),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              item['title'],
-                              style: GoogleFonts.poppins(
-                                fontSize: 16,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                            Text(
-                              'Hosted by ${item['host']}',
-                              style: GoogleFonts.poppins(
-                                fontSize: 14,
-                                color: Colors.grey[600],
-                              ),
-                            ),
-                            const SizedBox(height: 8),
-                            Row(
-                              children: [
-                                const Icon(Icons.star, color: Colors.amber, size: 16),
-                                const SizedBox(width: 4),
-                                Text(
-                                  item['rating'].toString(),
-                                  style: GoogleFonts.poppins(fontSize: 14),
-                                ),
-                              ],
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ],
+    return ListView.builder(
+      padding: const EdgeInsets.symmetric(vertical: 10),
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      itemCount: _favorites.length,
+      itemBuilder: (context, index) {
+        final item = _favorites[index];
+        return Card(
+          margin: const EdgeInsets.only(bottom: 16),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          child: Row(
+            children: [
+              ClipRRect(
+                borderRadius: const BorderRadius.only(
+                  topLeft: Radius.circular(12),
+                  bottomLeft: Radius.circular(12),
                 ),
-              );
-            },
-          );
-  }
-
-  Widget _buildPublishedTab() {
-    return _publishedExperiences.isEmpty
-        ? const Center(child: Text('No published experiences yet'))
-        : ListView.builder(
-            padding: const EdgeInsets.all(16),
-            itemCount: _publishedExperiences.length,
-            itemBuilder: (context, index) {
-              final item = _publishedExperiences[index];
-              return Card(
-                margin: const EdgeInsets.only(bottom: 16),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                child: Row(
-                  children: [
-                    ClipRRect(
-                      borderRadius: const BorderRadius.only(
-                        topLeft: Radius.circular(12),
-                        bottomLeft: Radius.circular(12),
-                      ),
-                      child: Image.network(
-                        item['image'],
-                        width: 100,
-                        height: 100,
-                        fit: BoxFit.cover,
-                      ),
-                    ),
-                    Expanded(
-                      child: Padding(
-                        padding: const EdgeInsets.all(12),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              item['title'],
-                              style: GoogleFonts.poppins(
-                                fontSize: 16,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                            Text(
-                              'Frequency: ${item['date']}',
-                              style: GoogleFonts.poppins(
-                                fontSize: 14,
-                                color: Colors.grey[600],
-                              ),
-                            ),
-                            const SizedBox(height: 8),
-                            Row(
-                              children: [
-                                const Icon(Icons.people, color: Color(0xFF7153DF), size: 16),
-                                const SizedBox(width: 4),
-                                Text(
-                                  '${item['participants']} participants',
-                                  style: GoogleFonts.poppins(fontSize: 14),
-                                ),
-                              ],
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ],
+                child: Image.network(
+                  item['image'],
+                  width: 100,
+                  height: 100,
+                  fit: BoxFit.cover,
                 ),
-              );
-            },
-          );
-  }
-
-  Widget _buildRecordsTab() {
-    return _records.isEmpty
-        ? const Center(child: Text('No records yet'))
-        : ListView.builder(
-            padding: const EdgeInsets.all(16),
-            itemCount: _records.length,
-            itemBuilder: (context, index) {
-              final item = _records[index];
-              return Card(
-                margin: const EdgeInsets.only(bottom: 16),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                child: Row(
-                  children: [
-                    ClipRRect(
-                      borderRadius: const BorderRadius.only(
-                        topLeft: Radius.circular(12),
-                        bottomLeft: Radius.circular(12),
-                      ),
-                      child: Image.network(
-                        item['image'],
-                        width: 100,
-                        height: 100,
-                        fit: BoxFit.cover,
-                      ),
-                    ),
-                    Expanded(
-                      child: Padding(
-                        padding: const EdgeInsets.all(12),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              item['title'],
-                              style: GoogleFonts.poppins(
-                                fontSize: 16,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                            Text(
-                              item['date'],
-                              style: GoogleFonts.poppins(
-                                fontSize: 14,
-                                color: Colors.grey[600],
-                              ),
-                            ),
-                            const SizedBox(height: 8),
-                            Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                              decoration: BoxDecoration(
-                                color: Colors.green[100],
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                              child: Text(
-                                item['status'],
-                                style: GoogleFonts.poppins(
-                                  fontSize: 12,
-                                  color: Colors.green[800],
-                                  fontWeight: FontWeight.w500,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              );
-            },
-          );
-  }
-
-  Widget _buildRatingsTab() {
-    return _ratings.isEmpty
-        ? const Center(child: Text('No ratings yet'))
-        : ListView.builder(
-            padding: const EdgeInsets.all(16),
-            itemCount: _ratings.length,
-            itemBuilder: (context, index) {
-              final item = _ratings[index];
-              return Card(
-                margin: const EdgeInsets.only(bottom: 16),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              ),
+              Expanded(
                 child: Padding(
-                  padding: const EdgeInsets.all(16),
+                  padding: const EdgeInsets.all(12),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
+                      Text(
+                        item['title'],
+                        style: GoogleFonts.poppins(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      Text(
+                        'Hosted by ${item['host']}',
+                        style: GoogleFonts.poppins(
+                          fontSize: 14,
+                          color: Colors.grey[600],
+                        ),
+                      ),
+                      const SizedBox(height: 8),
                       Row(
                         children: [
-                          const CircleAvatar(
-                            radius: 20,
-                            backgroundColor: Colors.grey,
-                            child: Icon(Icons.person, color: Colors.white),
-                          ),
-                          const SizedBox(width: 12),
-                          Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                item['name'],
-                                style: GoogleFonts.poppins(
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                              Text(
-                                item['date'],
-                                style: GoogleFonts.poppins(
-                                  fontSize: 12,
-                                  color: Colors.grey[600],
-                                ),
-                              ),
-                            ],
-                          ),
-                          const Spacer(),
-                          Row(
-                            children: List.generate(
-                              5,
-                              (i) => Icon(
-                                i < item['rating'] ? Icons.star : Icons.star_border,
-                                color: Colors.amber,
-                                size: 16,
-                              ),
-                            ),
+                          const Icon(Icons.star, color: Colors.amber, size: 16),
+                          const SizedBox(width: 4),
+                          Text(
+                            item['rating'].toString(),
+                            style: GoogleFonts.poppins(fontSize: 14),
                           ),
                         ],
                       ),
-                      const SizedBox(height: 12),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildPublishedTab() {
+    return ListView.builder(
+      padding: const EdgeInsets.symmetric(vertical: 10),
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      itemCount: _publishedExperiences.length,
+      itemBuilder: (context, index) {
+        final item = _publishedExperiences[index];
+        return Card(
+          margin: const EdgeInsets.only(bottom: 16),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          child: Row(
+            children: [
+              ClipRRect(
+                borderRadius: const BorderRadius.only(
+                  topLeft: Radius.circular(12),
+                  bottomLeft: Radius.circular(12),
+                ),
+                child: Image.network(
+                  item['image'],
+                  width: 100,
+                  height: 100,
+                  fit: BoxFit.cover,
+                ),
+              ),
+              Expanded(
+                child: Padding(
+                  padding: const EdgeInsets.all(12),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
                       Text(
-                        item['comment'],
+                        item['title'],
                         style: GoogleFonts.poppins(
-                          fontSize: 14,
-                          color: Colors.grey[800],
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
                         ),
                       ),
+                      Text(
+                        'Frequency: ${item['date']}',
+                        style: GoogleFonts.poppins(
+                          fontSize: 14,
+                          color: Colors.grey[600],
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Row(
+                        children: [
+                          const Icon(Icons.people, color: Color(0xFF7153DF), size: 16),
+                          const SizedBox(width: 4),
+                          Text(
+                            '${item['participants']} participants',
+                            style: GoogleFonts.poppins(fontSize: 14),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildRecordsTab() {
+    return ListView.builder(
+      padding: const EdgeInsets.symmetric(vertical: 10),
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      itemCount: _records.length,
+      itemBuilder: (context, index) {
+        final item = _records[index];
+        return Card(
+          margin: const EdgeInsets.only(bottom: 16),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          child: Row(
+            children: [
+              ClipRRect(
+                borderRadius: const BorderRadius.only(
+                  topLeft: Radius.circular(12),
+                  bottomLeft: Radius.circular(12),
+                ),
+                child: Image.network(
+                  item['image'],
+                  width: 100,
+                  height: 100,
+                  fit: BoxFit.cover,
+                ),
+              ),
+              Expanded(
+                child: Padding(
+                  padding: const EdgeInsets.all(12),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        item['title'],
+                        style: GoogleFonts.poppins(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      Text(
+                        item['date'],
+                        style: GoogleFonts.poppins(
+                          fontSize: 14,
+                          color: Colors.grey[600],
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: Colors.green[100],
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Text(
+                          item['status'],
+                          style: GoogleFonts.poppins(
+                            fontSize: 12,
+                            color: Colors.green[800],
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildRatingsTab() {
+    return ListView.builder(
+      padding: const EdgeInsets.symmetric(vertical: 10),
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      itemCount: _ratings.length,
+      itemBuilder: (context, index) {
+        final item = _ratings[index];
+        return Card(
+          margin: const EdgeInsets.only(bottom: 16),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    const CircleAvatar(
+                      radius: 20,
+                      backgroundColor: Colors.grey,
+                      child: Icon(Icons.person, color: Colors.white),
+                    ),
+                    const SizedBox(width: 12),
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          item['name'],
+                          style: GoogleFonts.poppins(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        Text(
+                          item['date'],
+                          style: GoogleFonts.poppins(
+                            fontSize: 12,
+                            color: Colors.grey[600],
+                          ),
+                        ),
+                      ],
+                    ),
+                    const Spacer(),
+                    Row(
+                      children: List.generate(
+                        5,
+                        (i) => Icon(
+                          i < item['rating'] ? Icons.star : Icons.star_border,
+                          color: Colors.amber,
+                          size: 16,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                Text(
+                  item['comment'],
+                  style: GoogleFonts.poppins(
+                    fontSize: 14,
+                    color: Colors.grey[800],
+                  ),
+                ),
                     ],
                   ),
                 ),
