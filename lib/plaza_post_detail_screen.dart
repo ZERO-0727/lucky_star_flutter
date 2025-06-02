@@ -10,10 +10,10 @@ class PlazaPostDetailScreen extends StatefulWidget {
 
   const PlazaPostDetailScreen({
     Key? key,
-    required this.title,
-    required this.displayName,
-    required this.timestamp,
-    required this.description,
+    this.title = 'Post Details',
+    this.displayName = 'Anonymous',
+    this.timestamp = 'Just now',
+    this.description = 'No description provided',
     this.categories = const [],
     this.comments = const [],
   }) : super(key: key);
@@ -158,7 +158,7 @@ class _PlazaPostDetailScreenState extends State<PlazaPostDetailScreen> {
                               label: Text(category),
                               backgroundColor: const Color(
                                 0xFF7153DF,
-                              ).withOpacity(0.1),
+                              ).withAlpha(25),
                               labelStyle: const TextStyle(
                                 color: Color(0xFF7153DF),
                               ),

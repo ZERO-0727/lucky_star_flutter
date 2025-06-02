@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+
 class UserPlazaScreen extends StatefulWidget {
   const UserPlazaScreen({super.key});
 
@@ -26,7 +27,9 @@ class _UserPlazaScreenState extends State<UserPlazaScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('User Plaza')),
+      appBar: AppBar(
+        title: const Text('User Plaza'),
+      ),
       body: Column(
         children: [
           // Top filter row 1

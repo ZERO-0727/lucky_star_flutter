@@ -5,8 +5,7 @@ import 'package:intl/intl.dart';
 class PostExperienceScreen extends StatefulWidget {
   final bool isAddWishActive;
 
-  const PostExperienceScreen({Key? key, this.isAddWishActive = false})
-    : super(key: key);
+  const PostExperienceScreen({super.key, this.isAddWishActive = false});
 
   @override
   _PostExperienceScreenState createState() => _PostExperienceScreenState();
@@ -201,7 +200,7 @@ class _PostExperienceScreenState extends State<PostExperienceScreen> {
                           });
                         },
                         backgroundColor: Colors.grey[200],
-                        selectedColor: const Color(0xFF7153DF).withOpacity(0.2),
+                        selectedColor: const Color(0xFF7153DF).withAlpha(51),
                         checkmarkColor: const Color(0xFF7153DF),
                       );
                     }).toList(),

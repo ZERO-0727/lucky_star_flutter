@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:google_fonts/google_fonts.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -23,8 +24,31 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Lucky Star Home'),
+        title: const Text(
+          'Lucky Star',
+          style: TextStyle(
+            color: Colors.white,
+            fontWeight: FontWeight.bold,
+            fontSize: 22,
+          ),
+        ),
         backgroundColor: const Color(0xFF7153DF),
+        elevation: 0,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.notifications),
+            onPressed: () {},
+          ),
+          IconButton(
+            icon: const Icon(Icons.person),
+            onPressed: () {
+              Navigator.pushNamed(
+                context,
+                '/my-page',
+              );
+            },
+          ),
+        ],
       ),
       body: ListView(
         padding: const EdgeInsets.all(16),
@@ -35,6 +59,10 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
 
           // My LuckyStar horizontal list
           _buildLuckyStarAvatars(),
+          const SizedBox(height: 20),
+          
+          // Wishes Wall Preview
+          _buildWishesWallPreview(),
           const SizedBox(height: 20),
 
           // Discover Experiences
@@ -61,17 +89,24 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   }
 
   Widget _buildHeader() {
-    return const Column(
+    return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          'Hi Zero, here’s your journey today',
-          style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+          'Welcome to Lucky Star',
+          style: GoogleFonts.poppins(
+            fontSize: 28,
+            fontWeight: FontWeight.bold,
+            color: const Color(0xFF7153DF),
+          ),
         ),
-        SizedBox(height: 8),
+        const SizedBox(height: 8),
         Text(
-          'Stay connected and discover new experiences',
-          style: TextStyle(fontSize: 16, color: Colors.grey),
+          'Discover new experiences and connect with like-minded individuals',
+          style: GoogleFonts.poppins(
+            fontSize: 16,
+            color: Colors.grey[600],
+          ),
         ),
       ],
     );
@@ -81,35 +116,83 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
-          'My LuckyStar',
-          style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+        Text(
+          'My Connections',
+          style: GoogleFonts.poppins(
+            fontSize: 18,
+            fontWeight: FontWeight.bold,
+          ),
         ),
-        const SizedBox(height: 8),
+        const SizedBox(height: 12),
         SizedBox(
-          height: 100,
-          child: ListView.builder(
+          height: 120,
+          child: ListView(
             scrollDirection: Axis.horizontal,
-            itemCount: 8, // Dummy data
-            itemBuilder: (context, index) {
-              return Padding(
-                padding: const EdgeInsets.only(right: 12),
-                child: Column(
-                  children: [
-                    CircleAvatar(
-                      radius: 30,
-                      backgroundColor: Colors.grey[300],
-                      child: const Icon(Icons.person, size: 30),
-                    ),
-                    const SizedBox(height: 4),
-                    Text('User $index', style: const TextStyle(fontSize: 12)),
-                  ],
-                ),
-              );
-            },
+            children: [
+              _buildConnectionCard(
+                'https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=150',
+                'Emma',
+                'Travel Enthusiast',
+              ),
+              _buildConnectionCard(
+                'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150',
+                'John',
+                'Foodie',
+              ),
+              _buildConnectionCard(
+                'https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=150',
+                'Sarah',
+                'Photographer',
+              ),
+              _buildConnectionCard(
+                'https://images.unsplash.com/photo-1522075469751-3a6694fb2f61?w=150',
+                'Mike',
+                'Tech Expert',
+              ),
+            ],
           ),
         ),
       ],
+    );
+  }
+
+  Widget _buildConnectionCard(String imageUrl, String name, String role) {
+    return Container(
+      margin: const EdgeInsets.only(right: 12),
+      child: Column(
+        children: [
+          Container(
+            width: 80,
+            height: 80,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              border: Border.all(
+                color: const Color(0xFF7153DF),
+                width: 2,
+              ),
+              image: DecorationImage(
+                image: NetworkImage(imageUrl),
+                fit: BoxFit.cover,
+              ),
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            name,
+            style: GoogleFonts.poppins(
+              fontSize: 14,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          Text(
+            role,
+            style: GoogleFonts.poppins(
+              fontSize: 12,
+              color: Colors.grey[600],
+            ),
+          ),
+        ],
+      ),
     );
   }
 
@@ -117,79 +200,136 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
-          'Discover Experiences',
-          style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+        Text(
+          'Featured Experiences',
+          style: GoogleFonts.poppins(
+            fontSize: 18,
+            fontWeight: FontWeight.bold,
+          ),
         ),
-        const SizedBox(height: 8),
+        const SizedBox(height: 12),
         SizedBox(
-          height: 200,
-          child: ListView.builder(
+          height: 250,
+          child: ListView(
             scrollDirection: Axis.horizontal,
-            itemCount: 5, // Dummy data
-            itemBuilder: (context, index) {
-              return Container(
-                width: 180,
-                margin: const EdgeInsets.only(right: 16),
-                decoration: BoxDecoration(
-                  color: Colors.grey[200],
-                  borderRadius: BorderRadius.circular(12),
+            children: [
+              _buildExperienceCard(
+                'https://images.unsplash.com/photo-1504674900247-0877df9cc836?w=300',
+                'Cooking Class',
+                'Learn authentic Italian cooking',
+                'Tokyo',
+                45,
+              ),
+              _buildExperienceCard(
+                'https://images.unsplash.com/photo-1512314889869-02171f8a44cc?w=300',
+                'Photography Tour',
+                'Explore city through lens',
+                'Osaka',
+                28,
+              ),
+              _buildExperienceCard(
+                'https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=300',
+                'Art Workshop',
+                'Painting & creativity',
+                'Kyoto',
+                32,
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildExperienceCard(String imageUrl, String title, String description, String location, int rsvps) {
+    return Container(
+      width: 280,
+      margin: const EdgeInsets.only(right: 16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.grey.withOpacity(0.1),
+            spreadRadius: 1,
+            blurRadius: 5,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          ClipRRect(
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
+            child: Image.network(
+              imageUrl,
+              height: 150,
+              width: double.infinity,
+              fit: BoxFit.cover,
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: GoogleFonts.poppins(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+                const SizedBox(height: 4),
+                Text(
+                  description,
+                  style: GoogleFonts.poppins(
+                    fontSize: 14,
+                    color: Colors.grey[600],
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Row(
                   children: [
-                    Expanded(
-                      child: ClipRRect(
-                        borderRadius: const BorderRadius.vertical(
-                          top: Radius.circular(12),
-                        ),
-                        child: Container(
-                          color: Colors.blueGrey,
-                          child: const Center(
-                            child: Icon(
-                              Icons.image,
-                              size: 60,
-                              color: Colors.white,
-                            ),
-                          ),
-                        ),
-                      ),
+                    Icon(
+                      Icons.location_on,
+                      size: 16,
+                      color: Colors.grey[600],
                     ),
-                    Padding(
-                      padding: const EdgeInsets.all(8),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'Experience $index',
-                            style: const TextStyle(fontWeight: FontWeight.bold),
-                          ),
-                          const SizedBox(height: 4),
-                          const Text(
-                            'Location',
-                            style: TextStyle(fontSize: 12),
-                          ),
-                          const SizedBox(height: 4),
-                          Row(
-                            children: [
-                              const Icon(Icons.people, size: 16),
-                              const SizedBox(width: 4),
-                              Text(
-                                '${index * 3} RSVPs',
-                                style: const TextStyle(fontSize: 12),
-                              ),
-                            ],
-                          ),
-                        ],
+                    const SizedBox(width: 4),
+                    Text(
+                      location,
+                      style: GoogleFonts.poppins(
+                        fontSize: 14,
+                        color: Colors.grey[600],
                       ),
                     ),
                   ],
                 ),
-              );
-            },
+                const SizedBox(height: 8),
+                Row(
+                  children: [
+                    Icon(
+                      Icons.people,
+                      size: 16,
+                      color: Colors.grey[600],
+                    ),
+                    const SizedBox(width: 4),
+                    Text(
+                      '$rsvps RSVPs',
+                      style: GoogleFonts.poppins(
+                        fontSize: 14,
+                        color: Colors.grey[600],
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 
@@ -336,6 +476,178 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
             trailing: Chip(
               label: Text('Confirmed', style: TextStyle(color: Colors.white)),
               backgroundColor: Colors.green,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+  
+  Widget _buildWishesWallPreview() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text(
+              'Wishes Wall',
+              style: GoogleFonts.poppins(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            TextButton(
+              onPressed: () {
+                Navigator.pushNamed(context, '/wish-wall');
+              },
+              child: Text(
+                'See All',
+                style: GoogleFonts.poppins(
+                  fontSize: 14,
+                  color: const Color(0xFF7153DF),
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 12),
+        SizedBox(
+          height: 180,
+          child: ListView(
+            scrollDirection: Axis.horizontal,
+            children: [
+              _buildWishCard(
+                'Language Exchange',
+                'Looking for a native English speaker for language practice',
+                'Tokyo',
+                'Jun 20, 2025',
+                12,
+              ),
+              _buildWishCard(
+                'Photography Partner',
+                'Need someone to explore night photography in the city',
+                'Shibuya',
+                'Jun 25, 2025',
+                8,
+              ),
+              _buildWishCard(
+                'Hiking Buddy',
+                'Planning a weekend hike, looking for experienced hikers',
+                'Mt. Fuji',
+                'Jul 5, 2025',
+                15,
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+  
+  Widget _buildWishCard(String title, String description, String location, String date, int rsvpCount) {
+    return Container(
+      width: 250,
+      margin: const EdgeInsets.only(right: 16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.grey.withOpacity(0.1),
+            spreadRadius: 1,
+            blurRadius: 5,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Wish header with star icon
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: const BoxDecoration(
+              color: Color(0xFFF5F0FF),
+              borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+            ),
+            child: Row(
+              children: [
+                const Icon(Icons.star, color: Color(0xFFFFD700), size: 24),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    title,
+                    style: GoogleFonts.poppins(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                      color: const Color(0xFF7153DF),
+                    ),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          // Wish content
+          Padding(
+            padding: const EdgeInsets.all(12),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  description,
+                  style: GoogleFonts.poppins(
+                    fontSize: 13,
+                    color: Colors.grey[800],
+                  ),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                const SizedBox(height: 8),
+                Row(
+                  children: [
+                    Icon(Icons.location_on, size: 14, color: Colors.grey[600]),
+                    const SizedBox(width: 4),
+                    Text(
+                      location,
+                      style: GoogleFonts.poppins(
+                        fontSize: 12,
+                        color: Colors.grey[600],
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 4),
+                Row(
+                  children: [
+                    Icon(Icons.calendar_today, size: 14, color: Colors.grey[600]),
+                    const SizedBox(width: 4),
+                    Text(
+                      date,
+                      style: GoogleFonts.poppins(
+                        fontSize: 12,
+                        color: Colors.grey[600],
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 4),
+                Row(
+                  children: [
+                    Icon(Icons.people, size: 14, color: Colors.grey[600]),
+                    const SizedBox(width: 4),
+                    Text(
+                      '$rsvpCount people interested',
+                      style: GoogleFonts.poppins(
+                        fontSize: 12,
+                        color: Colors.grey[600],
+                      ),
+                    ),
+                  ],
+                ),
+              ],
             ),
           ),
         ],

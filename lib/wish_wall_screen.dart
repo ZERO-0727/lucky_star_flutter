@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'plaza_post_detail_screen.dart';
 
 class WishWallScreen extends StatefulWidget {
   const WishWallScreen({super.key});
@@ -71,280 +72,309 @@ class _WishWallScreenState extends State<WishWallScreen>
         child: const Icon(Icons.add, color: Colors.white),
       ),
     );
-    void _showOptions() {
-      showModalBottomSheet(
-        context: context,
-        builder: (BuildContext context) {
-          return SafeArea(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                ListTile(
-                  leading: const Icon(Icons.explore),
-                  title: const Text('Share Experience'),
-                  onTap: () {
-                    Navigator.pop(context);
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => const PostExperienceScreen(),
-                      ),
-                    );
-                  },
-                ),
-                ListTile(
-                  leading: const Icon(Icons.star),
-                  title: const Text('Make a Wish'),
-                  onTap: () {
-                    Navigator.pop(context);
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => const RequestExperienceScreen(),
-                      ),
-                    );
-                  },
-                ),
-              ],
-            ),
-          );
-        },
-      );
-    }
   }
 
-  Widget _buildWishList() {
-    return ListView.builder(
-      padding: const EdgeInsets.all(16),
-      itemCount: 8, // Dummy data
-      itemBuilder: (context, index) => _buildWishCard(index),
-    );
-  }
-
-  Widget _buildShareExperience() {
-    return ListView.builder(
-      padding: const EdgeInsets.all(16),
-      itemCount: 8, // Dummy data
-      itemBuilder: (context, index) => _buildExperienceCard(index),
-    );
-  }
-
-  Widget _buildWishCard(int index) {
-    return Card(
-      elevation: 3,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Image and title
-          Stack(
+  void _showOptions() {
+    showModalBottomSheet(
+      context: context,
+      builder: (BuildContext context) {
+        return SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
             children: [
-              Container(
-                height: 200,
-                decoration: BoxDecoration(
-                  color: Colors.blueGrey[100],
-                  borderRadius: const BorderRadius.vertical(
-                    top: Radius.circular(12),
-                  ),
-                ),
-                child: const Center(
-                  child: Icon(Icons.image, size: 60, color: Colors.grey),
-                ),
+              ListTile(
+                leading: const Icon(Icons.explore),
+                title: const Text('Share Experience'),
+                onTap: () {
+                  Navigator.pop(context);
+                  Navigator.pushNamed(context, '/post-experience');
+                },
               ),
-              Positioned(
-                top: 12,
-                right: 12,
-                child: Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 8,
-                    vertical: 4,
-                  ),
-                  decoration: BoxDecoration(
-                    color: Colors.green,
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                  child: const Row(
-                    children: [
-                      Icon(Icons.verified, size: 16, color: Colors.white),
-                      SizedBox(width: 4),
-                      Text(
-                        'Secure',
-                        style: TextStyle(color: Colors.white, fontSize: 12),
-                      ),
-                    ],
-                  ),
-                ),
+              ListTile(
+                leading: const Icon(Icons.star),
+                title: const Text('Make a Wish'),
+                onTap: () {
+                  Navigator.pop(context);
+                  Navigator.pushNamed(context, '/request-experience');
+                },
               ),
             ],
           ),
-
-          Padding(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // Title and bookmark
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(
-                      'Wish $index',
-                      style: const TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    const Icon(Icons.bookmark_border, color: Colors.grey),
-                  ],
-                ),
-                const SizedBox(height: 8),
-
-                // User info
-                Row(
-                  children: [
-                    const CircleAvatar(
-                      radius: 16,
-                      backgroundColor: Colors.grey,
-                    ),
-                    const SizedBox(width: 8),
-                    Text('User $index', style: const TextStyle(fontSize: 14)),
-                  ],
-                ),
-                const SizedBox(height: 8),
-
-                // Tags
-                const Wrap(
-                  spacing: 8,
-                  children: [
-                    Chip(label: Text('Tag1', style: TextStyle(fontSize: 12))),
-                    Chip(label: Text('Tag2', style: TextStyle(fontSize: 12))),
-                  ],
-                ),
-                const SizedBox(height: 8),
-
-                // Location and time
-                Row(
-                  children: [
-                    const Icon(Icons.location_on, size: 16, color: Colors.grey),
-                    const SizedBox(width: 4),
-                    const Text('Location', style: TextStyle(fontSize: 12)),
-                    const Spacer(),
-                    const Icon(Icons.access_time, size: 16, color: Colors.grey),
-                    const SizedBox(width: 4),
-                    Text(
-                      '${index + 1}h ago',
-                      style: const TextStyle(fontSize: 12),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
+        );
+      },
     );
   }
+}
 
-  Widget _buildExperienceCard(int index) {
-    return Card(
-      elevation: 3,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Image and favorite star
-          Stack(
-            children: [
-              Container(
-                height: 200,
-                decoration: BoxDecoration(
-                  color: Colors.blueGrey[100],
-                  borderRadius: const BorderRadius.vertical(
-                    top: Radius.circular(12),
-                  ),
-                ),
-                child: const Center(
-                  child: Icon(Icons.image, size: 60, color: Colors.grey),
+Widget _buildWishList() {
+  return ListView.builder(
+    padding: const EdgeInsets.all(16),
+    itemCount: 8, // Dummy data
+    itemBuilder: (context, index) => _buildWishCard(context, index),
+  );
+}
+
+Widget _buildShareExperience() {
+  return ListView.builder(
+    padding: const EdgeInsets.all(16),
+    itemCount: 8, // Dummy data
+    itemBuilder: (context, index) => _buildExperienceCard(context, index),
+  );
+}
+
+Widget _buildWishCard(BuildContext context, int index) {
+  return Card(
+    elevation: 3,
+    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // Image and title
+        Stack(
+          children: [
+            Container(
+              height: 200,
+              decoration: BoxDecoration(
+                color: Colors.blueGrey[100],
+                borderRadius: const BorderRadius.vertical(
+                  top: Radius.circular(12),
                 ),
               ),
-              Positioned(
-                top: 12,
-                right: 12,
-                child: Icon(
-                  Icons.star,
-                  size: 24,
-                  color: index % 2 == 0 ? Colors.red : Colors.grey,
+              child: const Center(
+                child: Icon(Icons.image, size: 60, color: Colors.grey),
+              ),
+            ),
+            Positioned(
+              top: 12,
+              right: 12,
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: Colors.green,
+                  borderRadius: BorderRadius.circular(20),
                 ),
+                child: const Row(
+                  children: [
+                    Icon(Icons.verified, size: 16, color: Colors.white),
+                    SizedBox(width: 4),
+                    Text(
+                      'Secure',
+                      style: TextStyle(color: Colors.white, fontSize: 12),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
+
+        Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Title and bookmark
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    'Wish $index',
+                    style: const TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  const Icon(Icons.bookmark_border, color: Colors.grey),
+                ],
+              ),
+              const SizedBox(height: 8),
+
+              // User info
+              Row(
+                children: [
+                  const CircleAvatar(radius: 16, backgroundColor: Colors.grey),
+                  const SizedBox(width: 8),
+                  Text('User $index', style: const TextStyle(fontSize: 14)),
+                ],
+              ),
+              const SizedBox(height: 8),
+
+              // Tags
+              const Wrap(
+                spacing: 8,
+                children: [
+                  Chip(label: Text('Tag1', style: TextStyle(fontSize: 12))),
+                  Chip(label: Text('Tag2', style: TextStyle(fontSize: 12))),
+                ],
+              ),
+              const SizedBox(height: 8),
+
+              // Location and time
+              Row(
+                children: [
+                  const Icon(Icons.location_on, size: 16, color: Colors.grey),
+                  const SizedBox(width: 4),
+                  const Text('Location', style: TextStyle(fontSize: 12)),
+                  const Spacer(),
+                  const Icon(Icons.access_time, size: 16, color: Colors.grey),
+                  const SizedBox(width: 4),
+                  Text(
+                    '${index + 1}h ago',
+                    style: const TextStyle(fontSize: 12),
+                  ),
+                ],
               ),
             ],
           ),
-
-          Padding(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // Title and bookmark
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(
-                      'Experience $index',
-                      style: const TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                      ),
+        ),
+        // View Details button (placeholder for navigation)
+        Padding(
+          padding: const EdgeInsets.symmetric(vertical: 8),
+          child: SizedBox(
+            width: double.infinity,
+            child: ElevatedButton(
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => PlazaPostDetailScreen(
+                      title: 'Wish $index',
+                      displayName: 'User $index',
+                      timestamp: '${index + 1}h ago',
+                      description: 'Details for Wish $index',
                     ),
-                    const Icon(Icons.bookmark_border, color: Colors.grey),
-                  ],
-                ),
-                const SizedBox(height: 8),
-
-                // User info
-                Row(
-                  children: [
-                    const CircleAvatar(
-                      radius: 16,
-                      backgroundColor: Colors.grey,
-                    ),
-                    const SizedBox(width: 8),
-                    Text('User $index', style: const TextStyle(fontSize: 14)),
-                  ],
-                ),
-                const SizedBox(height: 8),
-
-                // Tags
-                const Wrap(
-                  spacing: 8,
-                  children: [
-                    Chip(
-                      label: Text('Experience', style: TextStyle(fontSize: 12)),
-                    ),
-                    Chip(label: Text('Fun', style: TextStyle(fontSize: 12))),
-                  ],
-                ),
-                const SizedBox(height: 8),
-
-                // Location and time
-                Row(
-                  children: [
-                    const Icon(Icons.location_on, size: 16, color: Colors.grey),
-                    const SizedBox(width: 4),
-                    const Text('Central Park', style: TextStyle(fontSize: 12)),
-                    const Spacer(),
-                    const Icon(Icons.access_time, size: 16, color: Colors.grey),
-                    const SizedBox(width: 4),
-                    Text(
-                      'Jun ${index + 10}',
-                      style: const TextStyle(fontSize: 12),
-                    ),
-                  ],
-                ),
-              ],
+                  ),
+                );
+              },
+              child: const Text('View Details'),
             ),
           ),
-        ],
-      ),
-    );
-  }
+        ),
+      ],
+    ),
+  );
+}
+
+Widget _buildExperienceCard(BuildContext context, int index) {
+  return Card(
+    elevation: 3,
+    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // Image and favorite star
+        Stack(
+          children: [
+            Container(
+              height: 200,
+              decoration: BoxDecoration(
+                color: Colors.blueGrey[100],
+                borderRadius: const BorderRadius.vertical(
+                  top: Radius.circular(12),
+                ),
+              ),
+              child: const Center(
+                child: Icon(Icons.image, size: 60, color: Colors.grey),
+              ),
+            ),
+            Positioned(
+              top: 12,
+              right: 12,
+              child: Icon(
+                Icons.star,
+                size: 24,
+                color: index % 2 == 0 ? Colors.red : Colors.grey,
+              ),
+            ),
+          ],
+        ),
+
+        Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Title and bookmark
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    'Experience $index',
+                    style: const TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  const Icon(Icons.bookmark_border, color: Colors.grey),
+                ],
+              ),
+              const SizedBox(height: 8),
+
+              // User info
+              Row(
+                children: [
+                  const CircleAvatar(radius: 16, backgroundColor: Colors.grey),
+                  const SizedBox(width: 8),
+                  Text('User $index', style: const TextStyle(fontSize: 14)),
+                ],
+              ),
+              const SizedBox(height: 8),
+
+              // Tags
+              const Wrap(
+                spacing: 8,
+                children: [
+                  Chip(
+                    label: Text('Experience', style: TextStyle(fontSize: 12)),
+                  ),
+                  Chip(label: Text('Fun', style: TextStyle(fontSize: 12))),
+                ],
+              ),
+              const SizedBox(height: 8),
+
+              // Location and time
+              Row(
+                children: [
+                  const Icon(Icons.location_on, size: 16, color: Colors.grey),
+                  const SizedBox(width: 4),
+                  const Text('Central Park', style: TextStyle(fontSize: 12)),
+                  const Spacer(),
+                  const Icon(Icons.access_time, size: 16, color: Colors.grey),
+                  const SizedBox(width: 4),
+                  Text(
+                    'Jun ${index + 10}',
+                    style: const TextStyle(fontSize: 12),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+        // View Details button (placeholder for navigation)
+        Padding(
+          padding: const EdgeInsets.symmetric(vertical: 8),
+          child: SizedBox(
+            width: double.infinity,
+            child: ElevatedButton(
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder:
+                        (context) => PlazaPostDetailScreen(
+                          title: 'Experience $index',
+                          displayName: 'User $index',
+                          timestamp: 'Jun ${index + 10}',
+                          description: 'Details for Experience $index',
+                        ),
+                  ),
+                );
+              },
+              child: const Text('View Details'),
+            ),
+          ),
+        ),
+      ],
+    ),
+  );
 }

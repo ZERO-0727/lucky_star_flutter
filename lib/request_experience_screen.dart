@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
 class RequestExperienceScreen extends StatefulWidget {
-  const RequestExperienceScreen({Key? key}) : super(key: key);
+  const RequestExperienceScreen({super.key});
 
   @override
   _RequestExperienceScreenState createState() =>
@@ -188,7 +188,7 @@ class _RequestExperienceScreenState extends State<RequestExperienceScreen> {
                           });
                         },
                         backgroundColor: Colors.grey[200],
-                        selectedColor: const Color(0xFF7153DF).withOpacity(0.2),
+                        selectedColor: const Color(0xFF7153DF).withAlpha(51),
                         checkmarkColor: const Color(0xFF7153DF),
                       );
                     }).toList(),

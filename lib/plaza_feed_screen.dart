@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'plaza_post_detail_screen.dart';
 
 class PlazaFeedScreen extends StatefulWidget {
   const PlazaFeedScreen({super.key});
@@ -140,7 +141,7 @@ class _PlazaFeedScreenState extends State<PlazaFeedScreen>
           ),
 
           // Action buttons
-          ButtonBar(
+          OverflowBar(
             alignment: MainAxisAlignment.spaceEvenly,
             children: [
               IconButton(
@@ -153,6 +154,31 @@ class _PlazaFeedScreenState extends State<PlazaFeedScreen>
               ),
               IconButton(icon: const Icon(Icons.share), onPressed: () {}),
             ],
+          ),
+          // View Details button (placeholder for navigation)
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            child: SizedBox(
+              width: double.infinity,
+              child: ElevatedButton(
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder:
+                          (context) => PlazaPostDetailScreen(
+                            title: 'Sample Post $index',
+                            displayName: 'User $index',
+                            timestamp: '2 hours ago',
+                            description:
+                                'This is a sample post caption. It can be longer and will be truncated if needed...',
+                          ),
+                    ),
+                  );
+                },
+                child: const Text('View Details'),
+              ),
+            ),
           ),
         ],
       ),
