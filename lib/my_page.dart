@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'widgets/avatar_placeholder.dart';
+import 'account_settings_page.dart';
 
 class MyPage extends StatefulWidget {
   const MyPage({super.key});
@@ -119,6 +120,19 @@ class _MyPageState extends State<MyPage> with SingleTickerProviderStateMixin {
         title: const Text('My Profile'),
         backgroundColor: Colors.white,
         elevation: 0,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.settings),
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const AccountSettingsPage(),
+                ),
+              );
+            },
+          ),
+        ],
       ),
       body: SafeArea(
         child: SingleChildScrollView(

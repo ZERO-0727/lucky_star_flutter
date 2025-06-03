@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'user_detail_page.dart';
 
 
 class UserPlazaScreen extends StatefulWidget {
@@ -121,7 +122,40 @@ class _UserPlazaScreenState extends State<UserPlazaScreen> {
       const Color(0xFFD7C1A9), // Medium brown
     ];
 
-    return Card(
+    return GestureDetector(
+      onTap: () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => UserDetailPage(
+              userId: 'user_$index',
+              displayName: 'User $index',
+              introduction: 'Hello from User $index. I love traveling and meeting new people!',
+              isWorldcoinVerified: index % 3 == 0,
+              isGovernmentIdVerified: index % 2 == 0,
+              referenceCount: index * 2 + 3,
+              interests: [
+                'Hiking',
+                'Photography',
+                if (index % 2 == 0) 'Food',
+                if (index % 3 == 0) 'Art',
+                if (index % 4 == 0) 'Music',
+              ],
+              experiencesCount: index * 3 + 5,
+              wishesFulfilledCount: index * 2 + 2,
+              visitedCountries: [
+                'Japan',
+                if (index % 2 == 0) 'United States',
+                if (index % 3 == 0) 'France',
+                if (index % 5 == 0) 'Italy',
+                if (index % 7 == 0) 'Australia',
+              ],
+              hasPublishedExperience: index % 2 == 0,
+            ),
+          ),
+        );
+      },
+      child: Card(
       elevation: 3,
       color: bgColors[index % bgColors.length],
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
@@ -245,7 +279,7 @@ class _UserPlazaScreenState extends State<UserPlazaScreen> {
           ],
         ),
       ),
-    );
+    ));
   }
 
   Widget _buildStatColumn(String label, String value) {
@@ -261,3 +295,4 @@ class _UserPlazaScreenState extends State<UserPlazaScreen> {
     );
   }
 }
+

@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<svg width="400" height="250" viewBox="0 0 400 250" xmlns="http://www.w3.org/2000/svg">
+  <!-- Simplified world map with basic country outlines -->
+  <g id="world-map">
+    <!-- North America -->
+    <path id="US" d="M 50,80 L 120,80 L 120,120 L 50,120 Z" />
+    <path id="CA" d="M 50,40 L 120,40 L 120,75 L 50,75 Z" />
+    <path id="MX" d="M 50,125 L 100,125 L 100,150 L 50,150 Z" />
+    
+    <!-- South America -->
+    <path id="BR" d="M 120,150 L 160,150 L 160,200 L 120,200 Z" />
+    <path id="AR" d="M 120,205 L 150,205 L 150,240 L 120,240 Z" />
+    
+    <!-- Europe -->
+    <path id="GB" d="M 200,60 L 210,60 L 210,70 L 200,70 Z" />
+    <path id="FR" d="M 210,75 L 230,75 L 230,90 L 210,90 Z" />
+    <path id="DE" d="M 230,60 L 250,60 L 250,75 L 230,75 Z" />
+    <path id="IT" d="M 230,95 L 245,95 L 245,115 L 230,115 Z" />
+    <path id="ES" d="M 190,95 L 215,95 L 215,115 L 190,115 Z" />
+    
+    <!-- Asia -->
+    <path id="RU" d="M 260,40 L 350,40 L 350,90 L 260,90 Z" />
+    <path id="CN" d="M 320,100 L 370,100 L 370,140 L 320,140 Z" />
+    <path id="JP" d="M 380,100 L 390,100 L 390,120 L 380,120 Z" />
+    <path id="IN" d="M 300,140 L 330,140 L 330,170 L 300,170 Z" />
+    
+    <!-- Oceania -->
+    <path id="AU" d="M 360,200 L 400,200 L 400,230 L 360,230 Z" />
+  </g>
+</svg>

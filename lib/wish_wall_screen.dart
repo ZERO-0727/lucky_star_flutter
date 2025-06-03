@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'plaza_post_detail_screen.dart';
+import 'search_page.dart';
 
 class WishWallScreen extends StatefulWidget {
   const WishWallScreen({super.key});
@@ -24,6 +25,17 @@ class _WishWallScreenState extends State<WishWallScreen>
     return Scaffold(
       appBar: AppBar(
         title: const Text('Wish Wall'),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.search),
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => const SearchPage()),
+              );
+            },
+          ),
+        ],
         bottom: TabBar(
           controller: _tabController,
           tabs: const [Tab(text: 'Wish Wall'), Tab(text: 'Share Experience')],

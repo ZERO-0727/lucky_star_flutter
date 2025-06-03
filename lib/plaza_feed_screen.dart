@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'plaza_post_detail_screen.dart';
 import 'create_plaza_post_page.dart';
+import 'search_page.dart';
 
 class PlazaFeedScreen extends StatefulWidget {
   const PlazaFeedScreen({super.key});
@@ -26,6 +27,17 @@ class _PlazaFeedScreenState extends State<PlazaFeedScreen>
       appBar: AppBar(
         title: const Text('Plaza Feed'),
         actions: [
+          // Search icon
+          IconButton(
+            icon: const Icon(Icons.search),
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => const SearchPage()),
+              );
+            },
+          ),
+          // Grid/List view toggle
           IconButton(
             icon: Icon(_isGridView ? Icons.view_list : Icons.grid_view),
             onPressed: () {

@@ -44,6 +44,7 @@ dependencies:
   cloud_firestore: ^5.6.8
   google_fonts: ^6.1.0
   intl: ^0.18.0
+  flutter_svg: ^2.1.0
 
 dev_dependencies:
   flutter_test:
@@ -67,9 +68,10 @@ flutter:
   # the material Icons class.
   uses-material-design: true
 
-  # To add assets to your application, add an assets section, like this:
+  # Assets
   assets:
     - assets/
+    - assets/svg/
     - .env
 
   # An image asset can refer to one or more resolution-specific "variants", see
