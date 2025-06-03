@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'widgets/avatar_placeholder.dart';
 import 'account_settings_page.dart';
+import 'language_selection_page.dart';
+import 'interest_editing_page.dart';
 
 class MyPage extends StatefulWidget {
   const MyPage({super.key});
@@ -144,7 +146,6 @@ class _MyPageState extends State<MyPage> with SingleTickerProviderStateMixin {
               _buildTabsSection(),
               _buildTagSection('Languages', _userData['languages']),
               _buildTagSection('Interests', _userData['interests']),
-              _buildTagSection('My Experiences', _userData['experiences']),
               const SizedBox(height: 30),
             ],
           ),
@@ -795,13 +796,55 @@ class _MyPageState extends State<MyPage> with SingleTickerProviderStateMixin {
   }
 
   void _showTagEditor(BuildContext context, String title, List<dynamic> tags) {
-    // This would be implemented to show a modal for editing tags
-    // For now, just show a snackbar indicating the feature
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('Edit $title feature coming soon!'),
-        duration: const Duration(seconds: 2),
-      ),
-    );
+    if (title == 'Languages') {
+      // Convert dynamic list to List<String>
+      final List<String> currentLanguages = tags.map((tag) => tag.toString()).toList();
+      
+      // Navigate to the language selection page
+      Navigator.push<List<String>>(
+        context,
+        MaterialPageRoute(
+          builder: (context) => LanguageSelectionPage(
+            selectedLanguages: currentLanguages,
+          ),
+        ),
+      ).then((selectedLanguages) {
+        // Update the languages when returning from the selection page
+        if (selectedLanguages != null) {
+          setState(() {
+            _userData['languages'] = selectedLanguages;
+          });
+        }
+      });
+    } else if (title == 'Interests') {
+      // Convert dynamic list to List<String>
+      final List<String> currentInterests = tags.map((tag) => tag.toString()).toList();
+      
+      // Navigate to the interest editing page
+      Navigator.push<List<String>>(
+        context,
+        MaterialPageRoute(
+          builder: (context) => InterestEditingPage(
+            selectedInterests: currentInterests,
+            maxSelections: 20,
+          ),
+        ),
+      ).then((selectedInterests) {
+        // Update the interests when returning from the editing page
+        if (selectedInterests != null) {
+          setState(() {
+            _userData['interests'] = selectedInterests;
+          });
+        }
+      });
+    } else {
+      // For other tag sections, show the placeholder message
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Edit $title feature coming soon!'),
+          duration: const Duration(seconds: 2),
+        ),
+      );
+    }
   }
 }
