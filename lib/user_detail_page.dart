@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'widgets/interactive_world_map.dart';
+import 'widgets/airbnb_world_map.dart';
 
 class UserDetailPage extends StatelessWidget {
   final String userId;
@@ -224,8 +225,6 @@ class UserDetailPage extends StatelessWidget {
                         ),
                         const SizedBox(height: 24),
 
-                        
-
                         // References
                         Row(
                           children: [
@@ -343,12 +342,12 @@ class UserDetailPage extends StatelessWidget {
                         const SizedBox(height: 16),
 
                         // World Map
-                        InteractiveWorldMap(
+                        AirbnbWorldMap(
                           visitedCountries: visitedCountries,
                           isEditable: false,
-                          onCountryToggled: (country, isVisited) {
-                            // This won't be called since isEditable is false
-                          },
+                          visitedColor: const Color(0xFF7153DF),
+                          unvisitedColor: Colors.grey.shade300,
+                          backgroundColor: Colors.blue.shade50,
                         ),
                         const SizedBox(height: 16),
 

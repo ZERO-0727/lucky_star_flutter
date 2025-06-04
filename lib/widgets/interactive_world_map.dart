@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart' as svg;
+import 'dart:ui' as ui;
 
 class InteractiveWorldMap extends StatefulWidget {
   final List<String> visitedCountries;
@@ -40,7 +41,7 @@ class _InteractiveWorldMapState extends State<InteractiveWorldMap> {
 
   // Map of country codes to SVG path data
   final Map<String, String> _countryPaths = {
-    // These are simplified path examples - in a real implementation, 
+    // These are simplified path examples - in a real implementation,
     // you would use actual country boundary paths
     'US': 'M 50,80 L 120,80 L 120,120 L 50,120 Z',
     'CA': 'M 50,40 L 120,40 L 120,75 L 50,75 Z',
@@ -71,20 +72,24 @@ class _InteractiveWorldMapState extends State<InteractiveWorldMap> {
       child: Stack(
         children: [
           // Ocean background
-          Container(
-            color: Colors.blue.shade100,
-          ),
-          
+          Container(color: Colors.blue.shade100),
+
           // Countries
           ..._countryPaths.entries.map((entry) {
             final countryCode = entry.key;
             final pathData = entry.value;
-            final isVisited = widget.visitedCountries.contains(_countryMap[countryCode]);
-            
+            final isVisited = widget.visitedCountries.contains(
+              _countryMap[countryCode],
+            );
+
             return GestureDetector(
-              onTap: widget.isEditable 
-                ? () => widget.onCountryToggled(_countryMap[countryCode]!, !isVisited)
-                : null,
+              onTap:
+                  widget.isEditable
+                      ? () => widget.onCountryToggled(
+                        _countryMap[countryCode]!,
+                        !isVisited,
+                      )
+                      : null,
               child: CustomPaint(
                 size: const Size(400, 250),
                 painter: CountryPainter(
@@ -95,7 +100,7 @@ class _InteractiveWorldMapState extends State<InteractiveWorldMap> {
               ),
             );
           }).toList(),
-          
+
           // Legend
           Positioned(
             bottom: 10,
@@ -117,18 +122,14 @@ class _InteractiveWorldMapState extends State<InteractiveWorldMap> {
                   const SizedBox(width: 4),
                   const Text('Visited'),
                   const SizedBox(width: 8),
-                  Container(
-                    width: 16,
-                    height: 16,
-                    color: Colors.grey.shade400,
-                  ),
+                  Container(width: 16, height: 16, color: Colors.grey.shade400),
                   const SizedBox(width: 4),
                   const Text('Not visited'),
                 ],
               ),
             ),
           ),
-          
+
           // Editable mode indicator
           if (widget.isEditable)
             Positioned(
@@ -163,48 +164,50 @@ class CountryPainter extends CustomPainter {
   final String pathData;
   final bool isVisited;
   final bool isEditable;
-  
+
   CountryPainter({
     required this.pathData,
     required this.isVisited,
     this.isEditable = false,
   });
-  
+
   @override
   void paint(Canvas canvas, Size size) {
     final path = parseSvgPathData(pathData);
-    
-    final paint = Paint()
-      ..color = isVisited ? const Color(0xFF7153DF) : Colors.grey.shade400
-      ..style = PaintingStyle.fill;
-    
+
+    final paint =
+        Paint()
+          ..color = isVisited ? const Color(0xFF7153DF) : Colors.grey.shade400
+          ..style = PaintingStyle.fill;
+
     canvas.drawPath(path, paint);
-    
+
     // Add border for editable mode
     if (isEditable) {
-      final borderPaint = Paint()
-        ..color = Colors.black.withOpacity(0.3)
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = 1;
-      
+      final borderPaint =
+          Paint()
+            ..color = Colors.black.withOpacity(0.3)
+            ..style = PaintingStyle.stroke
+            ..strokeWidth = 1;
+
       canvas.drawPath(path, borderPaint);
     }
   }
-  
+
   @override
   bool shouldRepaint(covariant CountryPainter oldDelegate) {
-    return oldDelegate.isVisited != isVisited || 
-           oldDelegate.isEditable != isEditable;
+    return oldDelegate.isVisited != isVisited ||
+        oldDelegate.isEditable != isEditable;
   }
-  
+
   // Simple SVG path parser
   Path parseSvgPathData(String pathData) {
     final path = Path();
     final commands = pathData.split(' ');
-    
+
     for (int i = 0; i < commands.length; i++) {
       final command = commands[i];
-      
+
       if (command == 'M') {
         final x = double.parse(commands[++i]);
         final y = double.parse(commands[++i]);
@@ -218,7 +221,7 @@ class CountryPainter extends CustomPainter {
       }
       // Add more path commands as needed (C, Q, etc.)
     }
-    
+
     return path;
   }
 }
@@ -260,7 +263,7 @@ class _WorldMapSvgState extends State<WorldMapSvg> {
     'IN': 'India',
     'AU': 'Australia',
   };
-  
+
   @override
   Widget build(BuildContext context) {
     return Container(
@@ -283,30 +286,32 @@ class _WorldMapSvgState extends State<WorldMapSvg> {
               BlendMode.srcIn,
             ),
           ),
-          
+
           // Clickable country overlays
           ..._countryMap.entries.map((entry) {
             final countryId = entry.key;
             final countryName = entry.value;
             final isVisited = widget.visitedCountries.contains(countryName);
-            
+
             return ClipPath(
               clipper: _CountryClipper(countryId),
               child: GestureDetector(
-                onTap: widget.isEditable 
-                  ? () => widget.onCountryToggled(countryName, !isVisited)
-                  : null,
+                onTap:
+                    widget.isEditable
+                        ? () => widget.onCountryToggled(countryName, !isVisited)
+                        : null,
                 child: Container(
-                  color: isVisited 
-                    ? const Color(0xFF7153DF) 
-                    : Colors.grey.shade400,
+                  color:
+                      isVisited
+                          ? const Color(0xFF7153DF)
+                          : Colors.grey.shade400,
                   width: double.infinity,
                   height: double.infinity,
                 ),
               ),
             );
           }).toList(),
-          
+
           // Legend
           Positioned(
             bottom: 10,
@@ -328,18 +333,14 @@ class _WorldMapSvgState extends State<WorldMapSvg> {
                   const SizedBox(width: 4),
                   const Text('Visited'),
                   const SizedBox(width: 8),
-                  Container(
-                    width: 16,
-                    height: 16,
-                    color: Colors.grey.shade400,
-                  ),
+                  Container(width: 16, height: 16, color: Colors.grey.shade400),
                   const SizedBox(width: 4),
                   const Text('Not visited'),
                 ],
               ),
             ),
           ),
-          
+
           // Edit mode indicator
           if (widget.isEditable)
             Positioned(
@@ -373,9 +374,9 @@ class _WorldMapSvgState extends State<WorldMapSvg> {
 // Custom clipper for each country based on SVG path
 class _CountryClipper extends CustomClipper<Path> {
   final String countryId;
-  
+
   _CountryClipper(this.countryId);
-  
+
   @override
   Path getClip(Size size) {
     // This would normally extract the path from the SVG
@@ -383,10 +384,10 @@ class _CountryClipper extends CustomClipper<Path> {
     final pathData = _getPathForCountry(countryId);
     return _parseSvgPathData(pathData, size);
   }
-  
+
   @override
   bool shouldReclip(CustomClipper<Path> oldClipper) => false;
-  
+
   String _getPathForCountry(String countryId) {
     // Simplified paths - in a real implementation, these would be extracted from the SVG
     final Map<String, String> _countryPaths = {
@@ -406,18 +407,18 @@ class _CountryClipper extends CustomClipper<Path> {
       'IN': 'M 300,140 L 330,140 L 330,170 L 300,170 Z',
       'AU': 'M 360,200 L 400,200 L 400,230 L 360,230 Z',
     };
-    
+
     return _countryPaths[countryId] ?? 'M 0,0 Z'; // Empty path if not found
   }
-  
+
   // Simple SVG path parser
   Path _parseSvgPathData(String pathData, Size size) {
     final path = Path();
     final commands = pathData.split(' ');
-    
+
     for (int i = 0; i < commands.length; i++) {
       final command = commands[i];
-      
+
       if (command == 'M') {
         final x = double.parse(commands[++i]);
         final y = double.parse(commands[++i]);
@@ -431,8 +432,7 @@ class _CountryClipper extends CustomClipper<Path> {
       }
       // Add more path commands as needed (C, Q, etc.)
     }
-    
+
     return path;
   }
 }
-

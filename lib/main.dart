@@ -60,12 +60,18 @@ class LuckyStarApp extends StatelessWidget {
           case '/plaza-post-detail':
             final args = settings.arguments as Map<String, dynamic>? ?? {};
             return MaterialPageRoute(
-              builder: (context) => PlazaPostDetailScreen(
-                title: args['title'] ?? 'Post Details',
-                displayName: args['displayName'] ?? 'Anonymous',
-                timestamp: args['timestamp'] ?? 'Just now',
-                description: args['description'] ?? 'No description provided',
-              ),
+              builder:
+                  (context) => PlazaPostDetailScreen(
+                    title: args['title'] ?? 'Post Details',
+                    displayName: args['displayName'] ?? 'Anonymous',
+                    timestamp: args['timestamp'] ?? 'Just now',
+                    description:
+                        args['description'] ?? 'No description provided',
+                  ),
+            );
+          case '/share-experiences':
+            return MaterialPageRoute(
+              builder: (context) => const WishWallScreen(initialTabIndex: 1),
             );
           default:
             return MaterialPageRoute(
@@ -95,18 +101,13 @@ class _MainNavigationState extends State<MainNavigation> {
     const HomeScreen(), // 🏠 Home Page
   ];
 
-  final List<String> _tabLabels = [
-    'Plaza',
-    'Wish Wall',
-    'User Plaza',
-    'Home'
-  ];
+  final List<String> _tabLabels = ['Plaza', 'Wish Wall', 'User Plaza', 'Home'];
 
   final List<IconData> _tabIcons = [
     Icons.explore,
     Icons.star,
     Icons.person,
-    Icons.home
+    Icons.home,
   ];
 
   @override

@@ -37,17 +37,11 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
         backgroundColor: const Color(0xFF7153DF),
         elevation: 0,
         actions: [
-          IconButton(
-            icon: const Icon(Icons.notifications),
-            onPressed: () {},
-          ),
+          IconButton(icon: const Icon(Icons.notifications), onPressed: () {}),
           IconButton(
             icon: const Icon(Icons.person),
             onPressed: () {
-              Navigator.pushNamed(
-                context,
-                '/my-page',
-              );
+              Navigator.pushNamed(context, '/my-page');
             },
           ),
         ],
@@ -62,7 +56,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
           // My LuckyStar horizontal list
           _buildLuckyStarAvatars(),
           const SizedBox(height: 20),
-          
+
           // Wishes Wall Preview
           _buildWishesWallPreview(),
           const SizedBox(height: 20),
@@ -105,10 +99,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
         const SizedBox(height: 8),
         Text(
           'Discover new experiences and connect with like-minded individuals',
-          style: GoogleFonts.poppins(
-            fontSize: 16,
-            color: Colors.grey[600],
-          ),
+          style: GoogleFonts.poppins(fontSize: 16, color: Colors.grey[600]),
         ),
       ],
     );
@@ -120,10 +111,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
       children: [
         Text(
           'My Connections',
-          style: GoogleFonts.poppins(
-            fontSize: 18,
-            fontWeight: FontWeight.bold,
-          ),
+          style: GoogleFonts.poppins(fontSize: 18, fontWeight: FontWeight.bold),
         ),
         const SizedBox(height: 12),
         SizedBox(
@@ -168,10 +156,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
             height: 80,
             decoration: BoxDecoration(
               shape: BoxShape.circle,
-              border: Border.all(
-                color: const Color(0xFF7153DF),
-                width: 2,
-              ),
+              border: Border.all(color: const Color(0xFF7153DF), width: 2),
               image: DecorationImage(
                 image: NetworkImage(imageUrl),
                 fit: BoxFit.cover,
@@ -188,10 +173,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
           ),
           Text(
             role,
-            style: GoogleFonts.poppins(
-              fontSize: 12,
-              color: Colors.grey[600],
-            ),
+            style: GoogleFonts.poppins(fontSize: 12, color: Colors.grey[600]),
           ),
         ],
       ),
@@ -202,9 +184,30 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
-          'Featured Experiences',
-          style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text(
+              'Featured Experiences',
+              style: GoogleFonts.poppins(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            TextButton(
+              onPressed: () {
+                Navigator.pushNamed(context, '/share-experiences');
+              },
+              child: Text(
+                'See All',
+                style: GoogleFonts.poppins(
+                  fontSize: 14,
+                  color: const Color(0xFF7153DF),
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+          ],
         ),
         const SizedBox(height: 12),
         SizedBox(
@@ -240,7 +243,13 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     );
   }
 
-  Widget _buildExperienceCard(String imageUrl, String title, String description, String location, int rsvps) {
+  Widget _buildExperienceCard(
+    String imageUrl,
+    String title,
+    String description,
+    String location,
+    int rsvps,
+  ) {
     return Container(
       width: 280,
       margin: const EdgeInsets.only(right: 16),
@@ -291,11 +300,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                 const SizedBox(height: 8),
                 Row(
                   children: [
-                    Icon(
-                      Icons.location_on,
-                      size: 16,
-                      color: Colors.grey[600],
-                    ),
+                    Icon(Icons.location_on, size: 16, color: Colors.grey[600]),
                     const SizedBox(width: 4),
                     Text(
                       location,
@@ -309,11 +314,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                 const SizedBox(height: 8),
                 Row(
                   children: [
-                    Icon(
-                      Icons.people,
-                      size: 16,
-                      color: Colors.grey[600],
-                    ),
+                    Icon(Icons.people, size: 16, color: Colors.grey[600]),
                     const SizedBox(width: 4),
                     Text(
                       '$rsvps RSVPs',
@@ -389,8 +390,6 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     );
   }
 
-
-  
   Widget _buildMyExchanges() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -406,7 +405,9 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
               onPressed: () {
                 Navigator.push(
                   context,
-                  MaterialPageRoute(builder: (context) => const MyPublishedExperiencesPage()),
+                  MaterialPageRoute(
+                    builder: (context) => const MyPublishedExperiencesPage(),
+                  ),
                 );
               },
               child: const Text(
@@ -481,7 +482,9 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
             onPressed: () {
               Navigator.push(
                 context,
-                MaterialPageRoute(builder: (context) => const TrustReputationPage()),
+                MaterialPageRoute(
+                  builder: (context) => const TrustReputationPage(),
+                ),
               );
             },
             style: ElevatedButton.styleFrom(
@@ -522,7 +525,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
       ),
     );
   }
-  
+
   Widget _buildWishesWallPreview() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -585,8 +588,14 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
       ],
     );
   }
-  
-  Widget _buildWishCard(String title, String description, String location, String date, int rsvpCount) {
+
+  Widget _buildWishCard(
+    String title,
+    String description,
+    String location,
+    String date,
+    int rsvpCount,
+  ) {
     return Container(
       width: 250,
       margin: const EdgeInsets.only(right: 16),
@@ -662,7 +671,11 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                 const SizedBox(height: 4),
                 Row(
                   children: [
-                    Icon(Icons.calendar_today, size: 14, color: Colors.grey[600]),
+                    Icon(
+                      Icons.calendar_today,
+                      size: 14,
+                      color: Colors.grey[600],
+                    ),
                     const SizedBox(width: 4),
                     Text(
                       date,

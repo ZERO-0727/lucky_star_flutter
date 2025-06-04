@@ -3,7 +3,9 @@ import 'plaza_post_detail_screen.dart';
 import 'search_page.dart';
 
 class WishWallScreen extends StatefulWidget {
-  const WishWallScreen({super.key});
+  final int initialTabIndex;
+
+  const WishWallScreen({super.key, this.initialTabIndex = 0});
 
   @override
   State<WishWallScreen> createState() => _WishWallScreenState();
@@ -17,7 +19,11 @@ class _WishWallScreenState extends State<WishWallScreen>
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 2, vsync: this);
+    _tabController = TabController(
+      length: 2,
+      vsync: this,
+      initialIndex: widget.initialTabIndex,
+    );
   }
 
   @override
@@ -249,12 +255,13 @@ Widget _buildWishCard(BuildContext context, int index) {
                 Navigator.push(
                   context,
                   MaterialPageRoute(
-                    builder: (context) => PlazaPostDetailScreen(
-                      title: 'Wish $index',
-                      displayName: 'User $index',
-                      timestamp: '${index + 1}h ago',
-                      description: 'Details for Wish $index',
-                    ),
+                    builder:
+                        (context) => PlazaPostDetailScreen(
+                          title: 'Wish $index',
+                          displayName: 'User $index',
+                          timestamp: '${index + 1}h ago',
+                          description: 'Details for Wish $index',
+                        ),
                   ),
                 );
               },
