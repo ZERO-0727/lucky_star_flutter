@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:firebase_core/firebase_core.dart';
+import 'firebase_options.dart';
 import 'home_screen.dart';
 import 'plaza_feed_screen.dart';
 import 'wish_wall_screen.dart';
@@ -9,21 +11,26 @@ import 'my_page.dart';
 import 'post_experience_screen.dart';
 import 'request_experience_screen.dart';
 import 'user_plaza_screen.dart';
+import 'firebase_test.dart';
 
-void main() {
-  initializeApp();
-}
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
 
-Future<void> initializeApp() async {
   try {
+    // Load environment variables
     await dotenv.load(fileName: ".env");
+
+    // Initialize Firebase
+    await Firebase.initializeApp(
+      options: DefaultFirebaseOptions.currentPlatform,
+    );
+
     runApp(const LuckyStarApp());
   } catch (e) {
+    print('Error initializing app: $e');
     runApp(
       MaterialApp(
-        home: Scaffold(
-          body: Center(child: Text('Error loading environment: $e')),
-        ),
+        home: Scaffold(body: Center(child: Text('Error initializing app: $e'))),
       ),
     );
   }
@@ -54,6 +61,7 @@ class LuckyStarApp extends StatelessWidget {
         '/plaza-post-detail': (context) => const PlazaPostDetailScreen(),
         '/my-page': (context) => const MyPage(),
         '/user-plaza': (context) => const UserPlazaScreen(),
+        '/firebase-test': (context) => const FirebaseTestScreen(),
       },
       onGenerateRoute: (settings) {
         switch (settings.name) {

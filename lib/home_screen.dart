@@ -504,21 +504,40 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
         color: Colors.grey[100],
         borderRadius: BorderRadius.circular(12),
       ),
-      child: const Column(
+      child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
+          const Text(
             'Upcoming Event',
             style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
           ),
-          SizedBox(height: 8),
-          ListTile(
+          const SizedBox(height: 8),
+          const ListTile(
             leading: Icon(Icons.event, color: Color(0xFF7153DF)),
             title: Text('Music Festival'),
             subtitle: Text('Central Park • June 15, 2025'),
             trailing: Chip(
               label: Text('Confirmed', style: TextStyle(color: Colors.white)),
               backgroundColor: Colors.green,
+            ),
+          ),
+          const SizedBox(height: 16),
+          // Firebase Test Button
+          Center(
+            child: ElevatedButton.icon(
+              onPressed: () {
+                Navigator.pushNamed(context, '/firebase-test');
+              },
+              icon: const Icon(Icons.storage),
+              label: const Text('Test Firebase Connection'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF7153DF),
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 12,
+                ),
+              ),
             ),
           ),
         ],
