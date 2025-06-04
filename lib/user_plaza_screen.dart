@@ -1,95 +1,135 @@
 import 'package:flutter/material.dart';
 import 'user_detail_page.dart';
 
-
 class UserPlazaScreen extends StatefulWidget {
-  const UserPlazaScreen({super.key});
+  const UserPlazaScreen({Key? key}) : super(key: key);
 
   @override
   State<UserPlazaScreen> createState() => _UserPlazaScreenState();
 }
 
 class _UserPlazaScreenState extends State<UserPlazaScreen> {
-  String _selectedFilter1 = 'All';
-  String _selectedFilter2 = 'Open to Exchange';
-
-  final List<String> _filterOptions1 = [
-    'All',
-    'Verified',
-    'Pro Users',
-    'Recent',
-  ];
-  final List<String> _filterOptions2 = [
+  final List<String> _mainFilters = ['All', 'Verified', 'Pro Users', 'Recent'];
+  final List<String> _statusFilters = [
     'Open to Exchange',
     'By Request Only',
     'Unavailable',
   ];
+  int _selectedMainFilter = 0;
+  int _selectedStatusFilter = 0;
+  String _search = '';
+
+  final List<Map<String, dynamic>> _users = List.generate(
+    10,
+    (i) => {
+      'username': 'User $i',
+      'avatar': null,
+      'status': i % 3 == 0 ? 'Pro' : (i % 3 == 1 ? 'Limited' : 'Unavailable'),
+      'location': 'Location $i',
+      'stats': {
+        'experiences': 5 + i % 7,
+        'wishes': 2 + i % 5,
+        'response': 88 + i % 13,
+      },
+      'languages': [
+        'English',
+        if (i % 2 == 0) 'Japanese',
+        if (i % 3 == 0) 'Photography',
+      ],
+    },
+  );
+
+  List<Map<String, dynamic>> get _filteredUsers {
+    var filtered =
+        _users
+            .where(
+              (u) =>
+                  u['username'].toLowerCase().contains(_search.toLowerCase()),
+            )
+            .toList();
+    // Add more filter logic here if needed
+    return filtered;
+  }
+
+  Color _getStatusColor(String status) {
+    switch (status) {
+      case 'Pro':
+        return const Color(0xFF7153DF); // Purple for Pro
+      case 'Available':
+        return const Color(0xFF4CAF50); // Green for Available
+      case 'Limited':
+        return const Color(0xFFFFA726); // Orange for Limited
+      case 'Unavailable':
+        return const Color(0xFFE57373); // Red for Unavailable
+      default:
+        return Colors.grey;
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('User Plaza'),
-      ),
+      appBar: AppBar(title: const Text('User Plaza'), centerTitle: true),
       body: Column(
         children: [
-          // Top filter row 1
-          SizedBox(
-            height: 50,
-            child: ListView.builder(
-              scrollDirection: Axis.horizontal,
-              itemCount: _filterOptions1.length,
-              itemBuilder: (context, index) {
-                final option = _filterOptions1[index];
-                return Padding(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 4,
-                    vertical: 8,
-                  ),
+          const SizedBox(height: 8),
+          // Main Filters
+          SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            padding: const EdgeInsets.symmetric(horizontal: 12),
+            child: Row(
+              children: List.generate(
+                _mainFilters.length,
+                (idx) => Padding(
+                  padding: const EdgeInsets.only(right: 8),
                   child: ChoiceChip(
-                    label: Text(option),
-                    selected: _selectedFilter1 == option,
-                    onSelected: (selected) {
-                      setState(() {
-                        _selectedFilter1 = option;
-                      });
-                    },
+                    label: Text(_mainFilters[idx]),
+                    selected: _selectedMainFilter == idx,
+                    onSelected:
+                        (_) => setState(() => _selectedMainFilter = idx),
+                    selectedColor: const Color(0xFF7153DF),
+                    labelStyle: TextStyle(
+                      color:
+                          _selectedMainFilter == idx
+                              ? Colors.white
+                              : Colors.black87,
+                    ),
                   ),
-                );
-              },
+                ),
+              ),
             ),
           ),
-
-          // Top filter row 2
-          SizedBox(
-            height: 50,
-            child: ListView.builder(
-              scrollDirection: Axis.horizontal,
-              itemCount: _filterOptions2.length,
-              itemBuilder: (context, index) {
-                final option = _filterOptions2[index];
-                return Padding(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 4,
-                    vertical: 8,
-                  ),
+          const SizedBox(height: 8),
+          // Status Filters
+          SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            padding: const EdgeInsets.symmetric(horizontal: 12),
+            child: Row(
+              children: List.generate(
+                _statusFilters.length,
+                (idx) => Padding(
+                  padding: const EdgeInsets.only(right: 8),
                   child: ChoiceChip(
-                    label: Text(option),
-                    selected: _selectedFilter2 == option,
-                    onSelected: (selected) {
-                      setState(() {
-                        _selectedFilter2 = option;
-                      });
-                    },
+                    label: Text(_statusFilters[idx]),
+                    selected: _selectedStatusFilter == idx,
+                    onSelected:
+                        (_) => setState(() => _selectedStatusFilter = idx),
+                    selectedColor: Colors.grey[800],
+                    labelStyle: TextStyle(
+                      color:
+                          _selectedStatusFilter == idx
+                              ? Colors.white
+                              : Colors.black87,
+                    ),
                   ),
-                );
-              },
+                ),
+              ),
             ),
           ),
-
-          // Search bar
+          const SizedBox(height: 12),
+          // Search Bar
           Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            padding: const EdgeInsets.symmetric(horizontal: 16),
             child: TextField(
               decoration: InputDecoration(
                 hintText: 'Search users...',
@@ -97,202 +137,255 @@ class _UserPlazaScreenState extends State<UserPlazaScreen> {
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(30),
                 ),
+                contentPadding: const EdgeInsets.symmetric(vertical: 0),
               ),
+              onChanged: (v) => setState(() => _search = v),
             ),
           ),
-
-          // User cards
+          const SizedBox(height: 12),
+          // User Cards
           Expanded(
             child: ListView.builder(
-              padding: const EdgeInsets.all(16),
-              itemCount: 10, // Dummy data
-              itemBuilder: (context, index) => _buildUserCard(index),
+              padding: const EdgeInsets.symmetric(horizontal: 12),
+              itemCount: _filteredUsers.length,
+              itemBuilder: (context, idx) {
+                final user = _filteredUsers[idx];
+                final statusColor = _getStatusColor(user['status']);
+                final statusText = user['status'];
+
+                return GestureDetector(
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder:
+                            (context) => UserDetailPage(
+                              userId: user['username'],
+                              displayName: user['username'],
+                            ),
+                      ),
+                    );
+                  },
+                  child: Card(
+                    margin: const EdgeInsets.only(bottom: 14),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                    color: const Color(
+                      0xFFFFF8E1,
+                    ), // Light cream background for cards
+                    child: Stack(
+                      children: [
+                        // Main content
+                        Padding(
+                          padding: const EdgeInsets.all(16.0),
+                          child: Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              // Avatar
+                              CircleAvatar(
+                                radius: 30,
+                                backgroundColor: Colors.grey[300],
+                                child: Icon(
+                                  Icons.person,
+                                  color: Colors.grey[700],
+                                  size: 36,
+                                ),
+                              ),
+                              const SizedBox(width: 16),
+                              // User info
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    // Username and status label
+                                    Row(
+                                      children: [
+                                        Text(
+                                          user['username'],
+                                          style: const TextStyle(
+                                            fontSize: 18,
+                                            fontWeight: FontWeight.bold,
+                                          ),
+                                        ),
+                                        const SizedBox(width: 8),
+                                        if (user['status'] == 'Pro')
+                                          Container(
+                                            padding: const EdgeInsets.symmetric(
+                                              horizontal: 8,
+                                              vertical: 2,
+                                            ),
+                                            decoration: BoxDecoration(
+                                              color: const Color(0xFF7153DF),
+                                              borderRadius:
+                                                  BorderRadius.circular(12),
+                                            ),
+                                            child: const Text(
+                                              'Pro',
+                                              style: TextStyle(
+                                                fontSize: 12,
+                                                color: Colors.white,
+                                                fontWeight: FontWeight.bold,
+                                              ),
+                                            ),
+                                          ),
+                                      ],
+                                    ),
+                                    const SizedBox(height: 4),
+                                    // Location
+                                    Row(
+                                      children: [
+                                        const Icon(
+                                          Icons.location_on,
+                                          size: 16,
+                                          color: Colors.grey,
+                                        ),
+                                        const SizedBox(width: 4),
+                                        Text(
+                                          user['location'],
+                                          style: const TextStyle(
+                                            color: Colors.grey,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                    const SizedBox(height: 16),
+                                    // Stats
+                                    Row(
+                                      mainAxisAlignment:
+                                          MainAxisAlignment.spaceBetween,
+                                      children: [
+                                        // Experiences
+                                        Column(
+                                          children: [
+                                            Text(
+                                              '${user['stats']['experiences']}',
+                                              style: const TextStyle(
+                                                fontSize: 20,
+                                                fontWeight: FontWeight.bold,
+                                              ),
+                                            ),
+                                            const Text(
+                                              'Experiences',
+                                              style: TextStyle(
+                                                fontSize: 12,
+                                                color: Colors.grey,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                        // Wishes Fulfilled
+                                        Column(
+                                          children: [
+                                            Text(
+                                              '${user['stats']['wishes']}',
+                                              style: const TextStyle(
+                                                fontSize: 20,
+                                                fontWeight: FontWeight.bold,
+                                              ),
+                                            ),
+                                            const Text(
+                                              'Wishes Fulfilled',
+                                              style: TextStyle(
+                                                fontSize: 12,
+                                                color: Colors.grey,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                        // Response Rate
+                                        Column(
+                                          children: [
+                                            Text(
+                                              '${user['stats']['response']}%',
+                                              style: const TextStyle(
+                                                fontSize: 20,
+                                                fontWeight: FontWeight.bold,
+                                              ),
+                                            ),
+                                            const Text(
+                                              'Response Rate',
+                                              style: TextStyle(
+                                                fontSize: 12,
+                                                color: Colors.grey,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ],
+                                    ),
+                                    const SizedBox(height: 12),
+                                    // Language tags
+                                    Wrap(
+                                      spacing: 6,
+                                      runSpacing: 6,
+                                      children: List.generate(
+                                        user['languages'].length,
+                                        (langIdx) => Container(
+                                          padding: const EdgeInsets.symmetric(
+                                            horizontal: 12,
+                                            vertical: 6,
+                                          ),
+                                          decoration: BoxDecoration(
+                                            color: Colors.white,
+                                            borderRadius: BorderRadius.circular(
+                                              16,
+                                            ),
+                                            border: Border.all(
+                                              color: const Color(0xFFE0E0E0),
+                                            ),
+                                          ),
+                                          child: Text(
+                                            user['languages'][langIdx],
+                                            style: const TextStyle(
+                                              fontSize: 13,
+                                              color: Color(0xFF7153DF),
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        // Status badge in top right corner
+                        Positioned(
+                          top: 0,
+                          right: 0,
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 12,
+                              vertical: 6,
+                            ),
+                            decoration: BoxDecoration(
+                              color: statusColor,
+                              borderRadius: const BorderRadius.only(
+                                topRight: Radius.circular(16),
+                                bottomLeft: Radius.circular(16),
+                              ),
+                            ),
+                            child: Text(
+                              statusText,
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 12,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                );
+              },
             ),
           ),
         ],
       ),
     );
   }
-
-  Widget _buildUserCard(int index) {
-    // Generate coffee-style background colors
-    final bgColors = [
-      const Color(0xFFF8E9D7), // Light beige
-      const Color(0xFFE6D3C4), // Tan
-      const Color(0xFFD7C1A9), // Medium brown
-    ];
-
-    return GestureDetector(
-      onTap: () {
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (context) => UserDetailPage(
-              userId: 'user_$index',
-              displayName: 'User $index',
-              introduction: 'Hello from User $index. I love traveling and meeting new people!',
-              isWorldcoinVerified: index % 3 == 0,
-              isGovernmentIdVerified: index % 2 == 0,
-              referenceCount: index * 2 + 3,
-              interests: [
-                'Hiking',
-                'Photography',
-                if (index % 2 == 0) 'Food',
-                if (index % 3 == 0) 'Art',
-                if (index % 4 == 0) 'Music',
-              ],
-              experiencesCount: index * 3 + 5,
-              wishesFulfilledCount: index * 2 + 2,
-              visitedCountries: [
-                'Japan',
-                if (index % 2 == 0) 'United States',
-                if (index % 3 == 0) 'France',
-                if (index % 5 == 0) 'Italy',
-                if (index % 7 == 0) 'Australia',
-              ],
-              hasPublishedExperience: index % 2 == 0,
-            ),
-          ),
-        );
-      },
-      child: Card(
-      elevation: 3,
-      color: bgColors[index % bgColors.length],
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Top row: Avatar, name, pro badge, availability
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const CircleAvatar(
-                  radius: 30,
-                  backgroundColor: Colors.grey,
-                  child: Icon(Icons.person, size: 30, color: Colors.white),
-                ),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        children: [
-                          Text(
-                            'User $index',
-                            style: const TextStyle(
-                              fontSize: 18,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                          if (index % 3 == 0) ...[
-                            const SizedBox(width: 8),
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 8,
-                                vertical: 2,
-                              ),
-                              decoration: BoxDecoration(
-                                color: const Color(0xFF7153DF),
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                              child: const Row(
-                                children: [
-                                  Icon(
-                                    Icons.diamond,
-                                    size: 14,
-                                    color: Colors.white,
-                                  ),
-                                  SizedBox(width: 4),
-                                  Text(
-                                    'Pro',
-                                    style: TextStyle(
-                                      color: Colors.white,
-                                      fontSize: 12,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ],
-                        ],
-                      ),
-                      const SizedBox(height: 4),
-                      Row(
-                        children: [
-                          const Icon(Icons.location_on, size: 14),
-                          const SizedBox(width: 4),
-                          Text(
-                            'Location $index',
-                            style: const TextStyle(fontSize: 14),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                ),
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 8,
-                    vertical: 4,
-                  ),
-                  decoration: BoxDecoration(
-                    color:
-                        index % 3 == 0
-                            ? Colors.green
-                            : (index % 3 == 1 ? Colors.orange : Colors.red),
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                  child: Text(
-                    index % 3 == 0
-                        ? 'Available'
-                        : (index % 3 == 1 ? 'Limited' : 'Unavailable'),
-                    style: const TextStyle(color: Colors.white, fontSize: 12),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 16),
-
-            // Stats row
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceAround,
-              children: [
-                _buildStatColumn('Experiences', '${index * 3 + 5}'),
-                _buildStatColumn('Wishes Fulfilled', '${index * 2 + 2}'),
-                _buildStatColumn('Response Rate', '${90 - index}%'),
-              ],
-            ),
-            const SizedBox(height: 16),
-
-            // Tags
-            const Wrap(
-              spacing: 8,
-              children: [
-                Chip(label: Text('English')),
-                Chip(label: Text('Japanese')),
-                Chip(label: Text('Photography')),
-              ],
-            ),
-          ],
-        ),
-      ),
-    ));
-  }
-
-  Widget _buildStatColumn(String label, String value) {
-    return Column(
-      children: [
-        Text(
-          value,
-          style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-        ),
-        const SizedBox(height: 4),
-        Text(label, style: const TextStyle(fontSize: 12)),
-      ],
-    );
-  }
 }
-

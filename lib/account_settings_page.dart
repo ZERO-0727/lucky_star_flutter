@@ -1,4 +1,7 @@
 import 'package:flutter/material.dart';
+import 'feedback_page.dart';
+import 'donation_page.dart';
+import 'user_verification_page.dart';
 
 class AccountSettingsPage extends StatefulWidget {
   const AccountSettingsPage({super.key});
@@ -291,12 +294,26 @@ class _AccountSettingsPageState extends State<AccountSettingsPage> {
             ),
             const Divider(),
             _buildSettingsItem(
+              icon: Icons.verified_user,
+              title: 'Verify Identity',
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => const UserVerificationPage(),
+                  ),
+                );
+              },
+            ),
+            _buildSettingsItem(
               icon: Icons.feedback,
               title: 'Feedback',
               onTap: () {
-                // Navigate to feedback page
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Feedback page coming soon')),
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => const FeedbackPage(),
+                  ),
                 );
               },
             ),
@@ -327,9 +344,11 @@ class _AccountSettingsPageState extends State<AccountSettingsPage> {
               icon: Icons.favorite,
               title: 'Support Lucky Star',
               onTap: () {
-                // Navigate to support page
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Support page coming soon')),
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => const DonationPage(),
+                  ),
                 );
               },
             ),
