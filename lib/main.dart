@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'firebase_options.dart';
 import 'home_screen.dart';
 import 'plaza_feed_screen.dart';
@@ -12,25 +14,83 @@ import 'post_experience_screen.dart';
 import 'request_experience_screen.dart';
 import 'user_plaza_screen.dart';
 import 'firebase_test.dart';
+import 'firebase_auth_debug.dart';
+import 'screens/auth/auth_wrapper.dart';
+import 'screens/auth/profile_screen.dart';
+import 'services/auth_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
   try {
+    print('Starting app initialization...');
+
     // Load environment variables
-    await dotenv.load(fileName: ".env");
+    print('Loading environment variables...');
+    try {
+      await dotenv.load(fileName: ".env");
+      print('Environment variables loaded successfully');
+    } catch (envError) {
+      print('WARNING: Error loading environment variables: $envError');
+      print('Continuing without environment variables');
+      // Continue without env variables - they might not be critical
+    }
 
-    // Initialize Firebase
-    await Firebase.initializeApp(
-      options: DefaultFirebaseOptions.currentPlatform,
-    );
+    // Initialize Firebase with detailed error handling
+    print('Initializing Firebase...');
+    try {
+      final FirebaseApp app = await Firebase.initializeApp(
+        options: DefaultFirebaseOptions.currentPlatform,
+      );
+      print('Firebase initialized successfully');
+      print('Firebase App name: ${app.name}');
+      print('Firebase options: ${app.options.projectId}');
 
+      // Verify Firebase Auth is working
+      print('Verifying Firebase Auth...');
+      final auth = FirebaseAuth.instance;
+      print('Firebase Auth instance created: ${auth.app.name}');
+
+      // Verify Firestore is working
+      print('Verifying Firestore...');
+      final firestore = FirebaseFirestore.instance;
+      print('Firestore instance created: ${firestore.app.name}');
+    } catch (firebaseError) {
+      print('CRITICAL ERROR: Firebase initialization failed: $firebaseError');
+      throw Exception('Firebase initialization failed: $firebaseError');
+    }
+
+    print('App initialization completed successfully');
     runApp(const LuckyStarApp());
-  } catch (e) {
-    print('Error initializing app: $e');
+  } catch (e, stack) {
+    print('FATAL ERROR initializing app: $e');
+    print('Stack trace: $stack');
     runApp(
       MaterialApp(
-        home: Scaffold(body: Center(child: Text('Error initializing app: $e'))),
+        home: Scaffold(
+          body: Center(
+            child: Padding(
+              padding: const EdgeInsets.all(20.0),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Icon(Icons.error_outline, color: Colors.red, size: 60),
+                  const SizedBox(height: 20),
+                  const Text(
+                    'App Initialization Error',
+                    style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+                  ),
+                  const SizedBox(height: 10),
+                  Text(
+                    'Error details: $e',
+                    style: const TextStyle(fontSize: 16),
+                    textAlign: TextAlign.center,
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
       ),
     );
   }
@@ -51,17 +111,19 @@ class LuckyStarApp extends StatelessWidget {
           secondary: const Color(0xFFF8F5F0), // Soft Gray
         ),
       ),
-      home: const MainNavigation(),
+      home: const AuthWrapper(),
       routes: {
-        '/home': (context) => const HomeScreen(),
+        '/home': (context) => const MainNavigation(),
         '/wish-wall': (context) => const WishWallScreen(),
         '/post-experience': (context) => const PostExperienceScreen(),
         '/request-experience': (context) => const RequestExperienceScreen(),
         '/edit-profile': (context) => const EditProfileScreen(),
-        '/plaza-post-detail': (context) => const PlazaPostDetailScreen(),
         '/my-page': (context) => const MyPage(),
         '/user-plaza': (context) => const UserPlazaScreen(),
         '/firebase-test': (context) => const FirebaseTestScreen(),
+        '/firebase-auth-debug': (context) => const FirebaseAuthDebugScreen(),
+        '/login': (context) => const AuthWrapper(),
+        '/profile': (context) => const ProfileScreen(),
       },
       onGenerateRoute: (settings) {
         switch (settings.name) {

@@ -38,11 +38,37 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
         elevation: 0,
         actions: [
           IconButton(icon: const Icon(Icons.notifications), onPressed: () {}),
-          IconButton(
+          PopupMenuButton<String>(
             icon: const Icon(Icons.person),
-            onPressed: () {
-              Navigator.pushNamed(context, '/my-page');
+            onSelected: (value) {
+              switch (value) {
+                case 'profile':
+                  Navigator.pushNamed(context, '/profile');
+                  break;
+                case 'my_page':
+                  Navigator.pushNamed(context, '/my-page');
+                  break;
+              }
             },
+            itemBuilder:
+                (BuildContext context) => <PopupMenuEntry<String>>[
+                  const PopupMenuItem<String>(
+                    value: 'profile',
+                    child: ListTile(
+                      leading: Icon(Icons.account_circle),
+                      title: Text('Profile'),
+                      contentPadding: EdgeInsets.zero,
+                    ),
+                  ),
+                  const PopupMenuItem<String>(
+                    value: 'my_page',
+                    child: ListTile(
+                      leading: Icon(Icons.dashboard),
+                      title: Text('My Page'),
+                      contentPadding: EdgeInsets.zero,
+                    ),
+                  ),
+                ],
           ),
         ],
       ),
@@ -524,20 +550,40 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
           const SizedBox(height: 16),
           // Firebase Test Button
           Center(
-            child: ElevatedButton.icon(
-              onPressed: () {
-                Navigator.pushNamed(context, '/firebase-test');
-              },
-              icon: const Icon(Icons.storage),
-              label: const Text('Test Firebase Connection'),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF7153DF),
-                foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: 12,
+            child: Column(
+              children: [
+                ElevatedButton.icon(
+                  onPressed: () {
+                    Navigator.pushNamed(context, '/firebase-test');
+                  },
+                  icon: const Icon(Icons.storage),
+                  label: const Text('Test Firebase Connection'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF7153DF),
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 12,
+                    ),
+                  ),
                 ),
-              ),
+                const SizedBox(height: 10),
+                ElevatedButton.icon(
+                  onPressed: () {
+                    Navigator.pushNamed(context, '/firebase-auth-debug');
+                  },
+                  icon: const Icon(Icons.bug_report),
+                  label: const Text('Firebase Auth Debug'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.orange,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 12,
+                    ),
+                  ),
+                ),
+              ],
             ),
           ),
         ],
