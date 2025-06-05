@@ -3,6 +3,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'my_wishes_page.dart';
 import 'my_published_experiences_page.dart';
 import 'trust_reputation_page.dart';
+import 'screens/auth/account_management_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -48,6 +49,14 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                 case 'my_page':
                   Navigator.pushNamed(context, '/my-page');
                   break;
+                case 'account_settings':
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => const AccountManagementScreen(),
+                    ),
+                  );
+                  break;
               }
             },
             itemBuilder:
@@ -65,6 +74,14 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                     child: ListTile(
                       leading: Icon(Icons.dashboard),
                       title: Text('My Page'),
+                      contentPadding: EdgeInsets.zero,
+                    ),
+                  ),
+                  const PopupMenuItem<String>(
+                    value: 'account_settings',
+                    child: ListTile(
+                      leading: Icon(Icons.settings),
+                      title: Text('Account Settings'),
                       contentPadding: EdgeInsets.zero,
                     ),
                   ),

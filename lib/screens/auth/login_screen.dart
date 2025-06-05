@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../../services/auth_service.dart';
+import 'forgot_password_screen.dart';
 
 class LoginScreen extends StatefulWidget {
   final VoidCallback onSignUpPressed;
@@ -64,58 +65,104 @@ class _LoginScreenState extends State<LoginScreen> {
 
         // Check if email is verified using the fresh user object
         if (freshUser != null && !freshUser.emailVerified) {
-          // Email is not verified, show a message and don't navigate
+          print('LOGIN: Email is NOT verified, blocking access');
+
+          // Sign out the user since they're not verified
+          await _authService.signOut();
+          print('LOGIN: Signed out unverified user');
+
+          // Email is not verified, show SnackBar and reset loading state
           if (mounted) {
             setState(() {
               _isLoading = false;
-              _errorMessage =
-                  'Please verify your email before signing in. Check your inbox for a verification link.';
+              _errorMessage = null;
             });
 
-            // Offer to resend verification email
-            showDialog(
-              context: context,
-              builder:
-                  (context) => AlertDialog(
-                    title: const Text('Email Not Verified'),
-                    content: const Text(
-                      'Your email has not been verified yet. Please check your inbox for a verification link.',
-                    ),
-                    actions: [
-                      TextButton(
-                        onPressed: () {
-                          Navigator.of(context).pop();
-                        },
-                        child: const Text('OK'),
-                      ),
-                      TextButton(
-                        onPressed: () async {
-                          Navigator.of(context).pop();
-                          try {
-                            await userCredential.user!.sendEmailVerification();
-                            if (mounted) {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(
-                                  content: Text('Verification email sent!'),
-                                  backgroundColor: Colors.green,
-                                ),
-                              );
-                            }
-                          } catch (e) {
-                            if (mounted) {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(
-                                  content: Text('Error sending email: $e'),
-                                  backgroundColor: Colors.red,
-                                ),
-                              );
-                            }
-                          }
-                        },
-                        child: const Text('Resend Email'),
-                      ),
-                    ],
-                  ),
+            // Show SnackBar with verification message
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: const Text(
+                  'Your email is not verified. Please check your inbox.',
+                ),
+                backgroundColor: Colors.orange,
+                duration: const Duration(seconds: 5),
+                behavior: SnackBarBehavior.floating,
+                margin: const EdgeInsets.all(16),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                action: SnackBarAction(
+                  label: 'Resend',
+                  textColor: Colors.white,
+                  onPressed: () async {
+                    setState(() {
+                      _isLoading = true;
+                    });
+
+                    try {
+                      // Since we signed out the user, we need to sign in again to send verification
+                      final tempCredential = await _authService
+                          .signInWithEmailAndPassword(
+                            email: email,
+                            password: password,
+                          );
+
+                      // Use our improved verification method
+                      await _authService.sendVerificationEmailWithRateLimiting(
+                        tempCredential.user!,
+                      );
+
+                      // Sign out again after sending verification
+                      await _authService.signOut();
+
+                      if (mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: const Text(
+                              'Verification email sent! Please check your inbox and spam folder.',
+                            ),
+                            backgroundColor: Colors.green,
+                            duration: const Duration(seconds: 5),
+                            behavior: SnackBarBehavior.floating,
+                            margin: const EdgeInsets.all(16),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                          ),
+                        );
+                      }
+                    } catch (e) {
+                      print('Error resending verification email: $e');
+                      if (mounted) {
+                        String errorMsg = e.toString();
+                        if (errorMsg.contains('Exception:')) {
+                          errorMsg =
+                              errorMsg.replaceAll('Exception:', '').trim();
+                        }
+
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text(errorMsg),
+                            backgroundColor: Colors.orange,
+                            duration: const Duration(seconds: 5),
+                            behavior: SnackBarBehavior.floating,
+                            margin: const EdgeInsets.all(16),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                          ),
+                        );
+                      }
+                    } finally {
+                      if (mounted) {
+                        setState(() {
+                          _isLoading = false;
+                        });
+                      }
+                    }
+                  },
+                ),
+              ),
             );
           }
           return;
@@ -126,11 +173,13 @@ class _LoginScreenState extends State<LoginScreen> {
           _isLoading = false;
         });
 
-        // Email is verified, navigate to home screen
-        print('LOGIN: Email is verified, navigating to home screen');
-        if (mounted) {
-          Navigator.of(context).pushReplacementNamed('/home');
-        }
+        // Let AuthWrapper handle navigation based on verification status
+        print(
+          'LOGIN: Authentication successful - letting AuthWrapper handle verification and navigation',
+        );
+
+        // The AuthWrapper will automatically detect this auth state change
+        // and check for email verification status before navigating
       } else {
         // User is null after sign-in (shouldn't happen, but handle it)
         print('LOGIN ERROR: User is null after successful sign-in');
@@ -139,14 +188,88 @@ class _LoginScreenState extends State<LoginScreen> {
           _errorMessage = 'Authentication error: User is null after sign-in';
         });
       }
+    } on FirebaseAuthException catch (e) {
+      print('LOGIN ERROR: FirebaseAuthException: ${e.code}');
+      print('LOGIN ERROR: Message: ${e.message}');
+
+      setState(() {
+        _isLoading = false;
+        _errorMessage = null;
+      });
+
+      // Show user-friendly error messages via SnackBar
+      String errorMessage;
+      Color backgroundColor;
+
+      switch (e.code) {
+        case 'user-not-found':
+        case 'wrong-password':
+        case 'invalid-credential':
+          errorMessage = 'Incorrect email or password. Please try again.';
+          backgroundColor = Colors.red;
+          break;
+        case 'user-disabled':
+          errorMessage =
+              'This account has been disabled. Please contact support.';
+          backgroundColor = Colors.red;
+          break;
+        case 'too-many-requests':
+          errorMessage = 'Too many failed attempts. Please try again later.';
+          backgroundColor = Colors.orange;
+          break;
+        case 'network-request-failed':
+          errorMessage =
+              'Network error. Please check your connection and try again.';
+          backgroundColor = Colors.orange;
+          break;
+        case 'invalid-email':
+          errorMessage = 'Please enter a valid email address.';
+          backgroundColor = Colors.red;
+          break;
+        default:
+          errorMessage = e.message ?? 'Login failed. Please try again.';
+          backgroundColor = Colors.red;
+      }
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(errorMessage),
+            backgroundColor: backgroundColor,
+            duration: const Duration(seconds: 4),
+            behavior: SnackBarBehavior.floating,
+            margin: const EdgeInsets.all(16),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(8),
+            ),
+          ),
+        );
+      }
     } catch (e) {
-      print('LOGIN ERROR: Exception during sign-in: ${e.runtimeType}');
+      print('LOGIN ERROR: Unexpected exception: ${e.runtimeType}');
       print('LOGIN ERROR: Message: $e');
 
       setState(() {
-        _errorMessage = e.toString();
         _isLoading = false;
+        _errorMessage = null;
       });
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Text(
+              'An unexpected error occurred. Please try again.',
+            ),
+            backgroundColor: Colors.red,
+            duration: const Duration(seconds: 4),
+            behavior: SnackBarBehavior.floating,
+            margin: const EdgeInsets.all(16),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(8),
+            ),
+          ),
+        );
+      }
     }
   }
 
@@ -230,7 +353,15 @@ class _LoginScreenState extends State<LoginScreen> {
                     alignment: Alignment.centerRight,
                     child: TextButton(
                       onPressed: () {
-                        // Navigate to forgot password screen
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder:
+                                (context) => ForgotPasswordScreen(
+                                  onBackToLogin: () => Navigator.pop(context),
+                                ),
+                          ),
+                        );
                       },
                       child: const Text('Forgot Password?'),
                     ),

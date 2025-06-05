@@ -15,6 +15,9 @@ import 'request_experience_screen.dart';
 import 'user_plaza_screen.dart';
 import 'firebase_test.dart';
 import 'firebase_auth_debug.dart';
+import 'auth_flow_test.dart';
+import 'email_verification_debug.dart';
+import 'firebase_email_diagnostics.dart';
 import 'screens/auth/auth_wrapper.dart';
 import 'screens/auth/profile_screen.dart';
 import 'services/auth_service.dart';
@@ -122,6 +125,11 @@ class LuckyStarApp extends StatelessWidget {
         '/user-plaza': (context) => const UserPlazaScreen(),
         '/firebase-test': (context) => const FirebaseTestScreen(),
         '/firebase-auth-debug': (context) => const FirebaseAuthDebugScreen(),
+        '/auth-flow-test': (context) => const AuthFlowTestScreen(),
+        '/email-verification-debug':
+            (context) => const EmailVerificationDebugScreen(),
+        '/firebase-email-diagnostics':
+            (context) => const FirebaseEmailDiagnosticsScreen(),
         '/login': (context) => const AuthWrapper(),
         '/profile': (context) => const ProfileScreen(),
       },

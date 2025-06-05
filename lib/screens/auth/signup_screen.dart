@@ -55,40 +55,104 @@ class _SignUpScreenState extends State<SignUpScreen> {
       // Use the regular sign-up function with email verification
       print('SignUpScreen: Calling AuthService.signUpWithEmailAndPassword...');
 
+      // Clear error message if any
+      setState(() {
+        _errorMessage = null;
+      });
+
       final result = await _authService.signUpWithEmailAndPassword(
         email: email,
         password: password,
         displayName: displayName,
+        // Let our improved method handle the verification email
         sendVerificationEmail: true,
       );
 
       print('SignUpScreen: Sign-up successful with UID: ${result.user?.uid}');
 
-      // Show success message and navigate to login screen
+      // Show success message and auto-navigate
       if (mounted) {
-        // Show a success dialog with instructions
-        await showDialog(
-          context: context,
-          barrierDismissible: false,
-          builder:
-              (context) => AlertDialog(
-                title: const Text('Account Created Successfully'),
-                content: const Text(
-                  'Please check your email for a verification link. You need to verify your email before logging in.',
-                ),
-                actions: [
-                  TextButton(
-                    onPressed: () {
-                      Navigator.of(context).pop();
-                    },
-                    child: const Text('OK'),
-                  ),
-                ],
-              ),
+        print('SignUpScreen: Showing success message');
+
+        // Reset loading state and show success message
+        setState(() {
+          _isLoading = false;
+          _errorMessage = null; // Clear any previous errors
+        });
+
+        // Show success message at the bottom
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              'A verification email has been sent to ${_emailController.text.trim()}. Please check your inbox.',
+            ),
+            backgroundColor: Colors.green,
+            duration: const Duration(seconds: 4),
+            behavior: SnackBarBehavior.floating,
+            margin: const EdgeInsets.all(16),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(8),
+            ),
+          ),
         );
 
-        // Navigate to login screen
-        widget.onLoginPressed();
+        print(
+          'SignUpScreen: Success message shown, navigating to login screen',
+        );
+
+        // Make sure the user is signed out
+        try {
+          await _authService.signOut();
+          print('SignUpScreen: User signed out successfully before navigation');
+        } catch (e) {
+          print('SignUpScreen: Error signing out user: $e');
+          // Continue anyway as this is not critical
+        }
+
+        // Show success dialog with clear information
+        showDialog(
+          context: context,
+          barrierDismissible: false,
+          builder: (BuildContext context) {
+            return AlertDialog(
+              title: const Row(
+                children: [
+                  Icon(Icons.check_circle, color: Colors.green),
+                  SizedBox(width: 10),
+                  Text('Registration Successful'),
+                ],
+              ),
+              content: SingleChildScrollView(
+                child: ListBody(
+                  children: [
+                    Text(
+                      'A verification email has been sent to ${_emailController.text.trim()}.',
+                    ),
+                    const SizedBox(height: 10),
+                    const Text(
+                      'Please check your inbox and verify your email before logging in.',
+                    ),
+                  ],
+                ),
+              ),
+              actions: <Widget>[
+                TextButton(
+                  child: const Text('Go to Login'),
+                  onPressed: () {
+                    Navigator.of(context).pop(); // Close dialog
+                    print(
+                      'SignUpScreen: User clicked "Go to Login", navigating to login screen',
+                    );
+
+                    // Navigate to login screen
+                    widget.onLoginPressed();
+                    print('SignUpScreen: Navigation to login screen triggered');
+                  },
+                ),
+              ],
+            );
+          },
+        );
       }
     } on FirebaseAuthException catch (e) {
       // Handle specific Firebase Auth errors
