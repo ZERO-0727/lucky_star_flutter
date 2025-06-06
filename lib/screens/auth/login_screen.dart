@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../../services/auth_service.dart';
 import 'forgot_password_screen.dart';
+import '../../auth/phone_auth_screen.dart';
 
 class LoginScreen extends StatefulWidget {
   final VoidCallback onSignUpPressed;
@@ -410,6 +411,37 @@ class _LoginScreenState extends State<LoginScreen> {
                               'Sign In',
                               style: TextStyle(fontSize: 16),
                             ),
+                  ),
+                  const SizedBox(height: 20),
+
+                  // Phone Login Button
+                  OutlinedButton(
+                    onPressed: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => const PhoneAuthScreen(isLogin: true),
+                        ),
+                      );
+                    },
+                    style: OutlinedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 16),
+                      side: const BorderSide(color: Color(0xFF7153DF)),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                    child: const Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(Icons.phone, color: Color(0xFF7153DF)),
+                        SizedBox(width: 8),
+                        Text(
+                          'Continue with Phone',
+                          style: TextStyle(color: Color(0xFF7153DF)),
+                        ),
+                      ],
+                    ),
                   ),
                   const SizedBox(height: 24),
 

@@ -1,5 +1,7 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'sendgrid_service.dart';
 
 // Class to track verification attempts
 class _VerificationAttempt {
@@ -204,17 +206,38 @@ class AuthService {
   // Delete account
   Future<void> deleteAccount() async {
     try {
-      final User? user = _auth.currentUser;
-
+      final user = _auth.currentUser;
       if (user != null) {
-        // Delete user document from Firestore
-        await _firestore.collection('users').doc(user.uid).delete();
+        final uid = user.uid;
 
-        // Delete the user account
+        // Delete user data from all collections
+        final collections = [
+          'users',
+          'experiences',
+          'wish_wall',
+          'posts',
+          'comments',
+        ];
+        final batch = FirebaseFirestore.instance.batch();
+
+        for (final collection in collections) {
+          final docRef = FirebaseFirestore.instance
+              .collection(collection)
+              .doc(uid);
+          batch.delete(docRef);
+        }
+
+        await batch.commit();
+
+        // Delete user from Firebase Authentication
         await user.delete();
+
+        // Sign out the user
+        await signOut();
       }
-    } on FirebaseAuthException catch (e) {
-      throw _handleAuthException(e);
+    } catch (e) {
+      print('Error deleting account: $e');
+      rethrow;
     }
   }
 
@@ -280,90 +303,99 @@ class AuthService {
 
   // Method to send verification email with improved rate limiting and error handling
   Future<void> sendVerificationEmailWithRateLimiting(User user) async {
-    print('💌 Starting verification email send with rate limiting...');
-
-    // First check - is the user already verified?
-    await user.reload();
-    if (user.emailVerified) {
-      print('✓ User is already verified, no need to send email');
-      return;
-    }
-
-    // Reset daily counter if needed
-    final now = DateTime.now();
-    if (_dailyCounterReset == null ||
-        now.difference(_dailyCounterReset!).inHours >= 24) {
-      print('🔄 Resetting daily email counter');
-      _emailSendCounter = 0;
-      _dailyCounterReset = now;
-    }
-
-    // Check if we've hit the daily limit across all users
-    if (_emailSendCounter >= _maxDailyEmails) {
-      print(
-        '🛑 ERROR: Daily email limit reached (${_emailSendCounter}/${_maxDailyEmails})',
-      );
-      throw Exception(
-        'Too many verification emails have been sent today. '
-        'Please try again tomorrow or contact support.',
-      );
-    }
-
-    // Per-user rate limiting check
-    final userId = user.uid;
-    final userAttempt = _userVerificationAttempts[userId];
-
-    if (userAttempt != null) {
-      final timeSince = now.difference(userAttempt.lastAttempt);
-      final minutesBetweenAttempts =
-          2 * userAttempt.attemptCount; // Progressive backoff
-      final requiredWait = Duration(minutes: minutesBetweenAttempts);
-
-      if (timeSince < requiredWait) {
-        final waitMinutes =
-            (requiredWait.inMinutes - timeSince.inMinutes).toInt();
-        print('⏳ User-specific rate limit: Wait ${waitMinutes} more minutes');
-        throw Exception(
-          'Please wait about ${waitMinutes + 1} minutes before requesting '
-          'another verification email.',
-        );
-      }
-    }
-
-    // Global rate limiting check
-    if (_lastEmailSentTime != null) {
-      final timeSince = now.difference(_lastEmailSentTime!);
-      if (timeSince < _minEmailInterval) {
-        final waitNeeded = _minEmailInterval - timeSince;
-        print(
-          '⏱ Global rate limit: Must wait ${waitNeeded.inSeconds} more seconds',
-        );
-        throw Exception(
-          'Please wait ${waitNeeded.inMinutes + 1} minutes before requesting '
-          'another verification email.',
-        );
-      }
-    }
-
-    // All checks passed, attempt to send email
     try {
-      print('📤 Sending verification email to: ${user.email}');
-      print('📧 User ID: ${user.uid}');
+      // Check if user is null
+      if (user == null) {
+        print('Error: User is null when attempting to send verification email');
+        return;
+      }
 
-      // Log the actionCodeSettings Firebase uses
-      print('📝 ActionCodeSettings: default (null)');
+      // Check if email is already verified
+      await user.reload();
+      user = _auth.currentUser!;
+      if (user.emailVerified) {
+        print('User ${user.uid} email ${user.email} is already verified');
+        return;
+      }
 
-      // Method 1: Direct Firebase method with extensive error logging
+      // Log current timestamp for debugging
+      print(
+        'Attempting to send verification email to ${user.email} at ${DateTime.now().toIso8601String()}',
+      );
+
+      // Check rate limiting conditions
+      final today = DateTime.now().toIso8601String().split('T')[0];
+      if (_dailyCounterReset == null ||
+          DateTime.now().difference(_dailyCounterReset!).inHours >= 24) {
+        print('Resetting daily email counter');
+        _emailSendCounter = 0;
+        _dailyCounterReset = DateTime.now();
+      }
+
+      if (_emailSendCounter >= _maxDailyEmails) {
+        print(
+          'Daily email limit reached for $today. Sent: $_emailSendCounter, Max: $_maxDailyEmails',
+        );
+        throw Exception(
+          'Too many verification emails have been sent today. '
+          'Please try again tomorrow or contact support.',
+        );
+      }
+
+      final userId = user.uid;
+      final userAttempt = _userVerificationAttempts[userId];
+
+      if (userAttempt != null) {
+        final timeSince = DateTime.now().difference(userAttempt.lastAttempt);
+        final minutesBetweenAttempts =
+            2 * userAttempt.attemptCount; // Progressive backoff
+        final requiredWait = Duration(minutes: minutesBetweenAttempts);
+
+        if (timeSince < requiredWait) {
+          final waitMinutes =
+              (requiredWait.inMinutes - timeSince.inMinutes).toInt();
+          print('User-specific rate limit: Wait ${waitMinutes} more minutes');
+          throw Exception(
+            'Please wait about ${waitMinutes + 1} minutes before requesting '
+            'another verification email.',
+          );
+        }
+      }
+
+      // Global rate limiting check
+      if (_lastEmailSentTime != null) {
+        final timeSince = DateTime.now().difference(_lastEmailSentTime!);
+        if (timeSince < _minEmailInterval) {
+          final waitNeeded = _minEmailInterval - timeSince;
+          print(
+            'Global rate limit: Must wait ${waitNeeded.inSeconds} more seconds',
+          );
+          throw Exception(
+            'Please wait ${waitNeeded.inMinutes + 1} minutes before requesting '
+            'another verification email.',
+          );
+        }
+      }
+
+      // All checks passed, attempt to send email
       try {
-        // Make sure we have the latest user data
-        await user.reload();
+        print('Sending verification email to: ${user.email}');
+        print('User ID: ${user.uid}');
 
-        // Send the verification email with standard Firebase method
-        await user.sendEmailVerification();
+        // Configure ActionCodeSettings with your app's domain
+        final actionCodeSettings = ActionCodeSettings(
+          url: 'https://your-app-domain.firebaseapp.com',
+          handleCodeInApp: true,
+          androidPackageName: 'com.example.yourapp',
+          iOSBundleId: 'com.example.yourapp',
+        );
 
-        print('✅ Verification email sent via standard Firebase method');
-      } catch (firebaseError) {
-        print('❌ Firebase method failed: $firebaseError');
+        // Send the verification email with ActionCodeSettings
+        await user.sendEmailVerification(actionCodeSettings);
+
+        print('Verification email sent via standard Firebase method');
+      } on FirebaseAuthException catch (firebaseError) {
+        print('Firebase method failed: $firebaseError');
 
         // Special handling for too-many-requests errors
         if (firebaseError is FirebaseAuthException &&
@@ -376,81 +408,180 @@ class AuthService {
 
         // Re-throw the original error
         throw firebaseError;
+      } catch (e) {
+        print('Unexpected error sending verification email: $e');
+        throw Exception('Failed to send verification email: $e');
       }
 
       // Update tracking variables
-      _lastEmailSentTime = now;
+      _lastEmailSentTime = DateTime.now();
       _emailSendCounter++;
 
       // Update per-user tracking
       if (userAttempt == null) {
-        _userVerificationAttempts[userId] = _VerificationAttempt(now, 1);
+        _userVerificationAttempts[userId] = _VerificationAttempt(
+          DateTime.now(),
+          1,
+        );
       } else {
-        userAttempt.lastAttempt = now;
+        userAttempt.lastAttempt = DateTime.now();
         userAttempt.attemptCount++;
       }
 
+      print('Verification email sent successfully (count: $_emailSendCounter)');
       print(
-        '✅ Verification email sent successfully (count: $_emailSendCounter)',
-      );
-      print(
-        '📊 User attempt count: ${_userVerificationAttempts[userId]?.attemptCount ?? 1}',
+        'User attempt count: ${_userVerificationAttempts[userId]?.attemptCount ?? 1}',
       );
 
       // Additional instructions for the user
-      print('ℹ️ Recommend user to check spam/junk folders');
-      print('ℹ️ Recommend user to add Firebase email to contacts');
-    } on FirebaseAuthException catch (e) {
-      print('❌ FirebaseAuthException during verification email send:');
-      print('❌ Code: ${e.code}, Message: ${e.message}');
-
-      if (e.code == 'too-many-requests') {
-        // Force reset the counter as Firebase is now enforcing the limit
-        _lastEmailSentTime = now.add(const Duration(minutes: 30));
-        throw Exception(
-          'Firebase is currently blocking email sending. Please wait at least 30 minutes '
-          'before requesting another verification email.',
-        );
-      } else if (e.code == 'unauthorized-continue-uri') {
-        throw Exception(
-          'Email verification failed due to domain configuration. Please contact support.',
-        );
-      } else {
-        throw Exception('Failed to send verification email: ${e.message}');
-      }
+      print('Recommend user to check spam/junk folders');
+      print('Recommend user to add Firebase email to contacts');
     } catch (e) {
-      print('❗ Unexpected error sending verification email: $e');
-      throw Exception('Failed to send verification email: $e');
+      print('Error sending verification email to ${user.email}: $e');
+      if (e is FirebaseAuthException) {
+        print(
+          'FirebaseAuthException details - Code: ${e.code}, Message: ${e.message}',
+        );
+      }
     }
   }
 
   // Advanced alternative that tries multiple approaches to send verification email
   Future<bool> sendVerificationEmailAdvanced(User user) async {
-    print('🔍 Attempting advanced verification email sending...');
+    print('Attempting advanced verification email sending...');
 
     try {
       // First try - standard method
-      print('🔄 Attempt 1: Standard Firebase method');
+      print('Attempt 1: Standard Firebase method');
       await user.sendEmailVerification();
-      print('✅ Standard method succeeded');
+      print('Standard method succeeded');
       return true;
     } catch (e) {
-      print('⚠️ Standard method failed: $e');
+      print('Standard method failed: $e');
 
       // Second try after a short delay
       try {
-        print('🔄 Attempt 2: With delay and reload');
+        print('Attempt 2: With delay and reload');
         await Future.delayed(const Duration(seconds: 2));
         await user.reload();
         await user.sendEmailVerification();
-        print('✅ Second attempt succeeded');
+        print('Second attempt succeeded');
         return true;
       } catch (e2) {
-        print('❌ All verification email attempts failed');
-        print('❌ Final error: $e2');
+        print('All verification email attempts failed');
+        print('Final error: $e2');
         return false;
       }
     }
+  }
+
+  // Custom email verification with SendGrid
+  Future<void> sendCustomVerificationEmail(User user) async {
+    try {
+      print('Generating custom email verification link');
+
+      // Generate email verification token
+      final token = await user.getIdToken();
+
+      // Create custom verification link with your domain
+      final verificationLink =
+          'https://your-app-domain.com/verify-email?token=$token';
+      print('Verification link: $verificationLink');
+
+      // Create the HTML email content
+      final htmlContent = '''
+        <h2>Email Verification</h2>
+        <p>Hello,</p>
+        <p>Please click the link below to verify your email address:</p>
+        <p><a href="$verificationLink">Verify Email</a></p>
+        <p>If you did not request this verification, please ignore this email.</p>
+        <p>Thank you,<br>Your App Team</p>
+      ''';
+
+      // Create a plain text alternative
+      final plainText =
+          'Please verify your email by visiting this link: $verificationLink';
+
+      // Create the email message using our new SendGridService
+      final apiKey = dotenv.env['SENDGRID_API_KEY'] ?? 'YOUR_SENDGRID_API_KEY';
+      final sendGridService = SendGridService(apiKey: apiKey);
+
+      // Create an HTML email with a plain text alternative
+      final message = SendGridService.createHtmlEmail(
+        toEmail: user.email!,
+        fromEmail: 'noreply@your-app-domain.com',
+        fromName: 'Your App Name',
+        subject: 'Verify your email address',
+        htmlContent: htmlContent,
+        plainText: plainText,
+      );
+
+      print('Sending custom verification email to ${user.email}');
+      await sendGridService.sendEmail(message);
+      print('Custom verification email sent successfully');
+    } catch (e) {
+      print('Error sending custom verification email: $e');
+      rethrow;
+    }
+  }
+
+  // Phone number authentication
+  Future<void> verifyPhoneNumber(
+    String phoneNumber,
+    Function(String) onCodeSent,
+    Function(FirebaseAuthException) onVerificationFailed,
+    Function(PhoneAuthCredential) onVerificationCompleted,
+  ) async {
+    try {
+      await _auth.verifyPhoneNumber(
+        phoneNumber: phoneNumber,
+        verificationCompleted: onVerificationCompleted,
+        verificationFailed: onVerificationFailed,
+        codeSent: (verificationId, forceResendingToken) {
+          onCodeSent(verificationId);
+        },
+        codeAutoRetrievalTimeout: (verificationId) {},
+        timeout: const Duration(seconds: 120),
+      );
+    } catch (e) {
+      throw Exception('Phone verification failed: ${e.toString()}');
+    }
+  }
+
+  Future<UserCredential> signInWithPhoneNumber(
+    String verificationId,
+    String smsCode,
+  ) async {
+    try {
+      final credential = PhoneAuthProvider.credential(
+        verificationId: verificationId,
+        smsCode: smsCode,
+      );
+      return await _auth.signInWithCredential(credential);
+    } on FirebaseAuthException catch (e) {
+      throw _handleAuthException(e);
+    }
+  }
+
+  // Change password
+  Future<void> changePassword(
+    String currentPassword,
+    String newPassword,
+  ) async {
+    final user = _auth.currentUser;
+    if (user == null) {
+      throw Exception('No user is signed in');
+    }
+
+    // Reauthenticate user
+    final credential = EmailAuthProvider.credential(
+      email: user.email!,
+      password: currentPassword,
+    );
+    await user.reauthenticateWithCredential(credential);
+
+    // Update password
+    await user.updatePassword(newPassword);
   }
 
   // Handle Firebase Auth exceptions

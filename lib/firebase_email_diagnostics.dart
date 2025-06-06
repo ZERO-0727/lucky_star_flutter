@@ -266,45 +266,60 @@ class _FirebaseEmailDiagnosticsScreenState
   }
 
   Future<bool> _testDirectEmailMethod(User user) async {
-    _addLog('TEST 1: Direct Firebase Email Method');
-    _addLog('Sending verification email directly via Firebase...');
+    _addLog('\n=== STARTING DIRECT EMAIL VERIFICATION TEST ===');
+    _addLog('User: ${user.email} (${user.uid})');
+    _addLog('Current verified status: ${user.emailVerified}');
 
     try {
-      // Reload user to ensure we have latest data
+      // Check Firebase Auth configuration
+      _addLog('Checking Firebase Auth configuration...');
+      final authConfig = FirebaseAuth.instance.app.options;
+      _addLog('Firebase Project ID: ${authConfig.projectId}');
+      _addLog('API Key: ${authConfig.apiKey}');
+
+      // Verify ActionCodeSettings
+      final actionCodeSettings = ActionCodeSettings(
+        url: 'https://${authConfig.projectId}.firebaseapp.com/__/auth/action',
+        handleCodeInApp: true,
+        androidPackageName: 'com.example.luckystar',
+        iOSBundleId: 'com.example.luckystar',
+      );
+      _addLog('Using ActionCodeSettings:');
+      _addLog('  URL: ${actionCodeSettings.url}');
+      _addLog('  Handle in app: ${actionCodeSettings.handleCodeInApp}');
+      _addLog('  Android package: ${actionCodeSettings.androidPackageName}');
+      _addLog('  iOS bundle ID: ${actionCodeSettings.iOSBundleId}');
+
+      // Attempt to send verification email
+      _addLog('Sending verification email...');
+      await user.sendEmailVerification(actionCodeSettings);
+      _addLog('✅ Verification email sent successfully!');
+      _addLog('Check your inbox (and spam folder) for the email');
+
+      // Verify email delivery by checking if status changes
+      _addLog('Waiting 10 seconds then checking verification status...');
+      await Future.delayed(const Duration(seconds: 10));
       await user.reload();
-      final freshUser = _auth.currentUser;
+      _addLog('New verified status: ${user.emailVerified}');
 
-      if (freshUser == null) {
-        _addLog('Error: User is null after reload', isError: true);
-        _failureCounter++;
-        return false;
+      if (!user.emailVerified) {
+        _addLog('⚠️ Email not verified yet - check if email was delivered', isError: true);
       }
-
-      _addLog('Sending email to: ${freshUser.email}');
-      final startTime = DateTime.now();
-      await freshUser.sendEmailVerification();
-      final endTime = DateTime.now();
-      final duration = endTime.difference(startTime);
-
-      _addLog('Email send request completed in ${duration.inMilliseconds}ms');
-      _addLog('✅ TEST 1: Verification email request accepted by Firebase');
-      return true;
+    } on FirebaseAuthException catch (e) {
+      _addLog('❌ Firebase Auth Error: ${e.code}', isError: true);
+      _addLog('Error details: ${e.message}', isError: true);
+      
+      if (e.code == 'invalid-sender') {
+        _addLog('❗ Solution: Check your authorized domains in Firebase Console', isError: true);
+      } else if (e.code == 'unauthorized-continue-uri') {
+        _addLog('❗ Solution: Verify your ActionCodeSettings URL matches authorized domains', isError: true);
+      }
     } catch (e) {
-      _addLog('❌ TEST 1 FAILED: ${e.toString()}', isError: true);
-
-      if (e is FirebaseAuthException) {
-        _addLog('Firebase Auth Error Code: ${e.code}');
-        _addLog('Firebase Auth Error Message: ${e.message}');
-
-        if (e.code == 'too-many-requests') {
-          _addLog('RATE LIMIT DETECTED: Firebase is blocking email sending');
-          _addLog('This suggests quota exhaustion or temporary rate limiting');
-        }
-      }
-
-      _failureCounter++;
-      return false;
+      _addLog('❌ Unexpected error: $e', isError: true);
     }
+
+    _addLog('=== TEST COMPLETED ===\n');
+    return true;
   }
 
   Future<bool> _testImprovedEmailMethod(User user) async {

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'feedback_page.dart';
 import 'donation_page.dart';
 import 'user_verification_page.dart';
+import 'screens/auth/account_management_screen.dart';
 
 class AccountSettingsPage extends StatefulWidget {
   const AccountSettingsPage({super.key});
@@ -92,9 +93,7 @@ class _AccountSettingsPageState extends State<AccountSettingsPage> {
   Widget _buildProfileSettingsSection() {
     return Card(
       elevation: 2,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
-      ),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       child: Padding(
         padding: const EdgeInsets.all(16.0),
         child: Column(
@@ -104,9 +103,12 @@ class _AccountSettingsPageState extends State<AccountSettingsPage> {
               icon: Icons.account_circle,
               title: 'Profile Picture & Account Security',
               onTap: () {
-                // Navigate to profile picture & security settings
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Profile Picture & Security settings coming soon')),
+                // Navigate to AccountManagementScreen
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => const AccountManagementScreen(),
+                  ),
                 );
               },
             ),
@@ -118,7 +120,9 @@ class _AccountSettingsPageState extends State<AccountSettingsPage> {
               onTap: () {
                 // Navigate to username settings
                 ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Username settings coming soon')),
+                  const SnackBar(
+                    content: Text('Username settings coming soon'),
+                  ),
                 );
               },
             ),
@@ -153,7 +157,9 @@ class _AccountSettingsPageState extends State<AccountSettingsPage> {
                 onPressed: () {
                   // Navigate to change password
                   ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Change Password coming soon')),
+                    const SnackBar(
+                      content: Text('Change Password coming soon'),
+                    ),
                   );
                 },
                 style: OutlinedButton.styleFrom(
@@ -183,9 +189,7 @@ class _AccountSettingsPageState extends State<AccountSettingsPage> {
   Widget _buildPreferencesSection() {
     return Card(
       elevation: 2,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
-      ),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       child: Padding(
         padding: const EdgeInsets.all(16.0),
         child: Column(
@@ -200,10 +204,7 @@ class _AccountSettingsPageState extends State<AccountSettingsPage> {
                   const SizedBox(width: 16),
                   const Text(
                     'Language',
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w500,
-                    ),
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
                   ),
                   const Spacer(),
                   DropdownButton<String>(
@@ -215,13 +216,15 @@ class _AccountSettingsPageState extends State<AccountSettingsPage> {
                         });
                       }
                     },
-                    items: _availableLanguages
-                        .map<DropdownMenuItem<String>>((String value) {
-                      return DropdownMenuItem<String>(
-                        value: value,
-                        child: Text(value),
-                      );
-                    }).toList(),
+                    items:
+                        _availableLanguages.map<DropdownMenuItem<String>>((
+                          String value,
+                        ) {
+                          return DropdownMenuItem<String>(
+                            value: value,
+                            child: Text(value),
+                          );
+                        }).toList(),
                     underline: Container(),
                   ),
                 ],
@@ -232,10 +235,7 @@ class _AccountSettingsPageState extends State<AccountSettingsPage> {
             SwitchListTile(
               title: const Text(
                 'Dark Mode',
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w500,
-                ),
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
               ),
               secondary: const Icon(Icons.dark_mode, color: Color(0xFF7153DF)),
               value: _darkModeEnabled,
@@ -251,12 +251,12 @@ class _AccountSettingsPageState extends State<AccountSettingsPage> {
             SwitchListTile(
               title: const Text(
                 'Notifications',
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w500,
-                ),
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
               ),
-              secondary: const Icon(Icons.notifications, color: Color(0xFF7153DF)),
+              secondary: const Icon(
+                Icons.notifications,
+                color: Color(0xFF7153DF),
+              ),
               value: _notificationsEnabled,
               onChanged: (bool value) {
                 setState(() {
@@ -274,9 +274,7 @@ class _AccountSettingsPageState extends State<AccountSettingsPage> {
   Widget _buildAboutAndSupportSection() {
     return Card(
       elevation: 2,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
-      ),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       child: Padding(
         padding: const EdgeInsets.all(16.0),
         child: Column(
@@ -311,9 +309,7 @@ class _AccountSettingsPageState extends State<AccountSettingsPage> {
               onTap: () {
                 Navigator.push(
                   context,
-                  MaterialPageRoute(
-                    builder: (context) => const FeedbackPage(),
-                  ),
+                  MaterialPageRoute(builder: (context) => const FeedbackPage()),
                 );
               },
             ),
@@ -346,9 +342,7 @@ class _AccountSettingsPageState extends State<AccountSettingsPage> {
               onTap: () {
                 Navigator.push(
                   context,
-                  MaterialPageRoute(
-                    builder: (context) => const DonationPage(),
-                  ),
+                  MaterialPageRoute(builder: (context) => const DonationPage()),
                 );
               },
             ),
@@ -368,10 +362,7 @@ class _AccountSettingsPageState extends State<AccountSettingsPage> {
       leading: Icon(icon, color: const Color(0xFF7153DF)),
       title: Text(
         title,
-        style: const TextStyle(
-          fontSize: 16,
-          fontWeight: FontWeight.w500,
-        ),
+        style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
       ),
       subtitle: subtitle != null ? Text(subtitle) : null,
       trailing: const Icon(Icons.chevron_right),
@@ -388,30 +379,31 @@ class _AccountSettingsPageState extends State<AccountSettingsPage> {
           // Logout logic
           showDialog(
             context: context,
-            builder: (context) => AlertDialog(
-              title: const Text('Logout'),
-              content: const Text('Are you sure you want to logout?'),
-              actions: [
-                TextButton(
-                  onPressed: () => Navigator.pop(context),
-                  child: const Text('Cancel'),
+            builder:
+                (context) => AlertDialog(
+                  title: const Text('Logout'),
+                  content: const Text('Are you sure you want to logout?'),
+                  actions: [
+                    TextButton(
+                      onPressed: () => Navigator.pop(context),
+                      child: const Text('Cancel'),
+                    ),
+                    TextButton(
+                      onPressed: () {
+                        Navigator.pop(context); // Close dialog
+                        Navigator.pop(context); // Go back to profile
+                        // In a real app, you would implement actual logout logic here
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text('Logged out successfully'),
+                          ),
+                        );
+                      },
+                      style: TextButton.styleFrom(foregroundColor: Colors.red),
+                      child: const Text('Logout'),
+                    ),
+                  ],
                 ),
-                TextButton(
-                  onPressed: () {
-                    Navigator.pop(context); // Close dialog
-                    Navigator.pop(context); // Go back to profile
-                    // In a real app, you would implement actual logout logic here
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Logged out successfully')),
-                    );
-                  },
-                  style: TextButton.styleFrom(
-                    foregroundColor: Colors.red,
-                  ),
-                  child: const Text('Logout'),
-                ),
-              ],
-            ),
           );
         },
         style: ElevatedButton.styleFrom(
@@ -422,10 +414,7 @@ class _AccountSettingsPageState extends State<AccountSettingsPage> {
             borderRadius: BorderRadius.circular(12),
           ),
         ),
-        child: const Text(
-          'Log Out',
-          style: TextStyle(fontSize: 18),
-        ),
+        child: const Text('Log Out', style: TextStyle(fontSize: 18)),
       ),
     );
   }

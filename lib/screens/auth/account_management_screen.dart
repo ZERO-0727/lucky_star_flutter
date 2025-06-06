@@ -164,221 +164,228 @@ class _AccountManagementScreenState extends State<AccountManagementScreen> {
       body:
           _isLoading
               ? const Center(child: CircularProgressIndicator())
-              : ListView(
+              : SingleChildScrollView(
                 padding: const EdgeInsets.all(16.0),
-                children: [
-                  // Account info section
-                  Card(
-                    elevation: 2,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Padding(
-                      padding: const EdgeInsets.all(16.0),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const Text(
-                            'Account Information',
-                            style: TextStyle(
-                              fontSize: 18,
-                              fontWeight: FontWeight.bold,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Account info section
+                    Card(
+                      elevation: 2,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Padding(
+                        padding: const EdgeInsets.all(16.0),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text(
+                              'Account Information',
+                              style: TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.bold,
+                              ),
                             ),
-                          ),
-                          const SizedBox(height: 16),
-                          ListTile(
-                            leading: const Icon(Icons.email),
-                            title: const Text('Email'),
-                            subtitle: Text(
-                              currentUser?.email ?? 'Not available',
+                            const SizedBox(height: 16),
+                            ListTile(
+                              leading: const Icon(Icons.email),
+                              title: const Text('Email'),
+                              subtitle: Text(
+                                currentUser?.email ?? 'Not available',
+                              ),
+                              contentPadding: EdgeInsets.zero,
                             ),
-                            contentPadding: EdgeInsets.zero,
-                          ),
-                          ListTile(
-                            leading: const Icon(Icons.verified_user),
-                            title: const Text('Email Verification'),
-                            subtitle: Text(
-                              currentUser?.emailVerified ?? false
-                                  ? 'Verified'
-                                  : 'Not verified',
-                            ),
-                            trailing:
+                            ListTile(
+                              leading: const Icon(Icons.verified_user),
+                              title: const Text('Email Verification'),
+                              subtitle: Text(
                                 currentUser?.emailVerified ?? false
-                                    ? const Icon(
-                                      Icons.check_circle,
-                                      color: Colors.green,
-                                    )
-                                    : TextButton(
-                                      onPressed: () async {
-                                        setState(() => _isLoading = true);
-                                        try {
-                                          if (currentUser != null) {
-                                            // Use our improved rate-limited method
-                                            await _authService
-                                                .sendVerificationEmailWithRateLimiting(
-                                                  currentUser!,
-                                                );
+                                    ? 'Verified'
+                                    : 'Not verified',
+                              ),
+                              trailing:
+                                  currentUser?.emailVerified ?? false
+                                      ? const Icon(
+                                        Icons.check_circle,
+                                        color: Colors.green,
+                                      )
+                                      : TextButton(
+                                        onPressed: () async {
+                                          setState(() => _isLoading = true);
+                                          try {
+                                            if (currentUser != null) {
+                                              // Use our improved rate-limited method
+                                              await _authService
+                                                  .sendVerificationEmailWithRateLimiting(
+                                                    currentUser!,
+                                                  );
 
+                                              if (mounted) {
+                                                ScaffoldMessenger.of(
+                                                  context,
+                                                ).showSnackBar(
+                                                  const SnackBar(
+                                                    content: Text(
+                                                      'Verification email sent! Please check your inbox and spam folder.',
+                                                    ),
+                                                    backgroundColor:
+                                                        Colors.green,
+                                                    duration: Duration(
+                                                      seconds: 5,
+                                                    ),
+                                                  ),
+                                                );
+                                              }
+                                            } else {
+                                              throw Exception(
+                                                'User is not logged in',
+                                              );
+                                            }
+                                          } catch (e) {
+                                            print(
+                                              'Error sending verification email: $e',
+                                            );
                                             if (mounted) {
+                                              // Get a clean error message
+                                              String errorMsg = e.toString();
+                                              if (errorMsg.contains(
+                                                'Exception:',
+                                              )) {
+                                                errorMsg =
+                                                    errorMsg
+                                                        .replaceAll(
+                                                          'Exception:',
+                                                          '',
+                                                        )
+                                                        .trim();
+                                              }
+
                                               ScaffoldMessenger.of(
                                                 context,
                                               ).showSnackBar(
-                                                const SnackBar(
-                                                  content: Text(
-                                                    'Verification email sent! Please check your inbox and spam folder.',
-                                                  ),
-                                                  backgroundColor: Colors.green,
-                                                  duration: Duration(
+                                                SnackBar(
+                                                  content: Text(errorMsg),
+                                                  backgroundColor:
+                                                      Colors.orange,
+                                                  duration: const Duration(
                                                     seconds: 5,
                                                   ),
                                                 ),
                                               );
                                             }
-                                          } else {
-                                            throw Exception(
-                                              'User is not logged in',
-                                            );
-                                          }
-                                        } catch (e) {
-                                          print(
-                                            'Error sending verification email: $e',
-                                          );
-                                          if (mounted) {
-                                            // Get a clean error message
-                                            String errorMsg = e.toString();
-                                            if (errorMsg.contains(
-                                              'Exception:',
-                                            )) {
-                                              errorMsg =
-                                                  errorMsg
-                                                      .replaceAll(
-                                                        'Exception:',
-                                                        '',
-                                                      )
-                                                      .trim();
+                                          } finally {
+                                            if (mounted) {
+                                              setState(
+                                                () => _isLoading = false,
+                                              );
                                             }
-
-                                            ScaffoldMessenger.of(
-                                              context,
-                                            ).showSnackBar(
-                                              SnackBar(
-                                                content: Text(errorMsg),
-                                                backgroundColor: Colors.orange,
-                                                duration: const Duration(
-                                                  seconds: 5,
-                                                ),
-                                              ),
-                                            );
                                           }
-                                        } finally {
-                                          if (mounted) {
-                                            setState(() => _isLoading = false);
-                                          }
-                                        }
-                                      },
-                                      child: const Text('Verify'),
-                                    ),
-                            contentPadding: EdgeInsets.zero,
-                          ),
-                          ListTile(
-                            leading: const Icon(Icons.person),
-                            title: const Text('Display Name'),
-                            subtitle: Text(
-                              currentUser?.displayName ?? 'Not set',
+                                        },
+                                        child: const Text('Verify'),
+                                      ),
+                              contentPadding: EdgeInsets.zero,
                             ),
-                            contentPadding: EdgeInsets.zero,
-                          ),
-                        ],
+                            ListTile(
+                              leading: const Icon(Icons.person),
+                              title: const Text('Display Name'),
+                              subtitle: Text(
+                                currentUser?.displayName ?? 'Not set',
+                              ),
+                              contentPadding: EdgeInsets.zero,
+                            ),
+                          ],
+                        ),
                       ),
                     ),
-                  ),
-                  const SizedBox(height: 24),
+                    const SizedBox(height: 24),
 
-                  // Account management section
-                  Card(
-                    elevation: 2,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Padding(
-                      padding: const EdgeInsets.all(16.0),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const Text(
-                            'Account Management',
-                            style: TextStyle(
-                              fontSize: 18,
-                              fontWeight: FontWeight.bold,
+                    // Account management section
+                    Card(
+                      elevation: 2,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Padding(
+                        padding: const EdgeInsets.all(16.0),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text(
+                              'Account Management',
+                              style: TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.bold,
+                              ),
                             ),
-                          ),
-                          const SizedBox(height: 16),
-                          // Change password option
-                          ListTile(
-                            leading: const Icon(Icons.lock_reset),
-                            title: const Text('Change Password'),
-                            trailing: const Icon(Icons.chevron_right),
-                            contentPadding: EdgeInsets.zero,
-                            onTap: () => _changePassword(context),
-                          ),
-                          const Divider(),
-                          // Sign out option
-                          ListTile(
-                            leading: const Icon(Icons.logout),
-                            title: const Text('Sign Out'),
-                            trailing: const Icon(Icons.chevron_right),
-                            contentPadding: EdgeInsets.zero,
-                            onTap: _signOut,
-                          ),
-                          const Divider(),
-                          // Delete account option
-                          ListTile(
-                            leading: const Icon(
-                              Icons.delete_forever,
-                              color: Colors.red,
+                            const SizedBox(height: 16),
+                            // Change password option
+                            ListTile(
+                              leading: const Icon(Icons.lock_reset),
+                              title: const Text('Change Password'),
+                              trailing: const Icon(Icons.chevron_right),
+                              contentPadding: EdgeInsets.zero,
+                              onTap: () => _changePassword(context),
                             ),
-                            title: const Text(
-                              'Delete Account',
-                              style: TextStyle(color: Colors.red),
+                            const Divider(),
+                            // Sign out option
+                            ListTile(
+                              leading: const Icon(Icons.logout),
+                              title: const Text('Sign Out'),
+                              trailing: const Icon(Icons.chevron_right),
+                              contentPadding: EdgeInsets.zero,
+                              onTap: _signOut,
                             ),
-                            trailing: const Icon(
-                              Icons.chevron_right,
-                              color: Colors.red,
+                            const Divider(),
+                            // Delete account option
+                            ListTile(
+                              leading: const Icon(
+                                Icons.delete_forever,
+                                color: Colors.red,
+                              ),
+                              title: const Text(
+                                'Delete Account',
+                                style: TextStyle(color: Colors.red),
+                              ),
+                              trailing: const Icon(
+                                Icons.chevron_right,
+                                color: Colors.red,
+                              ),
+                              contentPadding: EdgeInsets.zero,
+                              onTap: _showDeleteAccountConfirmation,
                             ),
-                            contentPadding: EdgeInsets.zero,
-                            onTap: _showDeleteAccountConfirmation,
-                          ),
-                        ],
+                          ],
+                        ),
                       ),
                     ),
-                  ),
-                  const SizedBox(height: 16),
-                  // App information
-                  const Card(
-                    child: Padding(
-                      padding: EdgeInsets.all(16.0),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'App Information',
-                            style: TextStyle(
-                              fontSize: 18,
-                              fontWeight: FontWeight.bold,
+                    const SizedBox(height: 16),
+                    // App information
+                    const Card(
+                      child: Padding(
+                        padding: EdgeInsets.all(16.0),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'App Information',
+                              style: TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.bold,
+                              ),
                             ),
-                          ),
-                          SizedBox(height: 16),
-                          ListTile(
-                            leading: Icon(Icons.info),
-                            title: Text('Version'),
-                            subtitle: Text('1.0.0'),
-                            contentPadding: EdgeInsets.zero,
-                          ),
-                        ],
+                            SizedBox(height: 16),
+                            ListTile(
+                              leading: Icon(Icons.info),
+                              title: Text('Version'),
+                              subtitle: Text('1.0.0'),
+                              contentPadding: EdgeInsets.zero,
+                            ),
+                          ],
+                        ),
                       ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
     );
   }

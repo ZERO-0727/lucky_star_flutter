@@ -526,6 +526,28 @@ class _AuthFlowTestScreenState extends State<AuthFlowTestScreen> {
                                     ),
                                   ),
                                 ),
+                                const SizedBox(height: 8),
+                                ElevatedButton.icon(
+                                  onPressed: () {
+                                    Navigator.pushNamed(
+                                      context,
+                                      '/email-verification-test',
+                                    );
+                                  },
+                                  icon: const Icon(Icons.email_outlined),
+                                  label: const Text(
+                                    'Simple Email Verification Test',
+                                  ),
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: Colors.purple,
+                                    foregroundColor: Colors.white,
+                                    padding: const EdgeInsets.all(12),
+                                    minimumSize: const Size(
+                                      double.infinity,
+                                      48,
+                                    ),
+                                  ),
+                                ),
                               ],
                             ),
                           ],

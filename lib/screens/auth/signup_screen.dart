@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../services/auth_service.dart';
+import '../../auth/phone_auth_screen.dart';
 
 class SignUpScreen extends StatefulWidget {
   final VoidCallback onLoginPressed;
@@ -390,6 +391,37 @@ class _SignUpScreenState extends State<SignUpScreen> {
                               'Sign Up',
                               style: TextStyle(fontSize: 16),
                             ),
+                  ),
+                  const SizedBox(height: 20),
+
+                  // Phone Sign Up Button
+                  OutlinedButton(
+                    onPressed: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => const PhoneAuthScreen(isLogin: false),
+                        ),
+                      );
+                    },
+                    style: OutlinedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 16),
+                      side: const BorderSide(color: Color(0xFF7153DF)),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                    child: const Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(Icons.phone, color: Color(0xFF7153DF)),
+                        SizedBox(width: 8),
+                        Text(
+                          'Sign Up with Phone',
+                          style: TextStyle(color: Color(0xFF7153DF)),
+                        ),
+                      ],
+                    ),
                   ),
                   const SizedBox(height: 24),
 

@@ -42,46 +42,17 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
           PopupMenuButton<String>(
             icon: const Icon(Icons.person),
             onSelected: (value) {
-              switch (value) {
-                case 'profile':
-                  Navigator.pushNamed(context, '/profile');
-                  break;
-                case 'my_page':
-                  Navigator.pushNamed(context, '/my-page');
-                  break;
-                case 'account_settings':
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => const AccountManagementScreen(),
-                    ),
-                  );
-                  break;
+              if (value == 'my_page') {
+                Navigator.pushNamed(context, '/my-page');
               }
             },
             itemBuilder:
                 (BuildContext context) => <PopupMenuEntry<String>>[
                   const PopupMenuItem<String>(
-                    value: 'profile',
-                    child: ListTile(
-                      leading: Icon(Icons.account_circle),
-                      title: Text('Profile'),
-                      contentPadding: EdgeInsets.zero,
-                    ),
-                  ),
-                  const PopupMenuItem<String>(
                     value: 'my_page',
                     child: ListTile(
                       leading: Icon(Icons.dashboard),
                       title: Text('My Page'),
-                      contentPadding: EdgeInsets.zero,
-                    ),
-                  ),
-                  const PopupMenuItem<String>(
-                    value: 'account_settings',
-                    child: ListTile(
-                      leading: Icon(Icons.settings),
-                      title: Text('Account Settings'),
                       contentPadding: EdgeInsets.zero,
                     ),
                   ),
