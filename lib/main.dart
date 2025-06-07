@@ -20,9 +20,12 @@ import 'email_verification_debug.dart';
 import 'firebase_email_diagnostics.dart';
 import 'email_verification_test.dart';
 import 'firebase_email_verification_check.dart';
+import 'firebase_email_verification_debug.dart';
 import 'screens/auth/auth_wrapper.dart';
 import 'screens/auth/profile_screen.dart';
 import 'services/auth_service.dart';
+import 'welcome_page.dart';
+import 'app_wrapper.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -116,7 +119,7 @@ class LuckyStarApp extends StatelessWidget {
           secondary: const Color(0xFFF8F5F0), // Soft Gray
         ),
       ),
-      home: const AuthWrapper(),
+      home: const AppWrapper(),
       routes: {
         '/home': (context) => const MainNavigation(),
         '/wish-wall': (context) => const WishWallScreen(),
@@ -135,6 +138,9 @@ class LuckyStarApp extends StatelessWidget {
         '/email-verification-test': (context) => const EmailVerificationTest(),
         '/firebase-email-verification-check':
             (context) => const FirebaseEmailVerificationCheck(),
+        '/firebase-email-verification-debug':
+            (context) => const FirebaseEmailVerificationDebug(),
+        '/welcome': (context) => const WelcomePage(),
         '/login': (context) => const AuthWrapper(),
         '/profile': (context) => const ProfileScreen(),
       },

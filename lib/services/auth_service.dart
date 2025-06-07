@@ -2,6 +2,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'sendgrid_service.dart';
+import '../screens/auth/auth_wrapper.dart';
 
 // Class to track verification attempts
 class _VerificationAttempt {
@@ -9,6 +10,26 @@ class _VerificationAttempt {
   int attemptCount;
 
   _VerificationAttempt(this.lastAttempt, this.attemptCount);
+}
+
+// Static class to manage registration state shared between AuthService and AuthWrapper
+class RegistrationManager {
+  static final Set<String> _usersInRegistration = <String>{};
+  static const Duration _registrationGracePeriod = Duration(minutes: 2);
+
+  // Add user to registration grace period
+  static void addUserToRegistration(String userId) {
+    _usersInRegistration.add(userId);
+    // Remove user from grace period after timeout
+    Future.delayed(_registrationGracePeriod, () {
+      _usersInRegistration.remove(userId);
+    });
+  }
+
+  // Check if user is in registration grace period
+  static bool isUserInRegistration(String userId) {
+    return _usersInRegistration.contains(userId);
+  }
 }
 
 class AuthService {
@@ -59,9 +80,15 @@ class AuthService {
 
       if (userCredential.user == null) {
         print('WARNING: User object is null after account creation!');
+        throw Exception('User account was created but user object is null');
       } else {
         print('User email: ${userCredential.user!.email}');
         print('Email verified status: ${userCredential.user!.emailVerified}');
+
+        // CRITICAL: Add user to registration grace period IMMEDIATELY
+        // This prevents AuthWrapper from signing them out before email is sent
+        print('Adding user to registration grace period: $userId');
+        RegistrationManager.addUserToRegistration(userId!);
       }
     } on FirebaseAuthException catch (e) {
       print('FirebaseAuthException during account creation:');
@@ -77,8 +104,23 @@ class AuthService {
       throw Exception('Account creation failed: $e');
     }
 
-    // Step 2: Update the user's display name
-    print('STEP 2: Updating display name to: $displayName');
+    // Step 2: Send email verification IMMEDIATELY (before anything else)
+    if (sendVerificationEmail && userCredential.user != null) {
+      print('STEP 2: Sending email verification IMMEDIATELY');
+
+      try {
+        // Send verification email while user is still authenticated
+        await userCredential.user!.sendEmailVerification();
+        print('Email verification sent successfully');
+      } catch (e) {
+        print('Error during verification email sending: $e');
+        // Don't throw here - allow account creation to succeed even if email fails
+        // The user can request another verification email later
+      }
+    }
+
+    // Step 3: Update the user's display name
+    print('STEP 3: Updating display name to: $displayName');
     try {
       if (userCredential.user == null) {
         print('ERROR: User is null after account creation');
@@ -100,27 +142,15 @@ class AuthService {
       // Continue despite this error - not critical
     }
 
-    // Step 3: Send email verification if requested
-    if (sendVerificationEmail && userCredential.user != null) {
-      print('STEP 3: Sending email verification');
-
-      try {
-        // Use our improved verification email sender with rate limiting
-        await sendVerificationEmailWithRateLimiting(userCredential.user!);
-        print('Email verification sent successfully');
-      } catch (e) {
-        print('Error during verification email sending: $e');
-        // Don't throw here - allow account creation to succeed even if email fails
-        // The user can request another verification email later
-      }
-    }
-
     // Step 4: Create the Firestore document
     print('STEP 4: Creating Firestore document');
+    bool firestoreSuccess = false;
+
     try {
       if (userCredential.user != null) {
         await _createUserDocument(userCredential.user!.uid, displayName);
         print('Firestore document created successfully');
+        firestoreSuccess = true;
       } else {
         print(
           'WARNING: Skipping Firestore document creation because user is null',
@@ -132,9 +162,11 @@ class AuthService {
       print('Error message: $e');
       print('Stack trace: $stack');
 
-      // If Firestore fails but Auth succeeded, we'll still return the UserCredential
-      // but log the error for debugging
-      print('WARNING: Auth succeeded but Firestore document creation failed');
+      // We don't throw the exception here to allow the registration to proceed
+      // The user can still verify their email and log in, and we can create the
+      // Firestore document when they sign in for the first time
+      print('WARNING: Auth succeeded but Firestore document creation failed.');
+      print('Will attempt to create document on first sign-in.');
     }
 
     // Step 5: Sign out the user so they must verify email and log in again
@@ -384,10 +416,10 @@ class AuthService {
 
         // Configure ActionCodeSettings with your app's domain
         final actionCodeSettings = ActionCodeSettings(
-          url: 'https://your-app-domain.firebaseapp.com',
+          url: 'https://luckystar-flutter-12d06.firebaseapp.com',
           handleCodeInApp: true,
-          androidPackageName: 'com.example.yourapp',
-          iOSBundleId: 'com.example.yourapp',
+          androidPackageName: 'com.luckystar.android',
+          iOSBundleId: 'com.luckystar.ios',
         );
 
         // Send the verification email with ActionCodeSettings

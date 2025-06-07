@@ -81,13 +81,38 @@ class _SignUpScreenState extends State<SignUpScreen> {
           _errorMessage = null; // Clear any previous errors
         });
 
-        // Show success message at the bottom
+        // Check if user record was successfully created in Firestore
+        bool firestoreSuccess = true; // Assume success unless we know otherwise
+        try {
+          // Try to get the user's document
+          final userDoc =
+              await FirebaseFirestore.instance
+                  .collection('users')
+                  .doc(result.user?.uid)
+                  .get();
+
+          // If document doesn't exist, Firestore creation failed
+          if (!userDoc.exists) {
+            firestoreSuccess = false;
+            print('SignUpScreen: User document not found in Firestore');
+          } else {
+            print('SignUpScreen: User document exists in Firestore');
+          }
+        } catch (e) {
+          // If there's an error checking Firestore, assume creation failed
+          firestoreSuccess = false;
+          print('SignUpScreen: Error checking Firestore document: $e');
+        }
+
+        // Show appropriate success message
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
-              'A verification email has been sent to ${_emailController.text.trim()}. Please check your inbox.',
+              firestoreSuccess
+                  ? 'Account created successfully. Please verify your email.'
+                  : 'Sorry, please check your email link.',
             ),
-            backgroundColor: Colors.green,
+            backgroundColor: firestoreSuccess ? Colors.green : Colors.orange,
             duration: const Duration(seconds: 4),
             behavior: SnackBarBehavior.floating,
             margin: const EdgeInsets.all(16),

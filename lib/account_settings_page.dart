@@ -3,6 +3,8 @@ import 'feedback_page.dart';
 import 'donation_page.dart';
 import 'user_verification_page.dart';
 import 'screens/auth/account_management_screen.dart';
+import 'services/auth_service.dart';
+import 'welcome_page.dart';
 
 class AccountSettingsPage extends StatefulWidget {
   const AccountSettingsPage({super.key});
@@ -389,15 +391,51 @@ class _AccountSettingsPageState extends State<AccountSettingsPage> {
                       child: const Text('Cancel'),
                     ),
                     TextButton(
-                      onPressed: () {
+                      onPressed: () async {
                         Navigator.pop(context); // Close dialog
-                        Navigator.pop(context); // Go back to profile
-                        // In a real app, you would implement actual logout logic here
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text('Logged out successfully'),
-                          ),
-                        );
+
+                        try {
+                          // Show loading indicator
+                          showDialog(
+                            context: context,
+                            barrierDismissible: false,
+                            builder:
+                                (context) => const Center(
+                                  child: CircularProgressIndicator(),
+                                ),
+                          );
+
+                          // Sign out using Firebase Auth
+                          final authService = AuthService();
+                          await authService.signOut();
+
+                          // Close loading indicator
+                          if (mounted) Navigator.pop(context);
+
+                          // Navigate to Welcome Page and clear navigation stack
+                          if (mounted) {
+                            Navigator.pushAndRemoveUntil(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) => const WelcomePage(),
+                              ),
+                              (route) => false, // Remove all previous routes
+                            );
+                          }
+                        } catch (e) {
+                          // Close loading indicator if it's still showing
+                          if (mounted) Navigator.pop(context);
+
+                          // Show error message
+                          if (mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text('Logout failed: $e'),
+                                backgroundColor: Colors.red,
+                              ),
+                            );
+                          }
+                        }
                       },
                       style: TextButton.styleFrom(foregroundColor: Colors.red),
                       child: const Text('Logout'),
