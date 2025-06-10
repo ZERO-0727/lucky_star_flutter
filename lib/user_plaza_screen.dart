@@ -29,9 +29,11 @@ class _UserPlazaScreenState extends State<UserPlazaScreen> {
   }
 
   Future<void> _loadUsers() async {
-    setState(() {
-      _isLoading = true;
-    });
+    if (mounted) {
+      setState(() {
+        _isLoading = true;
+      });
+    }
 
     try {
       List<UserModel> users;
@@ -80,15 +82,19 @@ class _UserPlazaScreenState extends State<UserPlazaScreen> {
                 .toList();
       }
 
-      setState(() {
-        _users = users;
-        _isLoading = false;
-      });
+      if (mounted) {
+        setState(() {
+          _users = users;
+          _isLoading = false;
+        });
+      }
     } catch (e) {
       print('Error loading users: $e');
-      setState(() {
-        _isLoading = false;
-      });
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
 
       // Show error message
       ScaffoldMessenger.of(context).showSnackBar(

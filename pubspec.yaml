@@ -30,6 +30,7 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
+  image: ^4.0.0
   # Using custom SendGrid implementation with http package
   # No need for sendgrid_mailer package
   # The following adds the Cupertino Icons font to your application.
@@ -47,6 +48,12 @@ dependencies:
   firebase_core: ^3.13.1
   firebase_auth: ^5.5.4
   cloud_firestore: ^5.6.8
+  firebase_storage: ^12.3.4
+  
+  # Image handling
+  image_picker: ^1.1.2
+  flutter_image_compress: ^2.1.0
+  path: ^1.9.0
   
   # UI and formatting
   google_fonts: ^6.2.1
@@ -63,6 +70,10 @@ dev_dependencies:
   # package. See that file for information about deactivating specific lint
   # rules and activating additional ones.
   flutter_lints: ^5.0.0
+  
+  # Step 6: Testing framework dependencies for automated tests
+  mockito: ^5.4.4
+  build_runner: ^2.4.13
 
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec

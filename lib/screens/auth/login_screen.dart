@@ -36,10 +36,12 @@ class _LoginScreenState extends State<LoginScreen> {
       return;
     }
 
-    setState(() {
-      _isLoading = true;
-      _errorMessage = null;
-    });
+    if (mounted) {
+      setState(() {
+        _isLoading = true;
+        _errorMessage = null;
+      });
+    }
 
     final email = _emailController.text.trim();
     final password = _passwordController.text.trim();
@@ -170,9 +172,11 @@ class _LoginScreenState extends State<LoginScreen> {
         }
 
         // Make sure to set loading to false before navigating
-        setState(() {
-          _isLoading = false;
-        });
+        if (mounted) {
+          setState(() {
+            _isLoading = false;
+          });
+        }
 
         // Let AuthWrapper handle navigation based on verification status
         print(
@@ -184,19 +188,23 @@ class _LoginScreenState extends State<LoginScreen> {
       } else {
         // User is null after sign-in (shouldn't happen, but handle it)
         print('LOGIN ERROR: User is null after successful sign-in');
-        setState(() {
-          _isLoading = false;
-          _errorMessage = 'Authentication error: User is null after sign-in';
-        });
+        if (mounted) {
+          setState(() {
+            _isLoading = false;
+            _errorMessage = 'Authentication error: User is null after sign-in';
+          });
+        }
       }
     } on FirebaseAuthException catch (e) {
       print('LOGIN ERROR: FirebaseAuthException: ${e.code}');
       print('LOGIN ERROR: Message: ${e.message}');
 
-      setState(() {
-        _isLoading = false;
-        _errorMessage = null;
-      });
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+          _errorMessage = null;
+        });
+      }
 
       // Show user-friendly error messages via SnackBar
       String errorMessage;
@@ -250,10 +258,12 @@ class _LoginScreenState extends State<LoginScreen> {
       print('LOGIN ERROR: Unexpected exception: ${e.runtimeType}');
       print('LOGIN ERROR: Message: $e');
 
-      setState(() {
-        _isLoading = false;
-        _errorMessage = null;
-      });
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+          _errorMessage = null;
+        });
+      }
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(

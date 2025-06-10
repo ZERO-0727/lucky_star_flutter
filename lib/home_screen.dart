@@ -3,7 +3,11 @@ import 'package:google_fonts/google_fonts.dart';
 import 'my_wishes_page.dart';
 import 'my_published_experiences_page.dart';
 import 'trust_reputation_page.dart';
-import 'screens/auth/account_management_screen.dart';
+import 'widgets/lightweight_upload_progress.dart';
+import 'widgets/upload_progress_bar.dart';
+import 'services/web_image_service.dart';
+import 'services/optimized_image_service.dart';
+import 'package:image_picker/image_picker.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -60,39 +64,61 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
           ),
         ],
       ),
-      body: ListView(
-        padding: const EdgeInsets.all(16),
+      body: Column(
         children: [
-          // Header with greeting
-          _buildHeader(),
-          const SizedBox(height: 20),
+          // Upload progress bar at top with global state
+          ValueListenableBuilder<UploadProgressState>(
+            valueListenable: UploadProgressManager().progressNotifier,
+            builder: (context, progressState, child) {
+              return UploadProgressBar(
+                totalImages: progressState.totalImages,
+                uploadedImages: progressState.uploadedImages,
+                isVisible: progressState.isActive,
+                onDismiss: () {
+                  UploadProgressManager().dismissUpload();
+                },
+              );
+            },
+          ),
 
-          // My LuckyStar horizontal list
-          _buildLuckyStarAvatars(),
-          const SizedBox(height: 20),
+          // Main content
+          Expanded(
+            child: ListView(
+              padding: const EdgeInsets.all(16),
+              children: [
+                // Header with greeting
+                _buildHeader(),
+                const SizedBox(height: 20),
 
-          // Wishes Wall Preview
-          _buildWishesWallPreview(),
-          const SizedBox(height: 20),
+                // My LuckyStar horizontal list
+                _buildLuckyStarAvatars(),
+                const SizedBox(height: 20),
 
-          // Discover Experiences
-          _buildDiscoverExperiences(),
-          const SizedBox(height: 20),
+                // Wishes Wall Preview
+                _buildWishesWallPreview(),
+                const SizedBox(height: 20),
 
-          // My Wishes tabbed view
-          _buildMyWishes(),
-          const SizedBox(height: 20),
+                // Discover Experiences
+                _buildDiscoverExperiences(),
+                const SizedBox(height: 20),
 
-          // My Exchanges tabbed view
-          _buildMyExchanges(),
-          const SizedBox(height: 20),
+                // My Wishes tabbed view
+                _buildMyWishes(),
+                const SizedBox(height: 20),
 
-          // Trust & Reputation
-          _buildTrustReputation(),
-          const SizedBox(height: 20),
+                // My Exchanges tabbed view
+                _buildMyExchanges(),
+                const SizedBox(height: 20),
 
-          // Calendar preview
-          _buildCalendarPreview(),
+                // Trust & Reputation
+                _buildTrustReputation(),
+                const SizedBox(height: 20),
+
+                // Calendar preview
+                _buildCalendarPreview(),
+              ],
+            ),
+          ),
         ],
       ),
     );
@@ -583,6 +609,105 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                   label: const Text('Email Verification Debug'),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.purple,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 12,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 10),
+                ElevatedButton.icon(
+                  onPressed: () async {
+                    try {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('Testing Firebase Storage...'),
+                        ),
+                      );
+                      await WebImageService.testFirebaseStorage();
+                      if (mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text('Firebase Storage test successful!'),
+                            backgroundColor: Colors.green,
+                          ),
+                        );
+                      }
+                    } catch (e) {
+                      if (mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text('Firebase Storage test failed: $e'),
+                            backgroundColor: Colors.red,
+                          ),
+                        );
+                      }
+                    }
+                  },
+                  icon: const Icon(Icons.cloud_upload),
+                  label: const Text('Test Firebase Storage'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.teal,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 12,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 10),
+                ElevatedButton.icon(
+                  onPressed: () async {
+                    try {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('Testing image compression...'),
+                        ),
+                      );
+
+                      final ImagePicker picker = ImagePicker();
+                      final XFile? image = await picker.pickImage(
+                        source: ImageSource.gallery,
+                      );
+
+                      if (image != null) {
+                        await OptimizedImageService.testCompression(image);
+                        if (mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text(
+                                'Compression test complete! Check console for details.',
+                              ),
+                              backgroundColor: Colors.green,
+                            ),
+                          );
+                        }
+                      } else {
+                        if (mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text('No image selected'),
+                              backgroundColor: Colors.orange,
+                            ),
+                          );
+                        }
+                      }
+                    } catch (e) {
+                      if (mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text('Compression test failed: $e'),
+                            backgroundColor: Colors.red,
+                          ),
+                        );
+                      }
+                    }
+                  },
+                  icon: const Icon(Icons.compress),
+                  label: const Text('Test Image Compression'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.deepOrange,
                     foregroundColor: Colors.white,
                     padding: const EdgeInsets.symmetric(
                       horizontal: 16,
