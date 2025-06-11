@@ -8,7 +8,6 @@ import 'dart:async';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'services/experience_service.dart';
-import 'models/experience_model.dart';
 
 // 🚨 EMERGENCY FIX: Simple image status tracking
 enum ImageStatus { pending, uploading, success, failed, retrying }
@@ -72,7 +71,7 @@ class _PostExperienceScreenState extends State<PostExperienceScreen> {
   // Firestore and Storage references
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final FirebaseStorage _storage = FirebaseStorage.instanceFor(
-    bucket: 'gs://luckystar-uploads',
+    bucket: 'gs://luckystar-flutter-12d06.firebasestorage.app',
   );
   final ImagePicker _picker = ImagePicker();
 

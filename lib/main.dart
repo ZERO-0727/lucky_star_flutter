@@ -23,9 +23,9 @@ import 'firebase_email_verification_check.dart';
 import 'firebase_email_verification_debug.dart';
 import 'screens/auth/auth_wrapper.dart';
 import 'screens/auth/profile_screen.dart';
-import 'services/auth_service.dart';
 import 'welcome_page.dart';
 import 'app_wrapper.dart';
+import 'screens/image_upload_test_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -143,6 +143,7 @@ class LuckyStarApp extends StatelessWidget {
         '/welcome': (context) => const WelcomePage(),
         '/login': (context) => const AuthWrapper(),
         '/profile': (context) => const ProfileScreen(),
+        '/image-upload-test': (context) => const ImageUploadTestScreen(),
       },
       onGenerateRoute: (settings) {
         switch (settings.name) {
