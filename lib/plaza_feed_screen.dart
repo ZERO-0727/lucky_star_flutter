@@ -60,7 +60,9 @@ class _PlazaFeedScreenState extends State<PlazaFeedScreen>
         onPressed: () {
           Navigator.push(
             context,
-            MaterialPageRoute(builder: (context) => const CreatePlazaPostPage()),
+            MaterialPageRoute(
+              builder: (context) => const CreatePlazaPostPage(),
+            ),
           );
         },
         backgroundColor: const Color(0xFF7153DF),
@@ -158,20 +160,38 @@ class _PlazaFeedScreenState extends State<PlazaFeedScreen>
             ),
           ),
 
-          // Action buttons
-          OverflowBar(
-            alignment: MainAxisAlignment.spaceEvenly,
-            children: [
-              IconButton(
-                icon: const Icon(Icons.favorite_border),
-                onPressed: () {},
-              ),
-              IconButton(
-                icon: const Icon(Icons.bookmark_border),
-                onPressed: () {},
-              ),
-              IconButton(icon: const Icon(Icons.share), onPressed: () {}),
-            ],
+          // Action buttons - Social interactions for Plaza
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            child: Row(
+              children: [
+                IconButton(
+                  icon: const Icon(Icons.favorite_border, color: Colors.red),
+                  onPressed: () {
+                    // TODO: Implement like functionality
+                  },
+                ),
+                const Text('12', style: TextStyle(fontSize: 12)),
+                const SizedBox(width: 16),
+                IconButton(
+                  icon: const Icon(
+                    Icons.chat_bubble_outline,
+                    color: Colors.grey,
+                  ),
+                  onPressed: () {
+                    // TODO: Implement comment functionality
+                  },
+                ),
+                const Text('5', style: TextStyle(fontSize: 12)),
+                const Spacer(),
+                IconButton(
+                  icon: const Icon(Icons.share, color: Colors.grey),
+                  onPressed: () {
+                    // TODO: Implement share functionality
+                  },
+                ),
+              ],
+            ),
           ),
           // View Details button (placeholder for navigation)
           Padding(

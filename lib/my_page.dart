@@ -1,9 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'widgets/avatar_placeholder.dart';
 import 'account_settings_page.dart';
 import 'language_selection_page.dart';
 import 'interest_editing_page.dart';
+import 'services/favorites_service.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'models/experience_model.dart';
+import 'models/wish_model.dart';
 
 class MyPage extends StatefulWidget {
   const MyPage({super.key});
@@ -19,89 +24,19 @@ class _MyPageState extends State<MyPage> with SingleTickerProviderStateMixin {
     'Available',
     'Busy',
     'Available Weekends Only',
-    'Not Available'
+    'Not Available',
   ];
 
-  // Mock data for user profile
   final Map<String, dynamic> _userData = {
     'name': 'Sarah Johnson',
     'location': 'Tokyo, Japan',
     'gender': 'Female',
-    'bio': 'Passionate traveler and photographer. Love to explore new cultures and meet interesting people around the world.',
-    'stats': {
-      'experiencesShared': 24,
-      'starsReceived': 87,
-      'requestsSent': 15,
-    },
-    'verifications': {
-      'worldcoin': true,
-      'traditionalId': true,
-    },
+    'bio': 'Passionate traveler and photographer.',
+    'stats': {'experiencesShared': 24, 'starsReceived': 87, 'requestsSent': 15},
+    'verifications': {'worldcoin': true, 'traditionalId': true},
     'languages': ['English', 'Japanese', 'Spanish'],
     'interests': ['Photography', 'Hiking', 'Cooking', 'Art'],
-    'experiences': ['Travel Guide', 'Food Tour', 'Photography Workshop'],
   };
-
-  // Mock data for tabs
-  final List<Map<String, dynamic>> _favorites = [
-    {
-      'title': 'Tokyo Food Tour',
-      'host': 'Kenji T.',
-      'image': 'https://images.unsplash.com/photo-1540189549336-e6e99c3679fe?w=500',
-      'rating': 4.8,
-    },
-    {
-      'title': 'Mt. Fuji Hiking',
-      'host': 'Yuki M.',
-      'image': 'https://images.unsplash.com/photo-1578637387939-43c525550085?w=500',
-      'rating': 4.9,
-    },
-  ];
-
-  final List<Map<String, dynamic>> _publishedExperiences = [
-    {
-      'title': 'Traditional Tea Ceremony',
-      'date': 'Weekly',
-      'image': 'https://images.unsplash.com/photo-1576091160399-112ba8d25d1d?w=500',
-      'participants': 56,
-    },
-    {
-      'title': 'Night Photography in Shibuya',
-      'date': 'Monthly',
-      'image': 'https://images.unsplash.com/photo-1533923156502-be31530547c4?w=500',
-      'participants': 28,
-    },
-  ];
-
-  final List<Map<String, dynamic>> _records = [
-    {
-      'title': 'Kyoto Temple Tour',
-      'date': 'May 15, 2025',
-      'image': 'https://images.unsplash.com/photo-1493976040374-85c8e12f0c0e?w=500',
-      'status': 'Completed',
-    },
-    {
-      'title': 'Sushi Making Class',
-      'date': 'April 22, 2025',
-      'image': 'https://images.unsplash.com/photo-1579871494447-9811cf80d66c?w=500',
-      'status': 'Completed',
-    },
-  ];
-
-  final List<Map<String, dynamic>> _ratings = [
-    {
-      'name': 'Emma W.',
-      'date': 'May 20, 2025',
-      'rating': 5,
-      'comment': 'Amazing experience! Sarah was knowledgeable and made the tour very enjoyable.',
-    },
-    {
-      'name': 'John D.',
-      'date': 'May 5, 2025',
-      'rating': 4,
-      'comment': 'Great photography tips and very patient with beginners.',
-    },
-  ];
 
   @override
   void initState() {
@@ -171,14 +106,11 @@ class _MyPageState extends State<MyPage> with SingleTickerProviderStateMixin {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Avatar and user info row
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Avatar with verification badges
               Stack(
                 children: [
-                  // Avatar
                   Container(
                     width: 100,
                     height: 100,
@@ -191,7 +123,6 @@ class _MyPageState extends State<MyPage> with SingleTickerProviderStateMixin {
                     ),
                     child: const AvatarPlaceholder(size: 100),
                   ),
-                  // Verification badges
                   if (_userData['verifications']['worldcoin'] == true)
                     Positioned(
                       bottom: 0,
@@ -203,7 +134,11 @@ class _MyPageState extends State<MyPage> with SingleTickerProviderStateMixin {
                           shape: BoxShape.circle,
                           border: Border.all(color: Colors.white, width: 2),
                         ),
-                        child: const Icon(Icons.verified_user, color: Colors.white, size: 14),
+                        child: const Icon(
+                          Icons.verified_user,
+                          color: Colors.white,
+                          size: 14,
+                        ),
                       ),
                     ),
                   if (_userData['verifications']['traditionalId'] == true)
@@ -217,13 +152,16 @@ class _MyPageState extends State<MyPage> with SingleTickerProviderStateMixin {
                           shape: BoxShape.circle,
                           border: Border.all(color: Colors.white, width: 2),
                         ),
-                        child: const Icon(Icons.badge, color: Colors.white, size: 14),
+                        child: const Icon(
+                          Icons.badge,
+                          color: Colors.white,
+                          size: 14,
+                        ),
                       ),
                     ),
                 ],
               ),
               const SizedBox(width: 20),
-              // User info
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -238,7 +176,11 @@ class _MyPageState extends State<MyPage> with SingleTickerProviderStateMixin {
                     const SizedBox(height: 4),
                     Row(
                       children: [
-                        Icon(Icons.location_on, size: 16, color: Colors.grey[600]),
+                        Icon(
+                          Icons.location_on,
+                          size: 16,
+                          color: Colors.grey[600],
+                        ),
                         const SizedBox(width: 4),
                         Text(
                           _userData['location'],
@@ -269,8 +211,6 @@ class _MyPageState extends State<MyPage> with SingleTickerProviderStateMixin {
             ],
           ),
           const SizedBox(height: 20),
-          
-          // About section
           Text(
             'About You',
             style: GoogleFonts.poppins(
@@ -281,14 +221,9 @@ class _MyPageState extends State<MyPage> with SingleTickerProviderStateMixin {
           const SizedBox(height: 8),
           Text(
             _userData['bio'],
-            style: GoogleFonts.poppins(
-              fontSize: 14,
-              color: Colors.grey[800],
-            ),
+            style: GoogleFonts.poppins(fontSize: 14, color: Colors.grey[800]),
           ),
           const SizedBox(height: 20),
-          
-          // Action buttons
           Row(
             children: [
               Expanded(
@@ -320,12 +255,13 @@ class _MyPageState extends State<MyPage> with SingleTickerProviderStateMixin {
                       value: _selectedAvailability,
                       isExpanded: true,
                       icon: const Icon(Icons.arrow_drop_down),
-                      items: _availabilityOptions.map((String value) {
-                        return DropdownMenuItem<String>(
-                          value: value,
-                          child: Text(value),
-                        );
-                      }).toList(),
+                      items:
+                          _availabilityOptions.map((String value) {
+                            return DropdownMenuItem<String>(
+                              value: value,
+                              child: Text(value),
+                            );
+                          }).toList(),
                       onChanged: (String? newValue) {
                         if (newValue != null) {
                           setState(() {
@@ -363,17 +299,17 @@ class _MyPageState extends State<MyPage> with SingleTickerProviderStateMixin {
         mainAxisAlignment: MainAxisAlignment.spaceAround,
         children: [
           _buildStatItem(
-            'Experiences Shared',
+            'Experiences',
             _userData['stats']['experiencesShared'].toString(),
             Icons.explore,
           ),
           _buildStatItem(
-            'Stars Received',
+            'Stars',
             _userData['stats']['starsReceived'].toString(),
             Icons.star,
           ),
           _buildStatItem(
-            'Requests Sent',
+            'Requests',
             _userData['stats']['requestsSent'].toString(),
             Icons.send,
           ),
@@ -398,10 +334,7 @@ class _MyPageState extends State<MyPage> with SingleTickerProviderStateMixin {
         const SizedBox(height: 4),
         Text(
           label,
-          style: GoogleFonts.poppins(
-            fontSize: 12,
-            color: Colors.grey[600],
-          ),
+          style: GoogleFonts.poppins(fontSize: 12, color: Colors.grey[600]),
           textAlign: TextAlign.center,
         ),
       ],
@@ -455,65 +388,89 @@ class _MyPageState extends State<MyPage> with SingleTickerProviderStateMixin {
   }
 
   Widget _buildFavoritesTab() {
-    return ListView.builder(
-      padding: const EdgeInsets.symmetric(vertical: 10),
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      itemCount: _favorites.length,
-      itemBuilder: (context, index) {
-        final item = _favorites[index];
-        return Card(
-          margin: const EdgeInsets.only(bottom: 16),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-          child: Row(
+    return FutureBuilder<Map<String, List<dynamic>>>(
+      future: _loadFavorites(),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Center(child: CircularProgressIndicator());
+        }
+
+        if (snapshot.hasError) {
+          return Center(
+            child: Text('Error loading favorites: ${snapshot.error}'),
+          );
+        }
+
+        final favorites = snapshot.data ?? {'experiences': [], 'wishes': []};
+        final favoriteExperiences = favorites['experiences'] ?? [];
+        final favoriteWishes = favorites['wishes'] ?? [];
+
+        if (favoriteExperiences.isEmpty && favoriteWishes.isEmpty) {
+          return const Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(Icons.star_border, size: 64, color: Colors.grey),
+                SizedBox(height: 16),
+                Text(
+                  'No favorites yet',
+                  style: TextStyle(fontSize: 18, color: Colors.grey),
+                ),
+                Text(
+                  'Tap the star icon on posts to add them here',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(fontSize: 14, color: Colors.grey),
+                ),
+              ],
+            ),
+          );
+        }
+
+        return SingleChildScrollView(
+          padding: const EdgeInsets.symmetric(vertical: 10),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              ClipRRect(
-                borderRadius: const BorderRadius.only(
-                  topLeft: Radius.circular(12),
-                  bottomLeft: Radius.circular(12),
-                ),
-                child: Image.network(
-                  item['image'],
-                  width: 100,
-                  height: 100,
-                  fit: BoxFit.cover,
-                ),
-              ),
-              Expanded(
-                child: Padding(
-                  padding: const EdgeInsets.all(12),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        item['title'],
-                        style: GoogleFonts.poppins(
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      Text(
-                        'Hosted by ${item['host']}',
-                        style: GoogleFonts.poppins(
-                          fontSize: 14,
-                          color: Colors.grey[600],
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      Row(
-                        children: [
-                          const Icon(Icons.star, color: Colors.amber, size: 16),
-                          const SizedBox(width: 4),
-                          Text(
-                            item['rating'].toString(),
-                            style: GoogleFonts.poppins(fontSize: 14),
-                          ),
-                        ],
-                      ),
-                    ],
+              if (favoriteExperiences.isNotEmpty) ...[
+                Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 8,
+                  ),
+                  child: Text(
+                    'Favorite Experiences',
+                    style: GoogleFonts.poppins(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                      color: const Color(0xFF7153DF),
+                    ),
                   ),
                 ),
-              ),
+                ...favoriteExperiences
+                    .map(
+                      (experience) => _buildFavoriteExperienceCard(experience),
+                    )
+                    .toList(),
+              ],
+              if (favoriteWishes.isNotEmpty) ...[
+                Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 8,
+                  ),
+                  child: Text(
+                    'Favorite Wishes',
+                    style: GoogleFonts.poppins(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.orange.shade700,
+                    ),
+                  ),
+                ),
+                ...favoriteWishes
+                    .map((wish) => _buildFavoriteWishCard(wish))
+                    .toList(),
+              ],
             ],
           ),
         );
@@ -522,214 +479,15 @@ class _MyPageState extends State<MyPage> with SingleTickerProviderStateMixin {
   }
 
   Widget _buildPublishedTab() {
-    return ListView.builder(
-      padding: const EdgeInsets.symmetric(vertical: 10),
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      itemCount: _publishedExperiences.length,
-      itemBuilder: (context, index) {
-        final item = _publishedExperiences[index];
-        return Card(
-          margin: const EdgeInsets.only(bottom: 16),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-          child: Row(
-            children: [
-              ClipRRect(
-                borderRadius: const BorderRadius.only(
-                  topLeft: Radius.circular(12),
-                  bottomLeft: Radius.circular(12),
-                ),
-                child: Image.network(
-                  item['image'],
-                  width: 100,
-                  height: 100,
-                  fit: BoxFit.cover,
-                ),
-              ),
-              Expanded(
-                child: Padding(
-                  padding: const EdgeInsets.all(12),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        item['title'],
-                        style: GoogleFonts.poppins(
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      Text(
-                        'Frequency: ${item['date']}',
-                        style: GoogleFonts.poppins(
-                          fontSize: 14,
-                          color: Colors.grey[600],
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      Row(
-                        children: [
-                          const Icon(Icons.people, color: Color(0xFF7153DF), size: 16),
-                          const SizedBox(width: 4),
-                          Text(
-                            '${item['participants']} participants',
-                            style: GoogleFonts.poppins(fontSize: 14),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ],
-          ),
-        );
-      },
-    );
+    return const Center(child: Text('Published content coming soon'));
   }
 
   Widget _buildRecordsTab() {
-    return ListView.builder(
-      padding: const EdgeInsets.symmetric(vertical: 10),
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      itemCount: _records.length,
-      itemBuilder: (context, index) {
-        final item = _records[index];
-        return Card(
-          margin: const EdgeInsets.only(bottom: 16),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-          child: Row(
-            children: [
-              ClipRRect(
-                borderRadius: const BorderRadius.only(
-                  topLeft: Radius.circular(12),
-                  bottomLeft: Radius.circular(12),
-                ),
-                child: Image.network(
-                  item['image'],
-                  width: 100,
-                  height: 100,
-                  fit: BoxFit.cover,
-                ),
-              ),
-              Expanded(
-                child: Padding(
-                  padding: const EdgeInsets.all(12),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        item['title'],
-                        style: GoogleFonts.poppins(
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      Text(
-                        item['date'],
-                        style: GoogleFonts.poppins(
-                          fontSize: 14,
-                          color: Colors.grey[600],
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                        decoration: BoxDecoration(
-                          color: Colors.green[100],
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: Text(
-                          item['status'],
-                          style: GoogleFonts.poppins(
-                            fontSize: 12,
-                            color: Colors.green[800],
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ],
-          ),
-        );
-      },
-    );
+    return const Center(child: Text('Records coming soon'));
   }
 
   Widget _buildRatingsTab() {
-    return ListView.builder(
-      padding: const EdgeInsets.symmetric(vertical: 10),
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      itemCount: _ratings.length,
-      itemBuilder: (context, index) {
-        final item = _ratings[index];
-        return Card(
-          margin: const EdgeInsets.only(bottom: 16),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-          child: Padding(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    const CircleAvatar(
-                      radius: 20,
-                      backgroundColor: Colors.grey,
-                      child: Icon(Icons.person, color: Colors.white),
-                    ),
-                    const SizedBox(width: 12),
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          item['name'],
-                          style: GoogleFonts.poppins(
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                        Text(
-                          item['date'],
-                          style: GoogleFonts.poppins(
-                            fontSize: 12,
-                            color: Colors.grey[600],
-                          ),
-                        ),
-                      ],
-                    ),
-                    const Spacer(),
-                    Row(
-                      children: List.generate(
-                        5,
-                        (i) => Icon(
-                          i < item['rating'] ? Icons.star : Icons.star_border,
-                          color: Colors.amber,
-                          size: 16,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 12),
-                Text(
-                  item['comment'],
-                  style: GoogleFonts.poppins(
-                    fontSize: 14,
-                    color: Colors.grey[800],
-                  ),
-                ),
-                    ],
-                  ),
-                ),
-              );
-            },
-          );
+    return const Center(child: Text('Ratings coming soon'));
   }
 
   Widget _buildTagSection(String title, List<dynamic> tags) {
@@ -772,78 +530,263 @@ class _MyPageState extends State<MyPage> with SingleTickerProviderStateMixin {
           Wrap(
             spacing: 8,
             runSpacing: 8,
-            children: tags.map((tag) {
-              return Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                decoration: BoxDecoration(
-                  color: const Color(0xFFF5F0FF),
-                  borderRadius: BorderRadius.circular(20),
-                  border: Border.all(color: const Color(0xFF7153DF).withOpacity(0.3)),
-                ),
-                child: Text(
-                  tag,
-                  style: GoogleFonts.poppins(
-                    fontSize: 14,
-                    color: const Color(0xFF7153DF),
-                  ),
-                ),
-              );
-            }).toList(),
+            children:
+                tags.map((tag) {
+                  return Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 6,
+                    ),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFF5F0FF),
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(
+                        color: const Color(0xFF7153DF).withOpacity(0.3),
+                      ),
+                    ),
+                    child: Text(
+                      tag,
+                      style: GoogleFonts.poppins(
+                        fontSize: 14,
+                        color: const Color(0xFF7153DF),
+                      ),
+                    ),
+                  );
+                }).toList(),
           ),
         ],
       ),
     );
   }
 
+  Future<Map<String, List<dynamic>>> _loadFavorites() async {
+    try {
+      final favoriteExperienceIds =
+          await FavoritesService.getFavoriteExperiences();
+      final favoriteWishIds = await FavoritesService.getFavoriteWishes();
+
+      final favoriteExperiences = <ExperienceModel>[];
+      final favoriteWishes = <WishModel>[];
+
+      final currentUserId = FirebaseAuth.instance.currentUser?.uid;
+
+      for (final id in favoriteExperienceIds) {
+        try {
+          final doc =
+              await FirebaseFirestore.instance
+                  .collection('experiences')
+                  .doc(id)
+                  .get();
+          if (doc.exists) {
+            final experience = ExperienceModel.fromFirestore(doc);
+            if (experience.userId != currentUserId) {
+              favoriteExperiences.add(experience);
+            }
+          }
+        } catch (e) {
+          print('Error loading experience $id: $e');
+        }
+      }
+
+      for (final id in favoriteWishIds) {
+        try {
+          final doc =
+              await FirebaseFirestore.instance
+                  .collection('wishes')
+                  .doc(id)
+                  .get();
+          if (doc.exists) {
+            final wish = WishModel.fromFirestore(doc);
+            if (wish.userId != currentUserId) {
+              favoriteWishes.add(wish);
+            }
+          }
+        } catch (e) {
+          print('Error loading wish $id: $e');
+        }
+      }
+
+      return {'experiences': favoriteExperiences, 'wishes': favoriteWishes};
+    } catch (e) {
+      print('Error loading favorites: $e');
+      return {'experiences': [], 'wishes': []};
+    }
+  }
+
+  Widget _buildFavoriteExperienceCard(ExperienceModel experience) {
+    return Card(
+      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      child: InkWell(
+        onTap: () {
+          Navigator.pushNamed(
+            context,
+            '/experience-detail',
+            arguments: {
+              'experienceId': experience.experienceId,
+              'experience': experience,
+            },
+          );
+        },
+        borderRadius: BorderRadius.circular(12),
+        child: Row(
+          children: [
+            ClipRRect(
+              borderRadius: const BorderRadius.only(
+                topLeft: Radius.circular(12),
+                bottomLeft: Radius.circular(12),
+              ),
+              child: Container(
+                width: 80,
+                height: 80,
+                color: Colors.grey.shade300,
+                child:
+                    experience.photoUrls.isNotEmpty
+                        ? Image.network(
+                          experience.photoUrls.first,
+                          fit: BoxFit.cover,
+                          errorBuilder: (context, error, stackTrace) {
+                            return const Icon(Icons.image, color: Colors.grey);
+                          },
+                        )
+                        : const Icon(Icons.explore, color: Colors.grey),
+              ),
+            ),
+            Expanded(
+              child: Padding(
+                padding: const EdgeInsets.all(12),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      experience.title,
+                      style: GoogleFonts.poppins(
+                        fontSize: 14,
+                        fontWeight: FontWeight.bold,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      experience.location,
+                      style: GoogleFonts.poppins(
+                        fontSize: 12,
+                        color: Colors.grey[600],
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    const SizedBox(height: 4),
+                    Row(
+                      children: [
+                        const Icon(Icons.people, size: 12, color: Colors.blue),
+                        const SizedBox(width: 4),
+                        Text(
+                          '${experience.availableSlots} slots',
+                          style: GoogleFonts.poppins(fontSize: 10),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildFavoriteWishCard(WishModel wish) {
+    return Card(
+      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      child: InkWell(
+        onTap: () {
+          Navigator.pushNamed(
+            context,
+            '/wish-detail',
+            arguments: {'wishId': wish.wishId, 'wish': wish},
+          );
+        },
+        borderRadius: BorderRadius.circular(12),
+        child: Row(
+          children: [
+            Container(
+              width: 80,
+              height: 80,
+              decoration: BoxDecoration(
+                color: Colors.orange.shade100,
+                borderRadius: const BorderRadius.only(
+                  topLeft: Radius.circular(12),
+                  bottomLeft: Radius.circular(12),
+                ),
+              ),
+              child: Icon(Icons.star, color: Colors.orange.shade700, size: 40),
+            ),
+            Expanded(
+              child: Padding(
+                padding: const EdgeInsets.all(12),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      wish.title,
+                      style: GoogleFonts.poppins(
+                        fontSize: 14,
+                        fontWeight: FontWeight.bold,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      wish.location,
+                      style: GoogleFonts.poppins(
+                        fontSize: 12,
+                        color: Colors.grey[600],
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    const SizedBox(height: 4),
+                    Row(
+                      children: [
+                        const Icon(
+                          Icons.schedule,
+                          size: 12,
+                          color: Colors.orange,
+                        ),
+                        const SizedBox(width: 4),
+                        Text(
+                          wish.preferredDate != null
+                              ? 'Has date preference'
+                              : 'Flexible',
+                          style: GoogleFonts.poppins(fontSize: 10),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   void _showTagEditor(BuildContext context, String title, List<dynamic> tags) {
     if (title == 'Languages') {
-      // Convert dynamic list to List<String>
-      final List<String> currentLanguages = tags.map((tag) => tag.toString()).toList();
-      
-      // Navigate to the language selection page
-      Navigator.push<List<String>>(
+      Navigator.push(
         context,
-        MaterialPageRoute(
-          builder: (context) => LanguageSelectionPage(
-            selectedLanguages: currentLanguages,
-          ),
-        ),
-      ).then((selectedLanguages) {
-        // Update the languages when returning from the selection page
-        if (selectedLanguages != null) {
-          setState(() {
-            _userData['languages'] = selectedLanguages;
-          });
-        }
-      });
+        MaterialPageRoute(builder: (context) => const LanguageSelectionPage()),
+      );
     } else if (title == 'Interests') {
-      // Convert dynamic list to List<String>
-      final List<String> currentInterests = tags.map((tag) => tag.toString()).toList();
-      
-      // Navigate to the interest editing page
-      Navigator.push<List<String>>(
+      Navigator.push(
         context,
-        MaterialPageRoute(
-          builder: (context) => InterestEditingPage(
-            selectedInterests: currentInterests,
-            maxSelections: 20,
-          ),
-        ),
-      ).then((selectedInterests) {
-        // Update the interests when returning from the editing page
-        if (selectedInterests != null) {
-          setState(() {
-            _userData['interests'] = selectedInterests;
-          });
-        }
-      });
-    } else {
-      // For other tag sections, show the placeholder message
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Edit $title feature coming soon!'),
-          duration: const Duration(seconds: 2),
-        ),
+        MaterialPageRoute(builder: (context) => const InterestEditingPage()),
       );
     }
   }
