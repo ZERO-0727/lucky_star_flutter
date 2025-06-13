@@ -12,6 +12,7 @@ class UserModel {
   final Map<String, dynamic> statistics;
   final String status;
   final String location;
+  final String gender;
   final List<String> languages;
   final int trustScore;
   final bool isVerified;
@@ -30,6 +31,7 @@ class UserModel {
     this.statistics = const {},
     this.status = 'Available',
     this.location = '',
+    this.gender = '',
     this.languages = const [],
     this.trustScore = 0,
     this.isVerified = false,
@@ -50,6 +52,7 @@ class UserModel {
     Map<String, dynamic>? statistics,
     String? status,
     String? location,
+    String? gender,
     List<String>? languages,
     int? trustScore,
     bool? isVerified,
@@ -68,6 +71,7 @@ class UserModel {
       statistics: statistics ?? this.statistics,
       status: status ?? this.status,
       location: location ?? this.location,
+      gender: gender ?? this.gender,
       languages: languages ?? this.languages,
       trustScore: trustScore ?? this.trustScore,
       isVerified: isVerified ?? this.isVerified,
@@ -81,7 +85,7 @@ class UserModel {
     final data = doc.data() as Map<String, dynamic>? ?? {};
 
     // Helper function to safely convert Timestamp to DateTime
-    DateTime? _timestampToDateTime(dynamic timestamp) {
+    DateTime? timestampToDateTime(dynamic timestamp) {
       if (timestamp is Timestamp) {
         return timestamp.toDate();
       }
@@ -89,7 +93,7 @@ class UserModel {
     }
 
     // Helper function to safely convert to List<String>
-    List<String> _toStringList(dynamic list) {
+    List<String> toStringList(dynamic list) {
       if (list is List) {
         return list.map((item) => item.toString()).toList();
       }
@@ -101,18 +105,19 @@ class UserModel {
       displayName: data['displayName'] ?? '',
       bio: data['bio'] ?? '',
       avatarUrl: data['avatarUrl'] ?? '',
-      interests: _toStringList(data['interests']),
-      visitedCountries: _toStringList(data['visitedCountries']),
-      verificationBadges: _toStringList(data['verificationBadges']),
+      interests: toStringList(data['interests']),
+      visitedCountries: toStringList(data['visitedCountries']),
+      verificationBadges: toStringList(data['verificationBadges']),
       referenceCount: data['referenceCount'] ?? 0,
       statistics: data['statistics'] as Map<String, dynamic>? ?? {},
       status: data['status'] ?? 'Available',
       location: data['location'] ?? '',
-      languages: _toStringList(data['languages']),
+      gender: data['gender'] ?? '',
+      languages: toStringList(data['languages']),
       trustScore: data['trustScore'] ?? 0,
       isVerified: data['isVerified'] ?? false,
-      createdAt: _timestampToDateTime(data['createdAt']) ?? DateTime.now(),
-      updatedAt: _timestampToDateTime(data['updatedAt']) ?? DateTime.now(),
+      createdAt: timestampToDateTime(data['createdAt']) ?? DateTime.now(),
+      updatedAt: timestampToDateTime(data['updatedAt']) ?? DateTime.now(),
     );
   }
 
@@ -130,6 +135,7 @@ class UserModel {
       'statistics': statistics,
       'status': status,
       'location': location,
+      'gender': gender,
       'languages': languages,
       'trustScore': trustScore,
       'isVerified': isVerified,

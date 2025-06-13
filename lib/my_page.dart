@@ -1,10 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'models/user_model.dart';
+import 'services/user_service.dart';
 import 'widgets/avatar_placeholder.dart';
 import 'account_settings_page.dart';
 import 'language_selection_page.dart';
 import 'interest_editing_page.dart';
+import 'edit_profile_screen.dart';
 import 'services/favorites_service.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'models/experience_model.dart';
@@ -19,7 +22,13 @@ class MyPage extends StatefulWidget {
 
 class _MyPageState extends State<MyPage> with SingleTickerProviderStateMixin {
   late TabController _tabController;
+  final UserService _userService = UserService();
+
+  UserModel? _currentUser;
+  bool _isLoading = true;
+  String? _currentUserId;
   String _selectedAvailability = 'Available';
+
   final List<String> _availabilityOptions = [
     'Available',
     'Busy',
@@ -27,21 +36,11 @@ class _MyPageState extends State<MyPage> with SingleTickerProviderStateMixin {
     'Not Available',
   ];
 
-  final Map<String, dynamic> _userData = {
-    'name': 'Sarah Johnson',
-    'location': 'Tokyo, Japan',
-    'gender': 'Female',
-    'bio': 'Passionate traveler and photographer.',
-    'stats': {'experiencesShared': 24, 'starsReceived': 87, 'requestsSent': 15},
-    'verifications': {'worldcoin': true, 'traditionalId': true},
-    'languages': ['English', 'Japanese', 'Spanish'],
-    'interests': ['Photography', 'Hiking', 'Cooking', 'Art'],
-  };
-
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 4, vsync: this);
+    _loadUserData();
   }
 
   @override
@@ -50,8 +49,138 @@ class _MyPageState extends State<MyPage> with SingleTickerProviderStateMixin {
     super.dispose();
   }
 
+  Future<void> _loadUserData() async {
+    try {
+      final user = FirebaseAuth.instance.currentUser;
+      if (user != null) {
+        _currentUserId = user.uid;
+        final userData = await _userService.getUserById(user.uid);
+
+        if (userData != null && mounted) {
+          setState(() {
+            _currentUser = userData;
+            _selectedAvailability = userData.status;
+            _isLoading = false;
+          });
+        } else {
+          // Create user if doesn't exist
+          final newUser = UserModel(
+            userId: user.uid,
+            displayName: user.displayName ?? 'User',
+            createdAt: DateTime.now(),
+            updatedAt: DateTime.now(),
+          );
+          await _userService.createUser(newUser);
+          if (mounted) {
+            setState(() {
+              _currentUser = newUser;
+              _isLoading = false;
+            });
+          }
+        }
+      } else {
+        if (mounted) {
+          setState(() {
+            _isLoading = false;
+          });
+        }
+      }
+    } catch (e) {
+      print('Error loading user data: $e');
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
+    }
+  }
+
+  Future<void> _refreshUserData() async {
+    if (_currentUserId != null) {
+      try {
+        final userData = await _userService.getUserById(_currentUserId!);
+        if (userData != null && mounted) {
+          setState(() {
+            _currentUser = userData;
+            _selectedAvailability = userData.status;
+          });
+        }
+      } catch (e) {
+        print('Error refreshing user data: $e');
+      }
+    }
+  }
+
+  Future<void> _updateAvailability(String newStatus) async {
+    if (_currentUser == null) return;
+
+    try {
+      await _userService.updateUserFields(_currentUser!.userId, {
+        'status': newStatus,
+      });
+
+      if (mounted) {
+        setState(() {
+          _selectedAvailability = newStatus;
+          _currentUser = _currentUser!.copyWith(status: newStatus);
+        });
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Availability updated'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
+    } catch (e) {
+      print('Error updating availability: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error updating availability: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
+    if (_isLoading) {
+      return Scaffold(
+        appBar: AppBar(
+          title: const Text('My Profile'),
+          backgroundColor: Colors.white,
+          elevation: 0,
+        ),
+        body: const Center(child: CircularProgressIndicator()),
+      );
+    }
+
+    if (_currentUser == null) {
+      return Scaffold(
+        appBar: AppBar(
+          title: const Text('My Profile'),
+          backgroundColor: Colors.white,
+          elevation: 0,
+        ),
+        body: const Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(Icons.person_off, size: 64, color: Colors.grey),
+              SizedBox(height: 16),
+              Text(
+                'Please log in to view your profile',
+                style: TextStyle(fontSize: 18, color: Colors.grey),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('My Profile'),
@@ -72,17 +201,21 @@ class _MyPageState extends State<MyPage> with SingleTickerProviderStateMixin {
         ],
       ),
       body: SafeArea(
-        child: SingleChildScrollView(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              _buildProfileHeader(),
-              _buildStatisticsPanel(),
-              _buildTabsSection(),
-              _buildTagSection('Languages', _userData['languages']),
-              _buildTagSection('Interests', _userData['interests']),
-              const SizedBox(height: 30),
-            ],
+        child: RefreshIndicator(
+          onRefresh: _refreshUserData,
+          child: SingleChildScrollView(
+            physics: const AlwaysScrollableScrollPhysics(),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _buildProfileHeader(),
+                _buildStatisticsPanel(),
+                _buildTabsSection(),
+                _buildTagSection('Languages', _currentUser!.languages),
+                _buildTagSection('Interests', _currentUser!.interests),
+                const SizedBox(height: 30),
+              ],
+            ),
           ),
         ),
       ),
@@ -121,9 +254,22 @@ class _MyPageState extends State<MyPage> with SingleTickerProviderStateMixin {
                         width: 2,
                       ),
                     ),
-                    child: const AvatarPlaceholder(size: 100),
+                    child: ClipOval(
+                      child:
+                          _currentUser!.avatarUrl.isNotEmpty
+                              ? Image.network(
+                                _currentUser!.avatarUrl,
+                                width: 100,
+                                height: 100,
+                                fit: BoxFit.cover,
+                                errorBuilder: (context, error, stackTrace) {
+                                  return const AvatarPlaceholder(size: 100);
+                                },
+                              )
+                              : const AvatarPlaceholder(size: 100),
+                    ),
                   ),
-                  if (_userData['verifications']['worldcoin'] == true)
+                  if (_currentUser!.isVerified)
                     Positioned(
                       bottom: 0,
                       right: 25,
@@ -141,7 +287,7 @@ class _MyPageState extends State<MyPage> with SingleTickerProviderStateMixin {
                         ),
                       ),
                     ),
-                  if (_userData['verifications']['traditionalId'] == true)
+                  if (_currentUser!.verificationBadges.isNotEmpty)
                     Positioned(
                       bottom: 0,
                       right: 0,
@@ -167,44 +313,50 @@ class _MyPageState extends State<MyPage> with SingleTickerProviderStateMixin {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      _userData['name'],
+                      _currentUser!.displayName,
                       style: GoogleFonts.poppins(
                         fontSize: 24,
                         fontWeight: FontWeight.bold,
                       ),
                     ),
                     const SizedBox(height: 4),
-                    Row(
-                      children: [
-                        Icon(
-                          Icons.location_on,
-                          size: 16,
-                          color: Colors.grey[600],
-                        ),
-                        const SizedBox(width: 4),
-                        Text(
-                          _userData['location'],
-                          style: GoogleFonts.poppins(
-                            fontSize: 14,
+                    if (_currentUser!.location.isNotEmpty) ...[
+                      Row(
+                        children: [
+                          Icon(
+                            Icons.location_on,
+                            size: 16,
                             color: Colors.grey[600],
                           ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 4),
-                    Row(
-                      children: [
-                        Icon(Icons.person, size: 16, color: Colors.grey[600]),
-                        const SizedBox(width: 4),
-                        Text(
-                          _userData['gender'],
-                          style: GoogleFonts.poppins(
-                            fontSize: 14,
-                            color: Colors.grey[600],
+                          const SizedBox(width: 4),
+                          Expanded(
+                            child: Text(
+                              _currentUser!.location,
+                              style: GoogleFonts.poppins(
+                                fontSize: 14,
+                                color: Colors.grey[600],
+                              ),
+                            ),
                           ),
-                        ),
-                      ],
-                    ),
+                        ],
+                      ),
+                      const SizedBox(height: 4),
+                    ],
+                    if (_currentUser!.gender.isNotEmpty) ...[
+                      Row(
+                        children: [
+                          Icon(Icons.person, size: 16, color: Colors.grey[600]),
+                          const SizedBox(width: 4),
+                          Text(
+                            _currentUser!.gender,
+                            style: GoogleFonts.poppins(
+                              fontSize: 14,
+                              color: Colors.grey[600],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
                   ],
                 ),
               ),
@@ -220,16 +372,40 @@ class _MyPageState extends State<MyPage> with SingleTickerProviderStateMixin {
           ),
           const SizedBox(height: 8),
           Text(
-            _userData['bio'],
-            style: GoogleFonts.poppins(fontSize: 14, color: Colors.grey[800]),
+            _currentUser!.bio.isNotEmpty
+                ? _currentUser!.bio
+                : 'No bio added yet. Tap "Edit Profile" to add one!',
+            style: GoogleFonts.poppins(
+              fontSize: 14,
+              color:
+                  _currentUser!.bio.isNotEmpty
+                      ? Colors.grey[800]
+                      : Colors.grey[500],
+              fontStyle:
+                  _currentUser!.bio.isNotEmpty
+                      ? FontStyle.normal
+                      : FontStyle.italic,
+            ),
           ),
           const SizedBox(height: 20),
           Row(
             children: [
               Expanded(
                 child: ElevatedButton(
-                  onPressed: () {
-                    Navigator.pushNamed(context, '/edit-profile');
+                  onPressed: () async {
+                    final result = await Navigator.push<UserModel>(
+                      context,
+                      MaterialPageRoute(
+                        builder:
+                            (context) => EditProfileScreen(user: _currentUser),
+                      ),
+                    );
+                    if (result != null) {
+                      setState(() {
+                        _currentUser = result;
+                        _selectedAvailability = result.status;
+                      });
+                    }
                   },
                   style: ElevatedButton.styleFrom(
                     backgroundColor: const Color(0xFF7153DF),
@@ -263,10 +439,9 @@ class _MyPageState extends State<MyPage> with SingleTickerProviderStateMixin {
                             );
                           }).toList(),
                       onChanged: (String? newValue) {
-                        if (newValue != null) {
-                          setState(() {
-                            _selectedAvailability = newValue;
-                          });
+                        if (newValue != null &&
+                            newValue != _selectedAvailability) {
+                          _updateAvailability(newValue);
                         }
                       },
                     ),
@@ -300,18 +475,18 @@ class _MyPageState extends State<MyPage> with SingleTickerProviderStateMixin {
         children: [
           _buildStatItem(
             'Experiences',
-            _userData['stats']['experiencesShared'].toString(),
+            _currentUser!.experiencesCount.toString(),
             Icons.explore,
           ),
           _buildStatItem(
-            'Stars',
-            _userData['stats']['starsReceived'].toString(),
+            'Wishes',
+            _currentUser!.wishesCount.toString(),
             Icons.star,
           ),
           _buildStatItem(
-            'Requests',
-            _userData['stats']['requestsSent'].toString(),
-            Icons.send,
+            'Trust Score',
+            _currentUser!.trustScore.toString(),
+            Icons.verified,
           ),
         ],
       ),
@@ -490,7 +665,7 @@ class _MyPageState extends State<MyPage> with SingleTickerProviderStateMixin {
     return const Center(child: Text('Ratings coming soon'));
   }
 
-  Widget _buildTagSection(String title, List<dynamic> tags) {
+  Widget _buildTagSection(String title, List<String> tags) {
     return Container(
       padding: const EdgeInsets.all(20),
       margin: const EdgeInsets.only(top: 16),
@@ -527,33 +702,42 @@ class _MyPageState extends State<MyPage> with SingleTickerProviderStateMixin {
             ],
           ),
           const SizedBox(height: 12),
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children:
-                tags.map((tag) {
-                  return Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 12,
-                      vertical: 6,
-                    ),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFF5F0FF),
-                      borderRadius: BorderRadius.circular(20),
-                      border: Border.all(
-                        color: const Color(0xFF7153DF).withOpacity(0.3),
-                      ),
-                    ),
-                    child: Text(
-                      tag,
-                      style: GoogleFonts.poppins(
-                        fontSize: 14,
-                        color: const Color(0xFF7153DF),
-                      ),
-                    ),
-                  );
-                }).toList(),
-          ),
+          tags.isNotEmpty
+              ? Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children:
+                    tags.map((tag) {
+                      return Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 6,
+                        ),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFF5F0FF),
+                          borderRadius: BorderRadius.circular(20),
+                          border: Border.all(
+                            color: const Color(0xFF7153DF).withOpacity(0.3),
+                          ),
+                        ),
+                        child: Text(
+                          tag,
+                          style: GoogleFonts.poppins(
+                            fontSize: 14,
+                            color: const Color(0xFF7153DF),
+                          ),
+                        ),
+                      );
+                    }).toList(),
+              )
+              : Text(
+                'No ${title.toLowerCase()} added yet. Tap the edit icon to add some!',
+                style: GoogleFonts.poppins(
+                  fontSize: 14,
+                  color: Colors.grey[500],
+                  fontStyle: FontStyle.italic,
+                ),
+              ),
         ],
       ),
     );
@@ -777,7 +961,7 @@ class _MyPageState extends State<MyPage> with SingleTickerProviderStateMixin {
     );
   }
 
-  void _showTagEditor(BuildContext context, String title, List<dynamic> tags) {
+  void _showTagEditor(BuildContext context, String title, List<String> tags) {
     if (title == 'Languages') {
       Navigator.push(
         context,

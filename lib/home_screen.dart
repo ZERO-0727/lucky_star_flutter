@@ -3,7 +3,6 @@ import 'package:google_fonts/google_fonts.dart';
 import 'my_wishes_page.dart';
 import 'my_published_experiences_page.dart';
 import 'trust_reputation_page.dart';
-import 'widgets/lightweight_upload_progress.dart';
 import 'widgets/upload_progress_bar.dart';
 import 'services/web_image_service.dart';
 import 'services/optimized_image_service.dart';
@@ -42,26 +41,29 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
         backgroundColor: const Color(0xFF7153DF),
         elevation: 0,
         actions: [
-          IconButton(icon: const Icon(Icons.notifications), onPressed: () {}),
-          PopupMenuButton<String>(
-            icon: const Icon(Icons.person),
-            onSelected: (value) {
-              if (value == 'my_page') {
-                Navigator.pushNamed(context, '/my-page');
-              }
+          IconButton(
+            icon: const Icon(Icons.notifications, color: Colors.white),
+            onPressed: () {
+              // TODO: Implement notifications functionality
             },
-            itemBuilder:
-                (BuildContext context) => <PopupMenuEntry<String>>[
-                  const PopupMenuItem<String>(
-                    value: 'my_page',
-                    child: ListTile(
-                      leading: Icon(Icons.dashboard),
-                      title: Text('My Page'),
-                      contentPadding: EdgeInsets.zero,
-                    ),
-                  ),
-                ],
           ),
+          IconButton(
+            icon: const Icon(Icons.chat_bubble_outline, color: Colors.white),
+            onPressed: () {
+              Navigator.pushNamed(context, '/chat-list');
+            },
+          ),
+          IconButton(
+            icon: const CircleAvatar(
+              radius: 16,
+              backgroundColor: Colors.white,
+              child: Icon(Icons.person, color: Color(0xFF7153DF), size: 20),
+            ),
+            onPressed: () {
+              Navigator.pushNamed(context, '/my-page');
+            },
+          ),
+          const SizedBox(width: 8), // Add some padding from the edge
         ],
       ),
       body: Column(

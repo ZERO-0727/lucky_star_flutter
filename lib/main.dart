@@ -28,6 +28,7 @@ import 'welcome_page.dart';
 import 'app_wrapper.dart';
 import 'screens/image_upload_test_screen.dart';
 import 'experience_detail_screen.dart';
+import 'chat_list_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -149,6 +150,7 @@ class LuckyStarApp extends StatelessWidget {
         '/image-upload-test': (context) => const ImageUploadTestScreen(),
         '/experience-detail':
             (context) => const ExperienceDetailScreen(experienceId: ''),
+        '/chat-list': (context) => const ChatListScreen(),
       },
       onGenerateRoute: (settings) {
         switch (settings.name) {

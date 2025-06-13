@@ -4,8 +4,9 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/services.dart';
 import 'models/wish_model.dart';
-import 'chat_detail_screen.dart';
+import 'services/wish_service.dart';
 import 'services/favorites_service.dart';
+import 'chat_detail_screen.dart';
 
 class WishDetailScreen extends StatefulWidget {
   final String wishId;
@@ -179,7 +180,7 @@ class _WishDetailScreenState extends State<WishDetailScreen> {
                               ),
                               const SizedBox(height: 2),
                               Text(
-                                '${wish.preferredDate != null ? DateFormat('MMM dd').format(wish.preferredDate!) : 'Flexible'} • ${wish.location}',
+                                '${wish.preferredDate != null ? DateFormat('MMM dd').format(wish.preferredDate) : 'Flexible'} • ${wish.location}',
                                 style: TextStyle(
                                   fontSize: 12,
                                   color: Colors.grey.shade600,
@@ -434,28 +435,52 @@ class _WishDetailScreenState extends State<WishDetailScreen> {
     return Scaffold(
       body: CustomScrollView(
         slivers: [
-          // App Bar
+          // App Bar with Wisher Info
           SliverAppBar(
-            expandedHeight: 200,
+            expandedHeight: 80,
             pinned: true,
             flexibleSpace: FlexibleSpaceBar(
               background: Container(
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    begin: Alignment.topCenter,
-                    end: Alignment.bottomCenter,
-                    colors: [Colors.blue.shade400, Colors.blue.shade600],
-                  ),
-                ),
-                child: const Center(
-                  child: Icon(Icons.star, size: 80, color: Colors.white),
+                color: Colors.white,
+                padding: const EdgeInsets.fromLTRB(20, 40, 20, 10),
+                child: Row(
+                  children: [
+                    const CircleAvatar(
+                      radius: 20,
+                      backgroundColor: Colors.orange,
+                      child: Icon(Icons.star, color: Colors.white),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Text(
+                            'Wisher: ${wish.userId}', // TODO: Get actual wisher name
+                            style: const TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                          Text(
+                            'Posted ${_formatTimeAgo(wish.createdAt)}',
+                            style: TextStyle(
+                              fontSize: 14,
+                              color: Colors.grey.shade600,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
                 ),
               ),
             ),
             actions: [
               if (_isCurrentUserAuthor())
                 PopupMenuButton<String>(
-                  icon: const Icon(Icons.more_vert, color: Colors.white),
+                  icon: const Icon(Icons.more_vert, color: Colors.black),
                   onSelected: _handleMenuAction,
                   itemBuilder:
                       (context) => [
@@ -481,6 +506,9 @@ class _WishDetailScreenState extends State<WishDetailScreen> {
             ],
           ),
 
+          // Image Gallery
+          SliverToBoxAdapter(child: _buildImageGallery(wish.photoUrls)),
+
           // Content
           SliverToBoxAdapter(
             child: Padding(
@@ -488,8 +516,79 @@ class _WishDetailScreenState extends State<WishDetailScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Title and Wisher Info
-                  _buildHeader(wish),
+                  // Title with Star
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          wish.title,
+                          style: const TextStyle(
+                            fontSize: 28,
+                            fontWeight: FontWeight.bold,
+                            height: 1.2,
+                          ),
+                        ),
+                      ),
+                      IconButton(
+                        icon: Icon(
+                          _isFavorited ? Icons.star : Icons.star_border,
+                          color: Colors.orange.shade600,
+                          size: 28,
+                        ),
+                        onPressed: _toggleFavorite,
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+
+                  // Status Badge
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 6,
+                      ),
+                      decoration: BoxDecoration(
+                        color:
+                            wish.isOpen
+                                ? Colors.orange.shade100
+                                : Colors.grey.shade100,
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(
+                          color:
+                              wish.isOpen
+                                  ? Colors.orange.shade300
+                                  : Colors.grey.shade300,
+                        ),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            Icons.star,
+                            size: 16,
+                            color:
+                                wish.isOpen
+                                    ? Colors.orange.shade700
+                                    : Colors.grey.shade700,
+                          ),
+                          const SizedBox(width: 4),
+                          Text(
+                            wish.status,
+                            style: TextStyle(
+                              color:
+                                  wish.isOpen
+                                      ? Colors.orange.shade700
+                                      : Colors.grey.shade700,
+                              fontWeight: FontWeight.w600,
+                              fontSize: 12,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
                   const SizedBox(height: 24),
 
                   // Description
@@ -498,6 +597,14 @@ class _WishDetailScreenState extends State<WishDetailScreen> {
 
                   // Details Section
                   _buildDetails(wish),
+                  const SizedBox(height: 24),
+
+                  // Categories
+                  _buildCategories(wish),
+                  const SizedBox(height: 24),
+
+                  // Location & Date & Budget
+                  _buildLocationDateBudget(wish),
                   const SizedBox(height: 32),
 
                   // Action Buttons - Only show if NOT the current user's post
@@ -633,7 +740,7 @@ class _WishDetailScreenState extends State<WishDetailScreen> {
             Icons.schedule,
             'Preferred Date',
             wish.preferredDate != null
-                ? _formatDateTime(wish.preferredDate!)
+                ? _formatDateTime(wish.preferredDate)
                 : 'Flexible',
           ),
           const SizedBox(height: 8),
@@ -716,7 +823,222 @@ class _WishDetailScreenState extends State<WishDetailScreen> {
     );
   }
 
-  String _formatDateTime(DateTime dateTime) {
+  Widget _buildImageGallery(List<String> photoUrls) {
+    if (photoUrls.isEmpty) {
+      return Container(
+        height: 240,
+        color: Colors.grey.shade300,
+        child: const Center(
+          child: Icon(Icons.star, size: 80, color: Colors.grey),
+        ),
+      );
+    }
+
+    if (photoUrls.length == 1) {
+      return Container(
+        height: 240,
+        color: Colors.white, // White background for padding
+        child: Center(
+          child: AspectRatio(
+            aspectRatio: 4 / 3, // Fixed 4:3 aspect ratio
+            child: Container(
+              decoration: BoxDecoration(color: Colors.grey.shade100),
+              child: Image.network(
+                photoUrls.first,
+                fit: BoxFit.contain, // Show full image with padding if needed
+                errorBuilder: (context, error, stackTrace) {
+                  return Container(
+                    color: Colors.grey.shade300,
+                    child: const Center(
+                      child: Icon(
+                        Icons.broken_image,
+                        size: 80,
+                        color: Colors.grey,
+                      ),
+                    ),
+                  );
+                },
+              ),
+            ),
+          ),
+        ),
+      );
+    }
+
+    return SizedBox(
+      height: 240,
+      child: PageView.builder(
+        itemCount: photoUrls.length,
+        itemBuilder: (context, index) {
+          return Stack(
+            children: [
+              Container(
+                color: Colors.white, // White background for padding
+                child: Center(
+                  child: AspectRatio(
+                    aspectRatio: 4 / 3, // Fixed 4:3 aspect ratio
+                    child: Container(
+                      decoration: BoxDecoration(color: Colors.grey.shade100),
+                      child: Image.network(
+                        photoUrls[index],
+                        fit:
+                            BoxFit
+                                .contain, // Show full image with padding if needed
+                        errorBuilder: (context, error, stackTrace) {
+                          return Container(
+                            color: Colors.grey.shade300,
+                            child: const Center(
+                              child: Icon(
+                                Icons.broken_image,
+                                size: 80,
+                                color: Colors.grey,
+                              ),
+                            ),
+                          );
+                        },
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+              // Photo counter
+              Positioned(
+                bottom: 16,
+                right: 16,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 6,
+                  ),
+                  decoration: BoxDecoration(
+                    color: Colors.black.withOpacity(0.7),
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: Text(
+                    '${index + 1}/${photoUrls.length}',
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 14,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _buildCategories(WishModel wish) {
+    if (wish.categories.isEmpty) return const SizedBox.shrink();
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          'Categories',
+          style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+        ),
+        const SizedBox(height: 8),
+        Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          children:
+              wish.categories.map((category) {
+                return Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 6,
+                  ),
+                  decoration: BoxDecoration(
+                    color: Colors.orange.shade100,
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(color: Colors.orange.shade300),
+                  ),
+                  child: Text(
+                    category,
+                    style: TextStyle(
+                      color: Colors.orange.shade700,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                );
+              }).toList(),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildLocationDateBudget(WishModel wish) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.orange.shade50,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.orange.shade200),
+      ),
+      child: Column(
+        children: [
+          Row(
+            children: [
+              Icon(Icons.location_on, color: Colors.orange.shade600),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  wish.location,
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.orange.shade700,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Row(
+            children: [
+              Icon(Icons.calendar_today, color: Colors.orange.shade600),
+              const SizedBox(width: 8),
+              Text(
+                wish.preferredDate != null
+                    ? _formatDateTime(wish.preferredDate!)
+                    : 'Flexible date',
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                  color: Colors.orange.shade700,
+                ),
+              ),
+            ],
+          ),
+          if (wish.budget != null) ...[
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                Icon(Icons.attach_money, color: Colors.orange.shade600),
+                const SizedBox(width: 8),
+                Text(
+                  wish.formattedBudget,
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.orange.shade700,
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  String _formatDateTime(DateTime? dateTime) {
+    if (dateTime == null) return 'Flexible';
     return DateFormat('MMM dd, yyyy').format(dateTime);
   }
 
