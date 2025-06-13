@@ -1,0 +1,44 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Users collection - users can read/write their own data
+    match /users/{userId} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+    }
+
+    // Experiences collection - existing rules
+    match /experiences/{experienceId} {
+      allow read: if request.auth != null;
+      allow create: if request.auth != null && 
+        request.auth.uid == request.resource.data.userId;
+      allow update: if request.auth != null && 
+        request.auth.uid == resource.data.userId;
+      allow delete: if request.auth != null && 
+        request.auth.uid == resource.data.userId;
+    }
+
+    // Wishes collection - new rules following same pattern as experiences
+    match /wishes/{wishId} {
+      allow read: if request.auth != null;
+      allow create: if request.auth != null && 
+        request.auth.uid == request.resource.data.userId &&
+        request.resource.data.keys().hasAll(['title', 'description', 'status']) &&
+        request.resource.data.title is string &&
+        request.resource.data.description is string &&
+        request.resource.data.status in ['Open', 'Fulfilled', 'Closed'];
+      allow update: if request.auth != null && 
+        request.auth.uid == resource.data.userId &&
+        // Allow status updates and interested count changes
+        (request.resource.data.diff(resource.data).affectedKeys()
+          .hasOnly(['updatedAt', 'status', 'interestedCount', 'photoUrls', 'title', 'description', 'location', 'preferredDate', 'categories', 'budget']));
+      allow delete: if request.auth != null && 
+        request.auth.uid == resource.data.userId;
+    }
+
+    // Allow all authenticated users to read and write to experiences and wishes
+    // for public access patterns
+    match /{document=**} {
+      allow read: if request.auth != null;
+    }
+  }
+}

@@ -11,6 +11,7 @@ import 'edit_profile_screen.dart';
 import 'plaza_post_detail_screen.dart';
 import 'my_page.dart';
 import 'post_experience_screen.dart';
+import 'post_wish_screen.dart';
 import 'request_experience_screen.dart';
 import 'user_plaza_screen.dart';
 import 'firebase_test.dart';
@@ -27,8 +28,6 @@ import 'welcome_page.dart';
 import 'app_wrapper.dart';
 import 'screens/image_upload_test_screen.dart';
 import 'experience_detail_screen.dart';
-import 'chat_list_screen.dart';
-import 'chat_detail_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -127,6 +126,7 @@ class LuckyStarApp extends StatelessWidget {
         '/home': (context) => const MainNavigation(),
         '/wish-wall': (context) => const WishWallScreen(),
         '/post-experience': (context) => const PostExperienceScreen(),
+        '/post-wish': (context) => const PostWishScreen(),
         '/request-experience': (context) => const RequestExperienceScreen(),
         '/edit-profile': (context) => const EditProfileScreen(),
         '/my-page': (context) => const MyPage(),

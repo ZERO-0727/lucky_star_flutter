@@ -13,5 +13,13 @@ service firebase.storage {
       allow read: if request.auth != null;
       allow write: if request.auth != null && request.auth.uid == userId;
     }
+    
+    // Rule for wish images - following same pattern as experience images
+    match /wish_images/{userId}/{imageId} {
+      allow read: if request.auth != null;
+      allow write: if request.auth != null && 
+        request.auth.uid == userId &&
+        resource.size < 5 * 1024 * 1024; // 5MB limit
+    }
   }
 }

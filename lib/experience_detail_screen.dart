@@ -365,17 +365,52 @@ class _ExperienceDetailScreenState extends State<ExperienceDetailScreen> {
     return Scaffold(
       body: CustomScrollView(
         slivers: [
-          // App Bar with Images
+          // App Bar with Host Info
           SliverAppBar(
-            expandedHeight: 240,
+            expandedHeight: 80,
             pinned: true,
             flexibleSpace: FlexibleSpaceBar(
-              background: _buildImageGallery(experience.photoUrls),
+              background: Container(
+                color: Colors.white,
+                padding: const EdgeInsets.fromLTRB(20, 40, 20, 10),
+                child: Row(
+                  children: [
+                    const CircleAvatar(
+                      radius: 20,
+                      backgroundColor: Colors.blue,
+                      child: Icon(Icons.person, color: Colors.white),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Text(
+                            'Host: ${experience.userId}', // TODO: Get actual host name
+                            style: const TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                          Text(
+                            'Posted ${_formatTimeAgo(experience.createdAt)}',
+                            style: TextStyle(
+                              fontSize: 14,
+                              color: Colors.grey.shade600,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
             ),
             actions: [
               if (_isCurrentUserAuthor())
                 PopupMenuButton<String>(
-                  icon: const Icon(Icons.more_vert, color: Colors.white),
+                  icon: const Icon(Icons.more_vert, color: Colors.black),
                   onSelected: _handleMenuAction,
                   itemBuilder:
                       (context) => [
@@ -401,6 +436,9 @@ class _ExperienceDetailScreenState extends State<ExperienceDetailScreen> {
             ],
           ),
 
+          // Image Gallery
+          SliverToBoxAdapter(child: _buildImageGallery(experience.photoUrls)),
+
           // Content
           SliverToBoxAdapter(
             child: Padding(
@@ -408,8 +446,65 @@ class _ExperienceDetailScreenState extends State<ExperienceDetailScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Title and Host Info with Star
-                  _buildHeader(experience),
+                  // Title with Star
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          experience.title,
+                          style: const TextStyle(
+                            fontSize: 28,
+                            fontWeight: FontWeight.bold,
+                            height: 1.2,
+                          ),
+                        ),
+                      ),
+                      IconButton(
+                        icon: Icon(
+                          _isFavorited ? Icons.star : Icons.star_border,
+                          color: Colors.blue.shade600,
+                          size: 28,
+                        ),
+                        onPressed: _toggleFavorite,
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+
+                  // Available Slots Badge
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 6,
+                      ),
+                      decoration: BoxDecoration(
+                        color: Colors.green.shade100,
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(color: Colors.green.shade300),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            Icons.people,
+                            size: 16,
+                            color: Colors.green.shade700,
+                          ),
+                          const SizedBox(width: 4),
+                          Text(
+                            '${experience.availableSlots} slots',
+                            style: TextStyle(
+                              color: Colors.green.shade700,
+                              fontWeight: FontWeight.w600,
+                              fontSize: 12,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
                   const SizedBox(height: 24),
 
                   // Description
@@ -443,6 +538,7 @@ class _ExperienceDetailScreenState extends State<ExperienceDetailScreen> {
   Widget _buildImageGallery(List<String> photoUrls) {
     if (photoUrls.isEmpty) {
       return Container(
+        height: 240,
         color: Colors.grey.shade300,
         child: const Center(
           child: Icon(Icons.image, size: 80, color: Colors.grey),
@@ -452,6 +548,7 @@ class _ExperienceDetailScreenState extends State<ExperienceDetailScreen> {
 
     if (photoUrls.length == 1) {
       return Container(
+        height: 240,
         color: Colors.white, // White background for padding
         child: Center(
           child: AspectRatio(
@@ -480,148 +577,69 @@ class _ExperienceDetailScreenState extends State<ExperienceDetailScreen> {
       );
     }
 
-    return PageView.builder(
-      itemCount: photoUrls.length,
-      itemBuilder: (context, index) {
-        return Stack(
-          children: [
-            Container(
-              color: Colors.white, // White background for padding
-              child: Center(
-                child: AspectRatio(
-                  aspectRatio: 4 / 3, // Fixed 4:3 aspect ratio
-                  child: Container(
-                    decoration: BoxDecoration(color: Colors.grey.shade100),
-                    child: Image.network(
-                      photoUrls[index],
-                      fit:
-                          BoxFit
-                              .contain, // Show full image with padding if needed
-                      errorBuilder: (context, error, stackTrace) {
-                        return Container(
-                          color: Colors.grey.shade300,
-                          child: const Center(
-                            child: Icon(
-                              Icons.broken_image,
-                              size: 80,
-                              color: Colors.grey,
+    return SizedBox(
+      height: 240,
+      child: PageView.builder(
+        itemCount: photoUrls.length,
+        itemBuilder: (context, index) {
+          return Stack(
+            children: [
+              Container(
+                color: Colors.white, // White background for padding
+                child: Center(
+                  child: AspectRatio(
+                    aspectRatio: 4 / 3, // Fixed 4:3 aspect ratio
+                    child: Container(
+                      decoration: BoxDecoration(color: Colors.grey.shade100),
+                      child: Image.network(
+                        photoUrls[index],
+                        fit:
+                            BoxFit
+                                .contain, // Show full image with padding if needed
+                        errorBuilder: (context, error, stackTrace) {
+                          return Container(
+                            color: Colors.grey.shade300,
+                            child: const Center(
+                              child: Icon(
+                                Icons.broken_image,
+                                size: 80,
+                                color: Colors.grey,
+                              ),
                             ),
-                          ),
-                        );
-                      },
+                          );
+                        },
+                      ),
                     ),
                   ),
                 ),
               ),
-            ),
-            // Photo counter
-            Positioned(
-              bottom: 16,
-              right: 16,
-              child: Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 12,
-                  vertical: 6,
-                ),
-                decoration: BoxDecoration(
-                  color: Colors.black.withOpacity(0.7),
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                child: Text(
-                  '${index + 1}/${photoUrls.length}',
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 14,
-                    fontWeight: FontWeight.w500,
+              // Photo counter
+              Positioned(
+                bottom: 16,
+                right: 16,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 6,
                   ),
-                ),
-              ),
-            ),
-          ],
-        );
-      },
-    );
-  }
-
-  Widget _buildHeader(ExperienceModel experience) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        // Title with star icon on same line
-        Row(
-          children: [
-            Expanded(
-              child: Text(
-                experience.title,
-                style: const TextStyle(
-                  fontSize: 28,
-                  fontWeight: FontWeight.bold,
-                  height: 1.2,
-                ),
-              ),
-            ),
-            IconButton(
-              icon: Icon(
-                _isFavorited ? Icons.star : Icons.star_border,
-                color: Colors.blue.shade600,
-                size: 28,
-              ),
-              onPressed: _toggleFavorite,
-            ),
-          ],
-        ),
-        const SizedBox(height: 12),
-        Row(
-          children: [
-            const CircleAvatar(
-              radius: 20,
-              backgroundColor: Colors.blue,
-              child: Icon(Icons.person, color: Colors.white),
-            ),
-            const SizedBox(width: 12),
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Host: ${experience.userId}', // TODO: Get actual host name
-                  style: const TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w600,
+                  decoration: BoxDecoration(
+                    color: Colors.black.withOpacity(0.7),
+                    borderRadius: BorderRadius.circular(20),
                   ),
-                ),
-                Text(
-                  'Posted ${_formatTimeAgo(experience.createdAt)}',
-                  style: TextStyle(fontSize: 14, color: Colors.grey.shade600),
-                ),
-              ],
-            ),
-            const Spacer(),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-              decoration: BoxDecoration(
-                color: Colors.green.shade100,
-                borderRadius: BorderRadius.circular(20),
-                border: Border.all(color: Colors.green.shade300),
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(Icons.people, size: 16, color: Colors.green.shade700),
-                  const SizedBox(width: 4),
-                  Text(
-                    '${experience.availableSlots} slots',
-                    style: TextStyle(
-                      color: Colors.green.shade700,
-                      fontWeight: FontWeight.w600,
-                      fontSize: 12,
+                  child: Text(
+                    '${index + 1}/${photoUrls.length}',
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 14,
+                      fontWeight: FontWeight.w500,
                     ),
                   ),
-                ],
+                ),
               ),
-            ),
-          ],
-        ),
-      ],
+            ],
+          );
+        },
+      ),
     );
   }
 
@@ -658,14 +676,6 @@ class _ExperienceDetailScreenState extends State<ExperienceDetailScreen> {
             style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
           ),
           const SizedBox(height: 12),
-          _buildDetailRow(
-            Icons.schedule,
-            'Date & Time',
-            _formatDateTime(experience.date),
-          ),
-          const SizedBox(height: 8),
-          _buildDetailRow(Icons.location_on, 'Location', experience.location),
-          const SizedBox(height: 8),
           _buildDetailRow(
             Icons.people,
             'Available Slots',
