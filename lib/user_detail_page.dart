@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'widgets/interactive_world_map.dart';
-import 'widgets/airbnb_world_map.dart';
+import 'package:google_fonts/google_fonts.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'models/user_model.dart';
 import 'services/user_service.dart';
 
@@ -23,6 +23,12 @@ class _UserDetailPageState extends State<UserDetailPage> {
   bool _isLoading = true;
   UserModel? _user;
   String? _errorMessage;
+
+  // Helper method to check if current user is viewing their own profile
+  bool get _isViewingOwnProfile {
+    final currentUser = FirebaseAuth.instance.currentUser;
+    return currentUser != null && currentUser.uid == widget.userId;
+  }
 
   @override
   void initState() {
@@ -61,8 +67,11 @@ class _UserDetailPageState extends State<UserDetailPage> {
             'Australia',
           ],
           referenceCount: 3,
+          status: 'Open to Exchange',
+          trustScore: 87,
           statistics: {
             'experiencesCount': 5,
+            'wishesCount': 3,
             'wishesFullfilledCount': 2,
             'responseRate': 90,
           },
@@ -77,41 +86,168 @@ class _UserDetailPageState extends State<UserDetailPage> {
         _errorMessage = 'Failed to load user data: $e';
       });
 
-      // Show error message
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(_errorMessage!), backgroundColor: Colors.red),
       );
     }
   }
 
+  void _showActionSheet() {
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (BuildContext context) {
+        return Container(
+          padding: const EdgeInsets.all(20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              ListTile(
+                leading: const Icon(Icons.share, color: Color(0xFF7153DF)),
+                title: Text(
+                  'Share User',
+                  style: GoogleFonts.poppins(fontSize: 16),
+                ),
+                onTap: () {
+                  Navigator.pop(context);
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Share feature coming soon'),
+                      backgroundColor: Colors.blue,
+                    ),
+                  );
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.report, color: Colors.orange),
+                title: Text(
+                  'Report User',
+                  style: GoogleFonts.poppins(fontSize: 16),
+                ),
+                onTap: () {
+                  Navigator.pop(context);
+                  _showReportConfirmation();
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.block, color: Colors.red),
+                title: Text(
+                  'Block User',
+                  style: GoogleFonts.poppins(fontSize: 16),
+                ),
+                onTap: () {
+                  Navigator.pop(context);
+                  _showBlockConfirmation();
+                },
+              ),
+              const SizedBox(height: 20),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  void _showReportConfirmation() {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: Text(
+            'Report User',
+            style: GoogleFonts.poppins(fontWeight: FontWeight.bold),
+          ),
+          content: Text(
+            'Are you sure you want to report this user? Your feedback will be recorded.',
+            style: GoogleFonts.poppins(),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: Text(
+                'Cancel',
+                style: GoogleFonts.poppins(color: Colors.grey),
+              ),
+            ),
+            TextButton(
+              onPressed: () {
+                Navigator.pop(context);
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('User reported'),
+                    backgroundColor: Colors.orange,
+                  ),
+                );
+              },
+              child: Text(
+                'Report',
+                style: GoogleFonts.poppins(color: Colors.orange),
+              ),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  void _showBlockConfirmation() {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: Text(
+            'Block User',
+            style: GoogleFonts.poppins(fontWeight: FontWeight.bold),
+          ),
+          content: Text(
+            'Are you sure you want to block ${_user?.displayName}? You won\'t see their content anymore.',
+            style: GoogleFonts.poppins(),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: Text(
+                'Cancel',
+                style: GoogleFonts.poppins(color: Colors.grey),
+              ),
+            ),
+            TextButton(
+              onPressed: () {
+                Navigator.pop(context);
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('User blocked'),
+                    backgroundColor: Colors.red,
+                  ),
+                );
+              },
+              child: Text(
+                'Block',
+                style: GoogleFonts.poppins(color: Colors.red),
+              ),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     if (_isLoading) {
       return Scaffold(
-        appBar: AppBar(
-          backgroundColor: Colors.transparent,
-          elevation: 0,
-          leading: IconButton(
-            icon: const Icon(Icons.arrow_back),
-            color: Colors.black,
-            onPressed: () => Navigator.pop(context),
-          ),
-        ),
+        backgroundColor: Colors.grey[50],
+        appBar: _buildAppBar(),
         body: const Center(child: CircularProgressIndicator()),
       );
     }
 
     if (_user == null) {
       return Scaffold(
-        appBar: AppBar(
-          backgroundColor: Colors.transparent,
-          elevation: 0,
-          leading: IconButton(
-            icon: const Icon(Icons.arrow_back),
-            color: Colors.black,
-            onPressed: () => Navigator.pop(context),
-          ),
-        ),
+        backgroundColor: Colors.grey[50],
+        appBar: _buildAppBar(),
         body: Center(
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
@@ -135,505 +271,645 @@ class _UserDetailPageState extends State<UserDetailPage> {
       );
     }
 
-    // User data is loaded, proceed with display
-    final String bio =
-        _user!.bio.isNotEmpty
-            ? _user!.bio
-            : 'Hello from ${_user!.displayName}. I love traveling and meeting new people!';
-    final List<String> interestTags = _user!.interests;
-    final List<String> visitedCountries = _user!.visitedCountries;
-    final int referenceCount = _user!.referenceCount;
-    final Map<String, int> stats = {
-      'Experiences': _user!.experiencesCount,
-      'Wishes Fulfilled': _user!.wishesFullfilledCount,
-      'Response Rate': _user!.responseRate,
-    };
-    final List<String> badges = _user!.verificationBadges;
-
     return Scaffold(
+      backgroundColor: Colors.grey[50],
       body: Stack(
         children: [
-          CustomScrollView(
-            slivers: [
-              // Banner and Profile Image
-              SliverAppBar(
-                expandedHeight: 220,
-                pinned: true,
-                backgroundColor: Colors.transparent,
-                flexibleSpace: FlexibleSpaceBar(
-                  background: Stack(
-                    fit: StackFit.expand,
-                    children: [
-                      // Banner image - using a placeholder with travel theme
-                      Image.network(
-                        'https://images.unsplash.com/photo-1452421822248-d4c2b47f0c81',
-                        fit: BoxFit.cover,
-                      ),
-                      // Gradient overlay for better text visibility
-                      Container(
-                        decoration: BoxDecoration(
-                          gradient: LinearGradient(
-                            begin: Alignment.topCenter,
-                            end: Alignment.bottomCenter,
-                            colors: [
-                              Colors.transparent,
-                              Colors.black.withOpacity(0.5),
-                            ],
-                          ),
-                        ),
-                      ),
-                      // User name (bold, left-aligned, inside banner)
-                      Positioned(
-                        left: 24,
-                        bottom: 56,
-                        child: Text(
-                          _user!.displayName,
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 24,
-                            fontWeight: FontWeight.bold,
-                            shadows: [
-                              Shadow(
-                                color: Colors.black54,
-                                offset: Offset(0, 1),
-                                blurRadius: 2,
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                      // Verification badges (bottom-left, horizontal)
-                      Positioned(
-                        left: 24,
-                        bottom: 24,
-                        child: Row(
-                          children:
-                              badges.map((badge) {
-                                // Determine badge style based on type
-                                Color bgColor;
-                                Color textColor;
-                                IconData icon;
+          // Main Content
+          SingleChildScrollView(
+            padding: const EdgeInsets.only(bottom: 140),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Top Bar
+                _buildAppBar(),
 
-                                if (badge.toLowerCase().contains('world')) {
-                                  bgColor = Colors.green[100]!;
-                                  textColor = Colors.green[700]!;
-                                  icon = Icons.check_circle;
-                                } else if (badge.toLowerCase().contains(
-                                      'government',
-                                    ) ||
-                                    badge.toLowerCase().contains('id')) {
-                                  bgColor = Colors.blue[100]!;
-                                  textColor = Colors.blue[700]!;
-                                  icon = Icons.verified_user;
-                                } else {
-                                  bgColor = Colors.purple[100]!;
-                                  textColor = Colors.purple[700]!;
-                                  icon = Icons.verified;
-                                }
+                // User Profile Section (inline, no card style)
+                _buildInlineUserProfile(),
 
-                                return Padding(
-                                  padding: const EdgeInsets.only(right: 8),
-                                  child: Container(
-                                    padding: const EdgeInsets.symmetric(
-                                      horizontal: 10,
-                                      vertical: 4,
-                                    ),
-                                    decoration: BoxDecoration(
-                                      color: bgColor,
-                                      borderRadius: BorderRadius.circular(16),
-                                    ),
-                                    child: Row(
-                                      mainAxisSize: MainAxisSize.min,
-                                      children: [
-                                        Icon(icon, color: textColor, size: 16),
-                                        const SizedBox(width: 4),
-                                        Text(
-                                          badge,
-                                          style: TextStyle(
-                                            color: textColor,
-                                            fontSize: 12,
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                );
-                              }).toList(),
-                        ),
-                      ),
-                      // Back button
-                      Positioned(
-                        top: 40,
-                        left: 16,
-                        child: Container(
-                          decoration: BoxDecoration(
-                            color: Colors.white.withOpacity(0.7),
-                            shape: BoxShape.circle,
-                          ),
-                          child: IconButton(
-                            icon: const Icon(Icons.arrow_back),
-                            onPressed: () => Navigator.pop(context),
-                          ),
-                        ),
+                // Statistics Section
+                _buildStatisticsSection(),
+
+                // Interests Section
+                _buildInterestsSection(),
+
+                // Content Tabs Section
+                _buildContentTabsSection(),
+
+                // Visited Countries Section
+                _buildVisitedCountriesSection(),
+
+                const SizedBox(height: 30),
+              ],
+            ),
+          ),
+
+          // Fixed Bottom Buttons
+          _buildBottomButtons(),
+        ],
+      ),
+    );
+  }
+
+  PreferredSizeWidget _buildAppBar() {
+    return AppBar(
+      backgroundColor: Colors.white,
+      elevation: 0,
+      leading: IconButton(
+        icon: const Icon(Icons.arrow_back, color: Colors.black),
+        onPressed: () => Navigator.pop(context),
+      ),
+      actions: [
+        // Hide three-dot menu when viewing own profile
+        if (!_isViewingOwnProfile)
+          IconButton(
+            icon: const Icon(Icons.more_vert, color: Colors.black),
+            onPressed: _showActionSheet,
+          ),
+      ],
+    );
+  }
+
+  Widget _buildInlineUserProfile() {
+    return Container(
+      height: 360, // Increased from 280px to 360px for visual impact
+      width: double.infinity,
+      child: Stack(
+        children: [
+          // Optimized Avatar Display
+          _buildOptimizedAvatar(),
+
+          // Dark overlay for better text readability
+          Container(
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: [Colors.transparent, Colors.black.withOpacity(0.7)],
+                stops: const [0.4, 1.0],
+              ),
+            ),
+          ),
+
+          // Status Label - Top Right
+          Positioned(top: 16, right: 16, child: _buildStatusBadge()),
+
+          // Bookmark Star - Below Status (hidden when viewing own profile)
+          if (!_isViewingOwnProfile)
+            Positioned(top: 60, right: 16, child: _buildBookmarkButton()),
+
+          // User Info Overlay - Bottom Left
+          Positioned(
+            bottom: 16,
+            left: 16,
+            right: 80,
+            child: _buildUserInfoOverlay(),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildOptimizedAvatar() {
+    if (_user!.avatarUrl.isEmpty) {
+      // Fallback gradient background
+      return Container(
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [
+              const Color(0xFF7153DF).withOpacity(0.8),
+              const Color(0xFF9C7EFF).withOpacity(0.6),
+            ],
+          ),
+        ),
+      );
+    }
+
+    return ClipRect(
+      child: Image.network(
+        _user!.avatarUrl,
+        width: double.infinity,
+        height: 360,
+        fit: BoxFit.cover,
+        alignment: const Alignment(0.0, -0.3),
+        errorBuilder: (context, error, stackTrace) {
+          return Container(
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [
+                  const Color(0xFF7153DF).withOpacity(0.8),
+                  const Color(0xFF9C7EFF).withOpacity(0.6),
+                ],
+              ),
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _buildStatusBadge() {
+    Color badgeColor;
+    Color textColor;
+    String statusText;
+    String statusIcon;
+
+    switch (_user!.status.toLowerCase()) {
+      case 'open to exchange':
+      case 'available':
+        badgeColor = const Color(0xFF4CAF50);
+        textColor = Colors.white;
+        statusText = 'Open to Exchange';
+        statusIcon = '✅';
+        break;
+      case 'by request only':
+      case 'busy':
+      case 'limited':
+        badgeColor = const Color(0xFFFFEB3B);
+        textColor = Colors.black;
+        statusText = 'By Request Only';
+        statusIcon = '🟡';
+        break;
+      case 'unavailable':
+      case 'not available':
+        badgeColor = const Color(0xFF9E9E9E);
+        textColor = const Color(0xFF424242);
+        statusText = 'Unavailable';
+        statusIcon = '⬜';
+        break;
+      default:
+        badgeColor = const Color(0xFF4CAF50);
+        textColor = Colors.white;
+        statusText = 'Open to Exchange';
+        statusIcon = '✅';
+    }
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      decoration: BoxDecoration(
+        color: badgeColor,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.2),
+            blurRadius: 4,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Text(
+        '$statusIcon $statusText',
+        style: GoogleFonts.poppins(
+          color: textColor,
+          fontWeight: FontWeight.w600,
+          fontSize: 11,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildBookmarkButton() {
+    return GestureDetector(
+      onTap: () {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Bookmark feature coming soon'),
+            backgroundColor: Colors.blue,
+          ),
+        );
+      },
+      child: Container(
+        padding: const EdgeInsets.all(8),
+        decoration: BoxDecoration(
+          color: Colors.white.withOpacity(0.9),
+          shape: BoxShape.circle,
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.1),
+              blurRadius: 4,
+              offset: const Offset(0, 2),
+            ),
+          ],
+        ),
+        child: Icon(Icons.star_border, color: Colors.grey[600], size: 20),
+      ),
+    );
+  }
+
+  Widget _buildUserInfoOverlay() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        // Name and Verification Badges Row
+        Row(
+          children: [
+            Expanded(
+              child: Text(
+                _user!.displayName,
+                style: GoogleFonts.poppins(
+                  fontSize: 24,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.white,
+                  shadows: [
+                    Shadow(
+                      color: Colors.black.withOpacity(0.5),
+                      blurRadius: 2,
+                      offset: const Offset(0, 1),
+                    ),
+                  ],
+                ),
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+            // Verification Badges
+            Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                if (_user!.isVerified)
+                  _buildVerificationBadge(Icons.verified, Colors.blue),
+                if (_user!.verificationBadges.contains('pro'))
+                  _buildVerificationBadge(
+                    Icons.workspace_premium,
+                    const Color(0xFFFFD700),
+                  ),
+                if (_user!.verificationBadges.contains('web3'))
+                  _buildVerificationBadge(
+                    Icons.security,
+                    const Color(0xFF00E676),
+                  ),
+              ],
+            ),
+          ],
+        ),
+
+        const SizedBox(height: 8),
+
+        // Location
+        if (_user!.location.isNotEmpty) ...[
+          Row(
+            children: [
+              Icon(
+                Icons.location_on,
+                size: 16,
+                color: Colors.white.withOpacity(0.9),
+              ),
+              const SizedBox(width: 4),
+              Expanded(
+                child: Text(
+                  _user!.location,
+                  style: GoogleFonts.poppins(
+                    fontSize: 14,
+                    color: Colors.white.withOpacity(0.9),
+                    shadows: [
+                      Shadow(
+                        color: Colors.black.withOpacity(0.5),
+                        blurRadius: 2,
+                        offset: const Offset(0, 1),
                       ),
                     ],
                   ),
-                ),
-              ),
-
-              // Profile Avatar (overlapping the banner)
-              SliverToBoxAdapter(
-                child: Transform.translate(
-                  offset: const Offset(0, -60),
-                  child: Align(
-                    alignment: Alignment.center,
-                    child: CircleAvatar(
-                      radius: 50,
-                      backgroundColor: Colors.white,
-                      child: CircleAvatar(
-                        radius: 46,
-                        backgroundColor: Colors.grey[300],
-                        backgroundImage:
-                            _user!.avatarUrl.isNotEmpty
-                                ? NetworkImage(_user!.avatarUrl)
-                                : null,
-                        child:
-                            _user!.avatarUrl.isEmpty
-                                ? Icon(
-                                  Icons.person,
-                                  size: 60,
-                                  color: Colors.grey[700],
-                                )
-                                : null,
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-
-              // User Info
-              SliverToBoxAdapter(
-                child: Transform.translate(
-                  offset: const Offset(0, -50),
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 24.0),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        // Username and Verification Badges (moved to banner)
-                        const SizedBox(height: 0),
-
-                        // Bio
-                        Center(
-                          child: Text(
-                            bio,
-                            style: const TextStyle(
-                              fontSize: 16,
-                              fontStyle: FontStyle.italic,
-                            ),
-                            textAlign: TextAlign.center,
-                          ),
-                        ),
-                        const SizedBox(height: 24),
-
-                        // References
-                        Row(
-                          children: [
-                            const Icon(Icons.people, color: Colors.grey),
-                            const SizedBox(width: 8),
-                            Text(
-                              '$referenceCount References',
-                              style: const TextStyle(fontSize: 16),
-                            ),
-                            const Spacer(),
-                            if (_user!.isVerified)
-                              Container(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 10,
-                                  vertical: 4,
-                                ),
-                                decoration: BoxDecoration(
-                                  color: Colors.green[50],
-                                  borderRadius: BorderRadius.circular(16),
-                                  border: Border.all(color: Colors.green[200]!),
-                                ),
-                                child: Row(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    Icon(
-                                      Icons.verified,
-                                      size: 16,
-                                      color: Colors.green[700],
-                                    ),
-                                    const SizedBox(width: 4),
-                                    Text(
-                                      'Verified User',
-                                      style: TextStyle(
-                                        color: Colors.green[700],
-                                        fontSize: 12,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                          ],
-                        ),
-                        const SizedBox(height: 24),
-
-                        // Interests
-                        const Text(
-                          'Interests',
-                          style: TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                        const SizedBox(height: 8),
-                        interestTags.isEmpty
-                            ? const Text(
-                              'No interests added yet',
-                              style: TextStyle(
-                                color: Colors.grey,
-                                fontStyle: FontStyle.italic,
-                              ),
-                            )
-                            : Wrap(
-                              spacing: 8,
-                              runSpacing: 8,
-                              children:
-                                  interestTags
-                                      .map(
-                                        (tag) => Container(
-                                          padding: const EdgeInsets.symmetric(
-                                            horizontal: 16,
-                                            vertical: 8,
-                                          ),
-                                          decoration: BoxDecoration(
-                                            color: Colors.purple[50],
-                                            borderRadius: BorderRadius.circular(
-                                              20,
-                                            ),
-                                          ),
-                                          child: Text(
-                                            tag,
-                                            style: TextStyle(
-                                              color: Colors.purple[700],
-                                            ),
-                                          ),
-                                        ),
-                                      )
-                                      .toList(),
-                            ),
-                        const SizedBox(height: 24),
-
-                        // Statistics
-                        const Text(
-                          'Statistics',
-                          style: TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                        const SizedBox(height: 16),
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceAround,
-                          children: [
-                            _buildStatTile(
-                              'Experiences',
-                              stats['Experiences']!,
-                              Icons.explore,
-                              const Color(0xFF7153DF),
-                            ),
-                            _buildStatTile(
-                              'Wishes Fulfilled',
-                              stats['Wishes Fulfilled']!,
-                              Icons.star,
-                              Colors.amber,
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 24),
-
-                        // Countries Visited
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            const Text(
-                              'Countries Visited',
-                              style: TextStyle(
-                                fontSize: 18,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 12,
-                                vertical: 6,
-                              ),
-                              decoration: BoxDecoration(
-                                color: Colors.purple[100],
-                                borderRadius: BorderRadius.circular(20),
-                              ),
-                              child: Row(
-                                children: [
-                                  Icon(
-                                    Icons.edit,
-                                    color: Colors.purple[700],
-                                    size: 16,
-                                  ),
-                                  const SizedBox(width: 4),
-                                  Text(
-                                    'Edit',
-                                    style: TextStyle(color: Colors.purple[700]),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 16),
-
-                        // World Map
-                        visitedCountries.isEmpty
-                            ? Container(
-                              height: 200,
-                              alignment: Alignment.center,
-                              decoration: BoxDecoration(
-                                color: Colors.blue.shade50,
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                              child: const Text(
-                                'No countries visited yet',
-                                style: TextStyle(
-                                  color: Colors.grey,
-                                  fontStyle: FontStyle.italic,
-                                ),
-                              ),
-                            )
-                            : AirbnbWorldMap(
-                              visitedCountries: visitedCountries,
-                              isEditable: false,
-                              visitedColor: const Color(0xFF7153DF),
-                              unvisitedColor: Colors.grey.shade300,
-                              backgroundColor: Colors.blue.shade50,
-                            ),
-                        const SizedBox(height: 16),
-
-                        // Country Tags
-                        visitedCountries.isEmpty
-                            ? const SizedBox.shrink()
-                            : Wrap(
-                              spacing: 8,
-                              runSpacing: 8,
-                              children:
-                                  visitedCountries
-                                      .map(
-                                        (country) => Container(
-                                          padding: const EdgeInsets.symmetric(
-                                            horizontal: 12,
-                                            vertical: 8,
-                                          ),
-                                          decoration: BoxDecoration(
-                                            color: Colors.blue[50],
-                                            borderRadius: BorderRadius.circular(
-                                              20,
-                                            ),
-                                            border: Border.all(
-                                              color: Colors.blue.shade200,
-                                            ),
-                                          ),
-                                          child: Row(
-                                            mainAxisSize: MainAxisSize.min,
-                                            children: [
-                                              const Icon(
-                                                Icons.location_on,
-                                                size: 16,
-                                                color: Colors.blue,
-                                              ),
-                                              const SizedBox(width: 4),
-                                              Text(
-                                                country,
-                                                style: const TextStyle(
-                                                  color: Colors.blue,
-                                                ),
-                                              ),
-                                            ],
-                                          ),
-                                        ),
-                                      )
-                                      .toList(),
-                            ),
-
-                        const SizedBox(height: 100), // Space for bottom buttons
-                      ],
-                    ),
-                  ),
+                  overflow: TextOverflow.ellipsis,
                 ),
               ),
             ],
           ),
+          const SizedBox(height: 8),
+        ],
 
-          // Fixed Action Buttons
-          Align(
-            alignment: Alignment.bottomCenter,
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.1),
-                    blurRadius: 10,
-                    offset: const Offset(0, -5),
-                  ),
-                ],
+        // Languages
+        if (_user!.languages.isNotEmpty) ...[
+          Row(
+            children: [
+              Icon(
+                Icons.language,
+                size: 16,
+                color: Colors.white.withOpacity(0.9),
               ),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: ElevatedButton.icon(
-                      onPressed: () {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text('Request sent to join experience'),
-                            backgroundColor: Colors.green,
-                          ),
-                        );
-                      },
-                      icon: const Icon(Icons.group_add),
-                      label: const Text('Join This Experience'),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFF7153DF),
-                        foregroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(vertical: 16),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
+              const SizedBox(width: 4),
+              Expanded(
+                child: Text(
+                  _user!.languages.take(3).join(', '),
+                  style: GoogleFonts.poppins(
+                    fontSize: 14,
+                    color: Colors.white.withOpacity(0.9),
+                    shadows: [
+                      Shadow(
+                        color: Colors.black.withOpacity(0.5),
+                        blurRadius: 2,
+                        offset: const Offset(0, 1),
+                      ),
+                    ],
+                  ),
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+            ],
+          ),
+        ],
+      ],
+    );
+  }
+
+  Widget _buildVerificationBadge(IconData icon, Color color) {
+    return Container(
+      margin: const EdgeInsets.only(left: 4),
+      padding: const EdgeInsets.all(4),
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.9),
+        shape: BoxShape.circle,
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.1),
+            blurRadius: 2,
+            offset: const Offset(0, 1),
+          ),
+        ],
+      ),
+      child: Icon(icon, size: 16, color: color),
+    );
+  }
+
+  Widget _buildStatisticsSection() {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      margin: const EdgeInsets.only(top: 16, left: 16, right: 16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.grey.withOpacity(0.1),
+            spreadRadius: 1,
+            blurRadius: 5,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        children: [
+          // Line 1: Wishes Fulfilled | Experiences Joined
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              _buildStatItem(
+                '${_user!.wishesFullfilledCount}',
+                'Wishes Fulfilled',
+                const Color(0xFF7153DF),
+              ),
+              _buildStatItem(
+                '${_user!.experiencesCount}',
+                'Experiences Joined',
+                const Color(0xFF7153DF),
+              ),
+            ],
+          ),
+
+          const SizedBox(height: 12),
+
+          // Line 2: Last Active | Trust Score
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [_buildLastActiveWidget(), _buildTrustScoreWidget()],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildStatItem(String value, String label, Color valueColor) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          value,
+          style: GoogleFonts.poppins(
+            fontSize: 18,
+            fontWeight: FontWeight.bold,
+            color: valueColor,
+          ),
+        ),
+        Text(
+          label,
+          style: GoogleFonts.poppins(fontSize: 12, color: Colors.grey[600]),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildLastActiveWidget() {
+    // Calculate days since last active (mock data for now)
+    final daysSinceActive = DateTime.now().difference(_user!.updatedAt).inDays;
+    String activeText;
+
+    if (daysSinceActive == 0) {
+      activeText = 'Active today';
+    } else if (daysSinceActive == 1) {
+      activeText = 'Active yesterday';
+    } else if (daysSinceActive < 7) {
+      activeText = 'Active $daysSinceActive days ago';
+    } else {
+      activeText = 'Active ${(daysSinceActive / 7).floor()} weeks ago';
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          activeText,
+          style: GoogleFonts.poppins(fontSize: 14, color: Colors.grey[700]),
+        ),
+        Text(
+          'Last Active',
+          style: GoogleFonts.poppins(fontSize: 12, color: Colors.grey[500]),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildTrustScoreWidget() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.end,
+      children: [
+        Text(
+          '${_user!.trustScore} / 100',
+          style: GoogleFonts.poppins(
+            fontSize: 18,
+            fontWeight: FontWeight.bold,
+            color: const Color(0xFF7153DF),
+          ),
+        ),
+        Text(
+          'Trust Score',
+          style: GoogleFonts.poppins(fontSize: 12, color: Colors.grey[600]),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildInterestsSection() {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(20),
+      margin: const EdgeInsets.only(top: 16, left: 16, right: 16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.grey.withOpacity(0.1),
+            spreadRadius: 1,
+            blurRadius: 5,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Interests',
+            style: GoogleFonts.poppins(
+              fontSize: 16,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          const SizedBox(height: 12),
+          _user!.interests.isNotEmpty
+              ? Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children:
+                    _user!.interests.map((interest) {
+                      return Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 6,
                         ),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFF5F0FF),
+                          borderRadius: BorderRadius.circular(20),
+                          border: Border.all(
+                            color: const Color(0xFF7153DF).withOpacity(0.3),
+                          ),
+                        ),
+                        child: Text(
+                          interest,
+                          style: GoogleFonts.poppins(
+                            fontSize: 14,
+                            color: const Color(0xFF7153DF),
+                          ),
+                        ),
+                      );
+                    }).toList(),
+              )
+              : Text(
+                'No interests added yet',
+                style: GoogleFonts.poppins(
+                  fontSize: 14,
+                  color: Colors.grey[500],
+                  fontStyle: FontStyle.italic,
+                ),
+              ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildContentTabsSection() {
+    return Container(
+      margin: const EdgeInsets.only(top: 16, left: 16, right: 16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.grey.withOpacity(0.1),
+            spreadRadius: 1,
+            blurRadius: 5,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        children: [
+          // Tab Headers
+          Container(
+            decoration: BoxDecoration(
+              border: Border(bottom: BorderSide(color: Colors.grey[200]!)),
+            ),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    decoration: const BoxDecoration(
+                      border: Border(
+                        bottom: BorderSide(color: Color(0xFF7153DF), width: 2),
+                      ),
+                    ),
+                    child: Text(
+                      'Experiences',
+                      textAlign: TextAlign.center,
+                      style: GoogleFonts.poppins(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                        color: const Color(0xFF7153DF),
                       ),
                     ),
                   ),
-                  const SizedBox(width: 16),
-                  Expanded(
-                    child: OutlinedButton.icon(
-                      onPressed: () {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text('Message feature coming soon'),
-                            backgroundColor: Colors.blue,
-                          ),
-                        );
-                      },
-                      icon: const Icon(Icons.message),
-                      label: const Text('Send Message'),
-                      style: OutlinedButton.styleFrom(
-                        foregroundColor: const Color(0xFF7153DF),
-                        side: const BorderSide(color: Color(0xFF7153DF)),
-                        padding: const EdgeInsets.symmetric(vertical: 16),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
+                ),
+                Expanded(
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    child: Text(
+                      'Wishes',
+                      textAlign: TextAlign.center,
+                      style: GoogleFonts.poppins(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                        color: Colors.grey[600],
                       ),
                     ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+
+          // Tab Content (Placeholder)
+          Container(
+            height: 200,
+            padding: const EdgeInsets.all(20),
+            child: Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(
+                    Icons.explore_outlined,
+                    size: 48,
+                    color: Colors.grey[400],
+                  ),
+                  const SizedBox(height: 12),
+                  Text(
+                    'Content coming soon',
+                    style: GoogleFonts.poppins(
+                      fontSize: 16,
+                      color: Colors.grey[600],
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    'User experiences and wishes will appear here',
+                    style: GoogleFonts.poppins(
+                      fontSize: 12,
+                      color: Colors.grey[400],
+                    ),
+                    textAlign: TextAlign.center,
                   ),
                 ],
               ),
@@ -644,24 +920,163 @@ class _UserDetailPageState extends State<UserDetailPage> {
     );
   }
 
-  Widget _buildStatTile(
-    String label,
-    int value,
-    IconData icon,
-    Color color, {
-    bool isPercent = false,
-  }) {
-    return Column(
-      children: [
-        Icon(icon, color: color, size: 36),
-        const SizedBox(height: 8),
-        Text(
-          isPercent ? '$value%' : '$value',
-          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 24),
+  Widget _buildVisitedCountriesSection() {
+    final visitedCount = _user!.visitedCountries.length;
+
+    return Container(
+      padding: const EdgeInsets.all(20),
+      margin: const EdgeInsets.only(top: 16, left: 16, right: 16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.grey.withOpacity(0.1),
+            spreadRadius: 1,
+            blurRadius: 5,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(Icons.public, color: Color(0xFF7153DF), size: 20),
+              const SizedBox(width: 8),
+              Text(
+                'Countries Visited',
+                style: GoogleFonts.poppins(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: Colors.grey[100],
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(
+                  Icons.flag,
+                  color:
+                      visitedCount > 0
+                          ? const Color(0xFF7153DF)
+                          : Colors.grey[400],
+                  size: 24,
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  '$visitedCount countries visited',
+                  style: GoogleFonts.poppins(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                    color:
+                        visitedCount > 0
+                            ? const Color(0xFF7153DF)
+                            : Colors.grey[600],
+                  ),
+                ),
+              ],
+            ),
+          ),
+          if (visitedCount > 0) ...[
+            const SizedBox(height: 12),
+            Text(
+              'Map and detailed view coming soon',
+              style: GoogleFonts.poppins(
+                fontSize: 12,
+                color: Colors.grey[500],
+                fontStyle: FontStyle.italic,
+              ),
+              textAlign: TextAlign.center,
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildBottomButtons() {
+    // Hide bottom buttons when viewing own profile
+    if (_isViewingOwnProfile) {
+      return const SizedBox.shrink();
+    }
+
+    return Positioned(
+      bottom: 0,
+      left: 0,
+      right: 0,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.1),
+              blurRadius: 10,
+              offset: const Offset(0, -5),
+            ),
+          ],
         ),
-        const SizedBox(height: 4),
-        Text(label, style: const TextStyle(fontSize: 14, color: Colors.grey)),
-      ],
+        child: Row(
+          children: [
+            Expanded(
+              child: ElevatedButton.icon(
+                onPressed: () {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Request sent to join experience'),
+                      backgroundColor: Colors.green,
+                    ),
+                  );
+                },
+                icon: const Icon(Icons.group_add),
+                label: const Text('Join This Experience'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF7153DF),
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(width: 16),
+            Expanded(
+              child: OutlinedButton.icon(
+                onPressed: () {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Message feature coming soon'),
+                      backgroundColor: Colors.blue,
+                    ),
+                  );
+                },
+                icon: const Icon(Icons.message),
+                label: const Text('Send Message'),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: const Color(0xFF7153DF),
+                  side: const BorderSide(color: Color(0xFF7153DF)),
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

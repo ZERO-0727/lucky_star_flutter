@@ -27,13 +27,12 @@ class _MyPageState extends State<MyPage> with SingleTickerProviderStateMixin {
   UserModel? _currentUser;
   bool _isLoading = true;
   String? _currentUserId;
-  String _selectedAvailability = 'Available';
+  String _selectedExchangeStatus = 'Open to Exchange';
 
-  final List<String> _availabilityOptions = [
-    'Available',
-    'Busy',
-    'Available Weekends Only',
-    'Not Available',
+  final List<String> _exchangeStatusOptions = [
+    'Open to Exchange',
+    'By Request Only',
+    'Unavailable',
   ];
 
   @override
@@ -59,7 +58,10 @@ class _MyPageState extends State<MyPage> with SingleTickerProviderStateMixin {
         if (userData != null && mounted) {
           setState(() {
             _currentUser = userData;
-            _selectedAvailability = userData.status;
+            _selectedExchangeStatus =
+                userData.status.isNotEmpty
+                    ? userData.status
+                    : 'Open to Exchange';
             _isLoading = false;
           });
         } else {
@@ -102,7 +104,10 @@ class _MyPageState extends State<MyPage> with SingleTickerProviderStateMixin {
         if (userData != null && mounted) {
           setState(() {
             _currentUser = userData;
-            _selectedAvailability = userData.status;
+            _selectedExchangeStatus =
+                userData.status.isNotEmpty
+                    ? userData.status
+                    : 'Open to Exchange';
           });
         }
       } catch (e) {
@@ -111,7 +116,7 @@ class _MyPageState extends State<MyPage> with SingleTickerProviderStateMixin {
     }
   }
 
-  Future<void> _updateAvailability(String newStatus) async {
+  Future<void> _updateExchangeStatus(String newStatus) async {
     if (_currentUser == null) return;
 
     try {
@@ -121,28 +126,126 @@ class _MyPageState extends State<MyPage> with SingleTickerProviderStateMixin {
 
       if (mounted) {
         setState(() {
-          _selectedAvailability = newStatus;
+          _selectedExchangeStatus = newStatus;
           _currentUser = _currentUser!.copyWith(status: newStatus);
         });
 
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('Availability updated'),
+            content: Text('Exchange status updated'),
             backgroundColor: Colors.green,
           ),
         );
       }
     } catch (e) {
-      print('Error updating availability: $e');
+      print('Error updating exchange status: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Error updating availability: $e'),
+            content: Text('Error updating exchange status: $e'),
             backgroundColor: Colors.red,
           ),
         );
       }
     }
+  }
+
+  Color _getStatusColor(String status) {
+    switch (status) {
+      case 'Open to Exchange':
+        return const Color(0xFF4CAF50); // Green
+      case 'By Request Only':
+        return const Color(0xFFFFEB3B); // Yellow
+      case 'Unavailable':
+        return const Color(0xFF9E9E9E); // Gray
+      default:
+        return const Color(0xFF4CAF50); // Default to green
+    }
+  }
+
+  void _showStatusSelectionBottomSheet() {
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (BuildContext context) {
+        return Container(
+          padding: const EdgeInsets.all(20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Select Exchange Status',
+                style: GoogleFonts.poppins(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              const SizedBox(height: 20),
+              ..._exchangeStatusOptions.map((status) {
+                Color badgeColor;
+                Color textColor;
+                String statusIcon;
+
+                switch (status) {
+                  case 'Open to Exchange':
+                    badgeColor = const Color(0xFF4CAF50); // Green
+                    textColor = Colors.white;
+                    statusIcon = '✅';
+                    break;
+                  case 'By Request Only':
+                    badgeColor = const Color(0xFFFFEB3B); // Yellow
+                    textColor = Colors.black;
+                    statusIcon = '🟡';
+                    break;
+                  case 'Unavailable':
+                    badgeColor = const Color(0xFF9E9E9E); // Gray
+                    textColor = const Color(0xFF424242);
+                    statusIcon = '⬜';
+                    break;
+                  default:
+                    badgeColor = const Color(0xFF4CAF50);
+                    textColor = Colors.white;
+                    statusIcon = '✅';
+                }
+
+                return ListTile(
+                  onTap: () {
+                    Navigator.pop(context);
+                    _updateExchangeStatus(status);
+                  },
+                  leading: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 6,
+                    ),
+                    decoration: BoxDecoration(
+                      color: badgeColor,
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                    child: Text(
+                      '$statusIcon $status',
+                      style: GoogleFonts.poppins(
+                        color: textColor,
+                        fontWeight: FontWeight.w600,
+                        fontSize: 13,
+                      ),
+                    ),
+                  ),
+                  trailing:
+                      _selectedExchangeStatus == status
+                          ? const Icon(Icons.check, color: Color(0xFF7153DF))
+                          : null,
+                );
+              }).toList(),
+              const SizedBox(height: 20),
+            ],
+          ),
+        );
+      },
+    );
   }
 
   @override
@@ -312,12 +415,42 @@ class _MyPageState extends State<MyPage> with SingleTickerProviderStateMixin {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      _currentUser!.displayName,
-                      style: GoogleFonts.poppins(
-                        fontSize: 24,
-                        fontWeight: FontWeight.bold,
-                      ),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            _currentUser!.displayName,
+                            style: GoogleFonts.poppins(
+                              fontSize: 24,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                        GestureDetector(
+                          onTap: _showStatusSelectionBottomSheet,
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            crossAxisAlignment: CrossAxisAlignment.center,
+                            children: [
+                              Text(
+                                _selectedExchangeStatus,
+                                style: GoogleFonts.poppins(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w600,
+                                  color: _getStatusColor(
+                                    _selectedExchangeStatus,
+                                  ),
+                                ),
+                              ),
+                              Icon(
+                                Icons.arrow_drop_down,
+                                color: _getStatusColor(_selectedExchangeStatus),
+                                size: 18,
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
                     ),
                     const SizedBox(height: 4),
                     if (_currentUser!.location.isNotEmpty) ...[
@@ -388,67 +521,37 @@ class _MyPageState extends State<MyPage> with SingleTickerProviderStateMixin {
             ),
           ),
           const SizedBox(height: 20),
-          Row(
-            children: [
-              Expanded(
-                child: ElevatedButton(
-                  onPressed: () async {
-                    final result = await Navigator.push<UserModel>(
-                      context,
-                      MaterialPageRoute(
-                        builder:
-                            (context) => EditProfileScreen(user: _currentUser),
-                      ),
-                    );
-                    if (result != null) {
-                      setState(() {
-                        _currentUser = result;
-                        _selectedAvailability = result.status;
-                      });
-                    }
-                  },
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF7153DF),
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(vertical: 12),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(8),
-                    ),
+          // Edit Profile Button
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton(
+              onPressed: () async {
+                final result = await Navigator.push<UserModel>(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => EditProfileScreen(user: _currentUser),
                   ),
-                  child: const Text('Edit Profile'),
+                );
+                if (result != null) {
+                  setState(() {
+                    _currentUser = result;
+                    _selectedExchangeStatus =
+                        result.status.isNotEmpty
+                            ? result.status
+                            : 'Open to Exchange';
+                  });
+                }
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF7153DF),
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(vertical: 12),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
                 ),
               ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12),
-                  decoration: BoxDecoration(
-                    border: Border.all(color: Colors.grey[300]!),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: DropdownButtonHideUnderline(
-                    child: DropdownButton<String>(
-                      value: _selectedAvailability,
-                      isExpanded: true,
-                      icon: const Icon(Icons.arrow_drop_down),
-                      items:
-                          _availabilityOptions.map((String value) {
-                            return DropdownMenuItem<String>(
-                              value: value,
-                              child: Text(value),
-                            );
-                          }).toList(),
-                      onChanged: (String? newValue) {
-                        if (newValue != null &&
-                            newValue != _selectedAvailability) {
-                          _updateAvailability(newValue);
-                        }
-                      },
-                    ),
-                  ),
-                ),
-              ),
-            ],
+              child: const Text('Edit Profile'),
+            ),
           ),
         ],
       ),
@@ -961,17 +1064,49 @@ class _MyPageState extends State<MyPage> with SingleTickerProviderStateMixin {
     );
   }
 
-  void _showTagEditor(BuildContext context, String title, List<String> tags) {
+  void _showTagEditor(
+    BuildContext context,
+    String title,
+    List<String> tags,
+  ) async {
     if (title == 'Languages') {
-      Navigator.push(
+      final result = await Navigator.push<List<String>>(
         context,
-        MaterialPageRoute(builder: (context) => const LanguageSelectionPage()),
+        MaterialPageRoute(
+          builder:
+              (context) => LanguageSelectionPage(
+                selectedLanguages: _currentUser!.languages,
+                currentUser: _currentUser,
+              ),
+        ),
       );
+
+      if (result != null && mounted) {
+        // Update local state and refresh user data
+        setState(() {
+          _currentUser = _currentUser!.copyWith(languages: result);
+        });
+        await _refreshUserData();
+      }
     } else if (title == 'Interests') {
-      Navigator.push(
+      final result = await Navigator.push<List<String>>(
         context,
-        MaterialPageRoute(builder: (context) => const InterestEditingPage()),
+        MaterialPageRoute(
+          builder:
+              (context) => InterestEditingPage(
+                selectedInterests: _currentUser!.interests,
+                currentUser: _currentUser,
+              ),
+        ),
       );
+
+      if (result != null && mounted) {
+        // Update local state and refresh user data
+        setState(() {
+          _currentUser = _currentUser!.copyWith(interests: result);
+        });
+        await _refreshUserData();
+      }
     }
   }
 }

@@ -40,6 +40,14 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   // Gender options
   final List<String> _genderOptions = ['Male', 'Female'];
 
+  // Exchange status options
+  final List<String> _exchangeStatusOptions = [
+    'Open to Exchange',
+    'By Request Only',
+    'Unavailable',
+  ];
+  String? _selectedExchangeStatus;
+
   @override
   void initState() {
     super.initState();
@@ -70,6 +78,10 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
             _locationController.text = userData.location;
             _selectedGender =
                 userData.gender.isNotEmpty ? userData.gender : null;
+            _selectedExchangeStatus =
+                userData.status.isNotEmpty
+                    ? userData.status
+                    : 'Open to Exchange';
             _currentAvatarUrl = userData.avatarUrl;
             _isInitialLoading = false;
           });
@@ -221,6 +233,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
         bio: _bioController.text.trim(),
         location: _locationController.text.trim(),
         gender: _selectedGender ?? '',
+        status: _selectedExchangeStatus ?? 'Open to Exchange',
         avatarUrl: avatarUrl ?? '',
         updatedAt: DateTime.now(),
       );

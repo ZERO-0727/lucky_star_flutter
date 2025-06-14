@@ -1,22 +1,28 @@
+import 'dart:ui';
 import 'package:flutter/material.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'user_detail_page.dart';
 import 'models/user_model.dart';
 import 'services/user_service.dart';
 import 'widgets/user_profile_card.dart';
 
 class UserPlazaScreen extends StatefulWidget {
-  const UserPlazaScreen({Key? key}) : super(key: key);
+  const UserPlazaScreen({super.key});
 
   @override
   State<UserPlazaScreen> createState() => _UserPlazaScreenState();
 }
 
 class _UserPlazaScreenState extends State<UserPlazaScreen> {
-  final List<String> _mainFilters = ['All', 'Verified', 'Pro Users', 'Recent'];
-  final List<String> _statusFilters = ['Available', 'Limited', 'Unavailable'];
-  int _selectedMainFilter = 0;
-  int _selectedStatusFilter = 0;
+  final List<String> _allFilters = [
+    'All',
+    'Verified',
+    'Pro Users',
+    'Recently Active',
+    'Open to Exchange',
+    'By Request Only',
+    'Unavailable',
+  ];
+  int _selectedFilter = 0;
   String _search = '';
   bool _isLoading = true;
   List<UserModel> _users = [];
@@ -39,12 +45,11 @@ class _UserPlazaScreenState extends State<UserPlazaScreen> {
       List<UserModel> users;
 
       // Apply filters based on selection
-      switch (_selectedMainFilter) {
+      switch (_selectedFilter) {
         case 1: // Verified
           users = await _userService.getVerifiedUsers();
           break;
         case 2: // Pro Users
-          // Assuming Pro users have a specific status or badge
           users = await _userService.getAllUsers();
           users =
               users
@@ -55,18 +60,46 @@ class _UserPlazaScreenState extends State<UserPlazaScreen> {
                   )
                   .toList();
           break;
-        case 3: // Recent
+        case 3: // Recently Active
           users = await _userService.getAllUsers();
-          users.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+          users.sort((a, b) => b.updatedAt.compareTo(a.updatedAt));
+          break;
+        case 4: // Open to Exchange
+          users = await _userService.getAllUsers();
+          users =
+              users
+                  .where(
+                    (user) =>
+                        user.status.toLowerCase() == 'open to exchange' ||
+                        user.status.toLowerCase() == 'available',
+                  )
+                  .toList();
+          break;
+        case 5: // By Request Only
+          users = await _userService.getAllUsers();
+          users =
+              users
+                  .where(
+                    (user) =>
+                        user.status.toLowerCase() == 'by request only' ||
+                        user.status.toLowerCase() == 'busy' ||
+                        user.status.toLowerCase() == 'limited',
+                  )
+                  .toList();
+          break;
+        case 6: // Unavailable
+          users = await _userService.getAllUsers();
+          users =
+              users
+                  .where(
+                    (user) =>
+                        user.status.toLowerCase() == 'unavailable' ||
+                        user.status.toLowerCase() == 'not available',
+                  )
+                  .toList();
           break;
         default: // All
           users = await _userService.getAllUsers();
-      }
-
-      // Apply status filter if selected
-      if (_selectedStatusFilter > 0) {
-        final String statusFilter = _statusFilters[_selectedStatusFilter];
-        users = users.where((user) => user.status == statusFilter).toList();
       }
 
       // Apply search filter if text is entered
@@ -115,154 +148,222 @@ class _UserPlazaScreenState extends State<UserPlazaScreen> {
         backgroundColor: const Color(0xFF7153DF),
         foregroundColor: Colors.white,
       ),
-      body: Column(
+      body: Stack(
         children: [
-          const SizedBox(height: 8),
-          // Main Filters
-          SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            padding: const EdgeInsets.symmetric(horizontal: 12),
-            child: Row(
-              children: List.generate(
-                _mainFilters.length,
-                (idx) => Padding(
-                  padding: const EdgeInsets.only(right: 8),
-                  child: ChoiceChip(
-                    label: Text(_mainFilters[idx]),
-                    selected: _selectedMainFilter == idx,
-                    onSelected: (selected) {
-                      if (selected) {
-                        setState(() => _selectedMainFilter = idx);
-                        _loadUsers();
-                      }
-                    },
-                    selectedColor: const Color(0xFF7153DF),
-                    labelStyle: TextStyle(
-                      color:
-                          _selectedMainFilter == idx
-                              ? Colors.white
-                              : Colors.black87,
-                    ),
-                  ),
-                ),
-              ),
-            ),
-          ),
-          const SizedBox(height: 8),
-          // Status Filters
-          SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            padding: const EdgeInsets.symmetric(horizontal: 12),
-            child: Row(
-              children: List.generate(
-                _statusFilters.length,
-                (idx) => Padding(
-                  padding: const EdgeInsets.only(right: 8),
-                  child: ChoiceChip(
-                    label: Text(_statusFilters[idx]),
-                    selected: _selectedStatusFilter == idx,
-                    onSelected: (selected) {
-                      if (selected) {
-                        setState(() => _selectedStatusFilter = idx);
-                        _loadUsers();
-                      }
-                    },
-                    selectedColor: Colors.grey[800],
-                    labelStyle: TextStyle(
-                      color:
-                          _selectedStatusFilter == idx
-                              ? Colors.white
-                              : Colors.black87,
-                    ),
-                  ),
-                ),
-              ),
-            ),
-          ),
-          const SizedBox(height: 12),
-          // Search Bar
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            child: TextField(
-              decoration: InputDecoration(
-                hintText: 'Search users...',
-                prefixIcon: const Icon(Icons.search),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(30),
-                ),
-                contentPadding: const EdgeInsets.symmetric(vertical: 0),
-              ),
-              onChanged: (value) {
-                setState(() => _search = value);
-                // Debounce search to avoid too many requests
-                Future.delayed(const Duration(milliseconds: 500), () {
-                  if (_search == value) {
-                    _loadUsers();
-                  }
-                });
-              },
-            ),
-          ),
-          const SizedBox(height: 12),
-          // User Cards
-          Expanded(
-            child:
-                _isLoading
-                    ? const Center(child: CircularProgressIndicator())
-                    : _users.isEmpty
-                    ? Center(
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          const Icon(
-                            Icons.person_search,
-                            size: 64,
-                            color: Colors.grey,
-                          ),
-                          const SizedBox(height: 16),
-                          Text(
-                            'No users found',
-                            style: TextStyle(
-                              fontSize: 18,
-                              color: Colors.grey[600],
-                            ),
-                          ),
-                          const SizedBox(height: 8),
-                          ElevatedButton(
-                            onPressed: _loadUsers,
-                            child: const Text('Refresh'),
-                          ),
-                        ],
-                      ),
-                    )
-                    : RefreshIndicator(
-                      onRefresh: _loadUsers,
-                      child: ListView.builder(
-                        padding: const EdgeInsets.symmetric(horizontal: 12),
-                        itemCount: _users.length,
-                        itemBuilder: (context, index) {
-                          final user = _users[index];
-                          return UserProfileCard(
-                            user: user,
-                            onTap: () {
-                              Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                  builder:
-                                      (context) => UserDetailPage(
-                                        userId: user.userId,
-                                        displayName: user.displayName,
-                                      ),
+          Column(
+            children: [
+              // Filter Chips at Top
+              _buildTopFilterChips(),
+
+              // User Cards
+              Expanded(
+                child:
+                    _isLoading
+                        ? const Center(child: CircularProgressIndicator())
+                        : _users.isEmpty
+                        ? Center(
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              const Icon(
+                                Icons.person_search,
+                                size: 64,
+                                color: Colors.grey,
+                              ),
+                              const SizedBox(height: 16),
+                              Text(
+                                'No users found',
+                                style: TextStyle(
+                                  fontSize: 18,
+                                  color: Colors.grey[600],
                                 ),
+                              ),
+                              const SizedBox(height: 8),
+                              ElevatedButton(
+                                onPressed: _loadUsers,
+                                child: const Text('Refresh'),
+                              ),
+                            ],
+                          ),
+                        )
+                        : RefreshIndicator(
+                          onRefresh: _loadUsers,
+                          child: ListView.builder(
+                            padding: const EdgeInsets.only(
+                              left: 12,
+                              right: 12,
+                              top: 12,
+                              bottom: 100, // Space for floating button
+                            ),
+                            itemCount: _users.length,
+                            itemBuilder: (context, index) {
+                              final user = _users[index];
+                              return UserProfileCard(
+                                user: user,
+                                onTap: () {
+                                  Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder:
+                                          (context) => UserDetailPage(
+                                            userId: user.userId,
+                                            displayName: user.displayName,
+                                          ),
+                                    ),
+                                  );
+                                },
                               );
                             },
-                          );
-                        },
-                      ),
-                    ),
+                          ),
+                        ),
+              ),
+            ],
+          ),
+
+          // Floating Search Button - Bottom Right (66x66px)
+          Positioned(
+            bottom: 30,
+            right: 20,
+            child: _buildFloatingSearchButton(),
           ),
         ],
       ),
+    );
+  }
+
+  Widget _buildTopFilterChips() {
+    return Container(
+      height: 60,
+      padding: const EdgeInsets.symmetric(vertical: 8),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 4,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        padding: const EdgeInsets.symmetric(horizontal: 16),
+        child: Row(
+          children: List.generate(
+            _allFilters.length,
+            (idx) => Padding(
+              padding: const EdgeInsets.only(right: 8),
+              child: ChoiceChip(
+                label: Text(_allFilters[idx]),
+                selected: _selectedFilter == idx,
+                onSelected: (selected) {
+                  if (selected) {
+                    setState(() => _selectedFilter = idx);
+                    _loadUsers();
+                  }
+                },
+                selectedColor: const Color(0xFF7153DF),
+                backgroundColor: Colors.grey[100],
+                labelStyle: TextStyle(
+                  color: _selectedFilter == idx ? Colors.white : Colors.black87,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w500,
+                ),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(20),
+                  side: BorderSide(
+                    color:
+                        _selectedFilter == idx
+                            ? const Color(0xFF7153DF)
+                            : Colors.grey[300]!,
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildFloatingSearchButton() {
+    return GestureDetector(
+      onTap: () {
+        _showSearchDialog();
+      },
+      child: Container(
+        width: 66,
+        height: 66,
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          color: Colors.white.withOpacity(0.9),
+          border: Border.all(color: Colors.white.withOpacity(0.3), width: 1),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.15),
+              blurRadius: 20,
+              offset: const Offset(0, 8),
+            ),
+          ],
+        ),
+        child: ClipOval(
+          child: BackdropFilter(
+            filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+            child: Container(
+              decoration: BoxDecoration(
+                color: Colors.white.withOpacity(0.8),
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(
+                Icons.search,
+                size: 28,
+                color: Color(0xFF7153DF),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _showSearchDialog() {
+    showDialog(
+      context: context,
+      builder:
+          (context) => AlertDialog(
+            title: const Text('Search Users'),
+            content: TextField(
+              decoration: const InputDecoration(
+                hintText: 'Enter search terms...',
+                prefixIcon: Icon(Icons.search),
+              ),
+              onChanged: (value) {
+                setState(() => _search = value);
+              },
+              onSubmitted: (value) {
+                Navigator.of(context).pop();
+                _loadUsers();
+              },
+              autofocus: true,
+            ),
+            actions: [
+              TextButton(
+                onPressed: () {
+                  setState(() => _search = '');
+                  Navigator.of(context).pop();
+                  _loadUsers();
+                },
+                child: const Text('Clear'),
+              ),
+              TextButton(
+                onPressed: () {
+                  Navigator.of(context).pop();
+                  _loadUsers();
+                },
+                child: const Text('Search'),
+              ),
+            ],
+          ),
     );
   }
 }
