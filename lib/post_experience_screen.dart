@@ -352,6 +352,75 @@ class _PostExperienceScreenState extends State<PostExperienceScreen> {
     await _uploadImageToFirebase(image);
   }
 
+  // Remove an image from the list and update Firestore
+  Future<void> _removeImage(ImageItem image) async {
+    // First check if the image is currently uploading
+    if (image.status == ImageStatus.uploading ||
+        image.status == ImageStatus.retrying) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Please wait for upload to complete before removing'),
+          backgroundColor: Colors.orange,
+        ),
+      );
+      return;
+    }
+
+    try {
+      // Remove from local state first
+      setState(() {
+        _images.remove(image);
+        if (image.url != null) {
+          _uploadedUrls.remove(image.url);
+        }
+      });
+
+      // If successfully uploaded to Firestore, remove from Firestore array
+      if (image.url != null &&
+          image.savedToFirestore &&
+          _currentExperienceId != null) {
+        print('🗑️ REMOVING URL FROM FIRESTORE: ${image.url}');
+
+        await _firestore
+            .collection('experiences')
+            .doc(_currentExperienceId!)
+            .update({
+              'photoUrls': FieldValue.arrayRemove([image.url]),
+              'updatedAt': FieldValue.serverTimestamp(),
+            });
+
+        print('✅ URL REMOVED FROM FIRESTORE: ${image.url}');
+
+        // Show success message
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Image removed successfully'),
+            backgroundColor: Colors.green,
+            duration: Duration(seconds: 1),
+          ),
+        );
+      }
+    } catch (e) {
+      print('❌ ERROR REMOVING IMAGE: $e');
+
+      // Show error message
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Failed to remove image: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+
+      // Restore the image in the local state
+      setState(() {
+        _images.add(image);
+        if (image.url != null) {
+          _uploadedUrls.add(image.url!);
+        }
+      });
+    }
+  }
+
   // 🚨 EMERGENCY FIX: Write URL to Firestore using arrayUnion
   Future<void> _writeUrlToFirestore(String downloadUrl) async {
     if (_currentExperienceId == null) {
@@ -1094,10 +1163,67 @@ class _PostExperienceScreenState extends State<PostExperienceScreen> {
                                                         fit: BoxFit.cover,
                                                       ),
                                             ),
-                                            // Status indicator
+                                            // Enhanced delete button for all images (except those currently uploading)
+                                            if (image.status !=
+                                                    ImageStatus.uploading &&
+                                                image.status !=
+                                                    ImageStatus.retrying)
+                                              Positioned(
+                                                top: 2,
+                                                right: 2,
+                                                child: GestureDetector(
+                                                  onTap: () {
+                                                    // Show a confirmation snackbar after removal
+                                                    _removeImage(image).then((
+                                                      _,
+                                                    ) {
+                                                      ScaffoldMessenger.of(
+                                                        context,
+                                                      ).showSnackBar(
+                                                        const SnackBar(
+                                                          content: Text(
+                                                            'Image removed successfully',
+                                                          ),
+                                                          backgroundColor:
+                                                              Colors.green,
+                                                          duration: Duration(
+                                                            seconds: 1,
+                                                          ),
+                                                        ),
+                                                      );
+                                                    });
+                                                  },
+                                                  child: Container(
+                                                    padding:
+                                                        const EdgeInsets.all(6),
+                                                    decoration: BoxDecoration(
+                                                      color: Colors.red
+                                                          .withOpacity(0.9),
+                                                      shape: BoxShape.circle,
+                                                      boxShadow: [
+                                                        BoxShadow(
+                                                          color: Colors.black
+                                                              .withOpacity(0.2),
+                                                          blurRadius: 2,
+                                                          offset: const Offset(
+                                                            0,
+                                                            1,
+                                                          ),
+                                                        ),
+                                                      ],
+                                                    ),
+                                                    child: const Icon(
+                                                      Icons.delete_outline,
+                                                      size: 16,
+                                                      color: Colors.white,
+                                                    ),
+                                                  ),
+                                                ),
+                                              ),
+                                            // Status indicator (moved to bottom left)
                                             Positioned(
-                                              top: 2,
-                                              right: 2,
+                                              bottom: 2,
+                                              left: 2,
                                               child: Container(
                                                 padding: const EdgeInsets.all(
                                                   2,
@@ -1120,7 +1246,7 @@ class _PostExperienceScreenState extends State<PostExperienceScreen> {
                                                 ImageStatus.failed)
                                               Positioned(
                                                 bottom: 2,
-                                                left: 2,
+                                                right: 2,
                                                 child: InkWell(
                                                   onTap:
                                                       () => _retryUpload(image),

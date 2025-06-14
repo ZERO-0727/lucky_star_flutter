@@ -1,44 +1,83 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    // Users collection - users can read/write their own data
+    // Helper functions
+    function isSignedIn() {
+      return request.auth != null;
+    }
+    
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+    
+    function isUserInArray(array) {
+      return isSignedIn() && request.auth.uid in array;
+    }
+    
+    // Users collection
     match /users/{userId} {
-      allow read, write: if request.auth != null && request.auth.uid == userId;
+      allow read: if true; // Public profiles are readable by anyone
+      allow create: if isOwner(userId);
+      allow update, delete: if isOwner(userId);
     }
 
-    // Experiences collection - existing rules
+    // Experiences collection
     match /experiences/{experienceId} {
-      allow read: if request.auth != null;
-      allow create: if request.auth != null && 
+      allow read: if true; // Public experiences are readable by anyone
+      allow create: if isSignedIn() && 
         request.auth.uid == request.resource.data.userId;
-      allow update: if request.auth != null && 
+      allow update: if isSignedIn() && 
         request.auth.uid == resource.data.userId;
-      allow delete: if request.auth != null && 
+      allow delete: if isSignedIn() && 
         request.auth.uid == resource.data.userId;
     }
 
-    // Wishes collection - new rules following same pattern as experiences
+    // Wishes collection
     match /wishes/{wishId} {
-      allow read: if request.auth != null;
-      allow create: if request.auth != null && 
-        request.auth.uid == request.resource.data.userId &&
-        request.resource.data.keys().hasAll(['title', 'description', 'status']) &&
-        request.resource.data.title is string &&
-        request.resource.data.description is string &&
-        request.resource.data.status in ['Open', 'Fulfilled', 'Closed'];
-      allow update: if request.auth != null && 
-        request.auth.uid == resource.data.userId &&
-        // Allow status updates and interested count changes
-        (request.resource.data.diff(resource.data).affectedKeys()
-          .hasOnly(['updatedAt', 'status', 'interestedCount', 'photoUrls', 'title', 'description', 'location', 'preferredDate', 'categories', 'budget']));
-      allow delete: if request.auth != null && 
+      allow read: if true; // Public wishes are readable by anyone
+      allow create: if isSignedIn() && 
+        request.auth.uid == request.resource.data.userId;
+      allow update: if isSignedIn() && 
+        request.auth.uid == resource.data.userId;
+      allow delete: if isSignedIn() && 
         request.auth.uid == resource.data.userId;
     }
+    
+    // Conversations collection - chat conversations between users
+    match /conversations/{conversationId} {
+      allow read: if isSignedIn() && isUserInArray(resource.data.participantIds);
+      allow create: if isSignedIn() && isUserInArray(request.resource.data.participantIds);
+      allow update: if isSignedIn() && isUserInArray(resource.data.participantIds);
+      allow delete: if isSignedIn() && isUserInArray(resource.data.participantIds);
+      
+      // Messages subcollection
+      match /messages/{messageId} {
+        allow read: if isSignedIn() && isUserInArray(get(/databases/$(database)/documents/conversations/$(conversationId)).data.participantIds);
+        allow create: if isSignedIn() && 
+          isUserInArray(get(/databases/$(database)/documents/conversations/$(conversationId)).data.participantIds) &&
+          request.resource.data.senderId == request.auth.uid;
+        allow update: if isSignedIn() && 
+          isUserInArray(get(/databases/$(database)/documents/conversations/$(conversationId)).data.participantIds) &&
+          (resource.data.senderId == request.auth.uid || 
+           request.resource.data.diff(resource.data).affectedKeys().hasOnly(['isRead', 'status']));
+        allow delete: if isSignedIn() && resource.data.senderId == request.auth.uid;
+      }
+    }
 
-    // Allow all authenticated users to read and write to experiences and wishes
-    // for public access patterns
-    match /{document=**} {
-      allow read: if request.auth != null;
+    // Favorites collection
+    match /favorites/{userId} {
+      allow read: if isOwner(userId);
+      allow write: if isOwner(userId);
+      
+      match /experienceFavorites/{experienceId} {
+        allow read: if isOwner(userId);
+        allow write: if isOwner(userId);
+      }
+      
+      match /wishFavorites/{wishId} {
+        allow read: if isOwner(userId);
+        allow write: if isOwner(userId);
+      }
     }
   }
 }

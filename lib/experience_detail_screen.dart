@@ -3,9 +3,13 @@ import 'package:intl/intl.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/services.dart';
+import 'dart:math';
 import 'models/experience_model.dart';
+import 'models/user_model.dart';
 import 'services/experience_service.dart';
 import 'services/favorites_service.dart';
+import 'services/user_service.dart';
+import 'services/chat_service.dart';
 import 'chat_detail_screen.dart';
 
 class ExperienceDetailScreen extends StatefulWidget {
@@ -24,8 +28,13 @@ class ExperienceDetailScreen extends StatefulWidget {
 
 class _ExperienceDetailScreenState extends State<ExperienceDetailScreen> {
   final ExperienceService _experienceService = ExperienceService();
+  final UserService _userService = UserService();
+  final ChatService _chatService = ChatService();
   ExperienceModel? _experience;
+  UserModel? _publisher;
   bool _isLoading = true;
+  bool _isLoadingPublisher = true;
+  bool _isJoining = false;
   bool _isFavorited = false;
   String? _error;
   String? _currentUserId;
@@ -37,6 +46,7 @@ class _ExperienceDetailScreenState extends State<ExperienceDetailScreen> {
     if (widget.experience != null) {
       _experience = widget.experience;
       _isLoading = false;
+      _loadPublisherData();
       _loadFavoriteStatus();
     } else {
       _loadExperience();
@@ -56,6 +66,7 @@ class _ExperienceDetailScreenState extends State<ExperienceDetailScreen> {
           _experience = ExperienceModel.fromFirestore(doc);
           _isLoading = false;
         });
+        _loadPublisherData();
         _loadFavoriteStatus();
       } else {
         setState(() {
@@ -69,6 +80,45 @@ class _ExperienceDetailScreenState extends State<ExperienceDetailScreen> {
         _isLoading = false;
       });
     }
+  }
+
+  // Fetch user data for the experience publisher
+  Future<void> _loadPublisherData() async {
+    if (_experience == null) return;
+
+    setState(() {
+      _isLoadingPublisher = true;
+    });
+
+    try {
+      if (_experience!.userRef != null) {
+        // Fetch from userRef if available
+        final doc = await _experience!.userRef!.get();
+        if (doc.exists) {
+          _publisher = UserModel.fromFirestore(
+            doc as DocumentSnapshot<Map<String, dynamic>>,
+          );
+        }
+      }
+
+      if (_publisher == null) {
+        // Fallback to userId if userRef not available or fails
+        _publisher = await _userService.getUserById(_experience!.userId);
+      }
+    } catch (e) {
+      print('Error fetching publisher data: $e');
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoadingPublisher = false;
+        });
+      }
+    }
+  }
+
+  // Check if publisher has Pro membership
+  bool get _isProMember {
+    return _publisher?.verificationBadges.contains('pro') ?? false;
   }
 
   Future<void> _loadFavoriteStatus() async {
@@ -131,6 +181,15 @@ class _ExperienceDetailScreenState extends State<ExperienceDetailScreen> {
 
   void _joinExperience() {
     if (_experience == null) return;
+    if (_currentUserId == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Please log in to join experiences'),
+          backgroundColor: Colors.orange,
+        ),
+      );
+      return;
+    }
     _showJoinExperienceDialog(_experience!);
   }
 
@@ -276,34 +335,81 @@ class _ExperienceDetailScreenState extends State<ExperienceDetailScreen> {
                 child: const Text('Cancel'),
               ),
               ElevatedButton(
-                onPressed: () {
+                onPressed: () async {
                   if (messageController.text.trim().isEmpty) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('Please enter a message'),
-                        backgroundColor: Colors.orange,
-                      ),
-                    );
+                    if (mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('Please enter a message'),
+                          backgroundColor: Colors.orange,
+                        ),
+                      );
+                    }
                     return;
                   }
 
+                  // Close the dialog and show loading indicator
                   Navigator.of(context).pop();
 
-                  // Navigate to chat with initial message
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder:
-                          (context) => ChatDetailScreen(
-                            chatId:
-                                '${experience.experienceId}_${_currentUserId ?? 'guest'}',
-                            userName: 'Host', // TODO: Get actual host name
-                            userAvatar: null, // TODO: Get actual host avatar
-                            experience: experience,
-                            initialMessage: messageController.text.trim(),
-                          ),
-                    ),
-                  );
+                  setState(() {
+                    _isJoining = true;
+                  });
+
+                  try {
+                    final initialMessage = messageController.text.trim();
+
+                    // Create or get the conversation
+                    final conversationId = await _chatService
+                        .createConversation(
+                          otherUserId: experience.userId,
+                          experienceId: experience.experienceId,
+                          initialMessage: initialMessage,
+                        );
+
+                    // Get the host details
+                    String hostName = 'Host';
+                    String? hostAvatar;
+
+                    if (_publisher != null) {
+                      hostName =
+                          _publisher!.displayName.isNotEmpty
+                              ? _publisher!.displayName
+                              : 'Host';
+                      hostAvatar = _publisher!.avatarUrl;
+                    }
+
+                    if (mounted) {
+                      // Navigate to chat detail screen
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder:
+                              (context) => ChatDetailScreen(
+                                chatId: conversationId,
+                                userName: hostName,
+                                userAvatar: hostAvatar,
+                                experience: experience,
+                                initialMessage: initialMessage,
+                              ),
+                        ),
+                      );
+                    }
+                  } catch (e) {
+                    if (mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text('Failed to start chat: $e'),
+                          backgroundColor: Colors.red,
+                        ),
+                      );
+                    }
+                  } finally {
+                    if (mounted) {
+                      setState(() {
+                        _isJoining = false;
+                      });
+                    }
+                  }
                 },
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Colors.blue.shade600,
@@ -316,14 +422,71 @@ class _ExperienceDetailScreenState extends State<ExperienceDetailScreen> {
     );
   }
 
-  void _contactHost() {
-    // TODO: Implement contact host functionality
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Contact feature coming soon!'),
-        backgroundColor: Colors.blue,
-      ),
-    );
+  Future<void> _contactHost() async {
+    if (_experience == null || _currentUserId == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Please log in to contact the host'),
+          backgroundColor: Colors.orange,
+        ),
+      );
+      return;
+    }
+
+    setState(() {
+      _isJoining = true;
+    });
+
+    try {
+      // Create or get the conversation
+      final conversationId = await _chatService.createConversation(
+        otherUserId: _experience!.userId,
+        experienceId: _experience!.experienceId,
+      );
+
+      // Get the host details
+      String hostName = 'Host';
+      String? hostAvatar;
+
+      if (_publisher != null) {
+        hostName =
+            _publisher!.displayName.isNotEmpty
+                ? _publisher!.displayName
+                : 'Host';
+        hostAvatar = _publisher!.avatarUrl;
+      }
+
+      if (mounted) {
+        // Navigate to chat detail screen
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder:
+                (context) => ChatDetailScreen(
+                  chatId: conversationId,
+                  userName: hostName,
+                  userAvatar: hostAvatar,
+                  experience: _experience,
+                ),
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to start chat: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isJoining = false;
+        });
+      }
+    }
   }
 
   @override
@@ -365,48 +528,82 @@ class _ExperienceDetailScreenState extends State<ExperienceDetailScreen> {
     return Scaffold(
       body: CustomScrollView(
         slivers: [
-          // App Bar with Host Info
+          // App Bar with back button + Host Info (horizontally aligned)
           SliverAppBar(
-            expandedHeight: 80,
-            pinned: true,
-            flexibleSpace: FlexibleSpaceBar(
-              background: Container(
-                color: Colors.white,
-                padding: const EdgeInsets.fromLTRB(20, 40, 20, 10),
-                child: Row(
-                  children: [
-                    const CircleAvatar(
-                      radius: 20,
-                      backgroundColor: Colors.blue,
-                      child: Icon(Icons.person, color: Colors.white),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Text(
-                            'Host: ${experience.userId}', // TODO: Get actual host name
-                            style: const TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                          Text(
-                            'Posted ${_formatTimeAgo(experience.createdAt)}',
-                            style: TextStyle(
-                              fontSize: 14,
-                              color: Colors.grey.shade600,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-              ),
+            leadingWidth: 40, // Slightly reduced width for the back button
+            leading: IconButton(
+              icon: const Icon(Icons.arrow_back, color: Colors.black),
+              onPressed: () => Navigator.of(context).pop(),
             ),
+            title: Row(
+              children: [
+                // Publisher Avatar with loading states
+                _isLoadingPublisher ||
+                        _publisher == null ||
+                        _publisher!.avatarUrl.isEmpty
+                    ? CircleAvatar(
+                      radius: 18,
+                      backgroundColor: Theme.of(context).primaryColor,
+                      child: const Icon(
+                        Icons.person,
+                        color: Colors.white,
+                        size: 16,
+                      ),
+                    )
+                    : CircleAvatar(
+                      radius: 18,
+                      backgroundImage: NetworkImage(_publisher!.avatarUrl),
+                      backgroundColor: Colors.grey.shade200,
+                    ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Row(
+                    children: [
+                      Flexible(
+                        child: Text(
+                          _isLoadingPublisher ||
+                                  _publisher == null ||
+                                  _publisher!.displayName.isEmpty
+                              ? 'Host: ${experience.userId.substring(0, min(8, experience.userId.length))}...'
+                              : _publisher!.displayName,
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
+                            color: Theme.of(context).primaryColor,
+                          ),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+
+                      // Pro badge if user has Pro membership
+                      if (_publisher != null && _isProMember)
+                        Container(
+                          margin: const EdgeInsets.only(left: 4),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 6,
+                            vertical: 2,
+                          ),
+                          decoration: BoxDecoration(
+                            color: Colors.amber.shade700,
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: const Text(
+                            'PRO',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 10,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            pinned: true,
+            backgroundColor: Colors.white,
+            elevation: 0,
             actions: [
               if (_isCurrentUserAuthor())
                 PopupMenuButton<String>(
@@ -436,8 +633,50 @@ class _ExperienceDetailScreenState extends State<ExperienceDetailScreen> {
             ],
           ),
 
-          // Image Gallery
-          SliverToBoxAdapter(child: _buildImageGallery(experience.photoUrls)),
+          // Image Gallery with timestamp overlay at top-right
+          SliverToBoxAdapter(
+            child: Stack(
+              children: [
+                _buildImageGallery(experience.photoUrls),
+
+                // Posted time ago overlay (moved to top-right corner)
+                Positioned(
+                  top: 16,
+                  right: 16,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 4,
+                    ),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withOpacity(0.85),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: Colors.grey.withOpacity(0.2)),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          Icons.access_time,
+                          size: 12,
+                          color: Colors.grey.shade700,
+                        ),
+                        const SizedBox(width: 4),
+                        Text(
+                          _formatTimeAgo(experience.createdAt),
+                          style: TextStyle(
+                            color: Colors.grey.shade800,
+                            fontSize: 12,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
 
           // Content
           SliverToBoxAdapter(
@@ -511,9 +750,7 @@ class _ExperienceDetailScreenState extends State<ExperienceDetailScreen> {
                   _buildDescription(experience),
                   const SizedBox(height: 24),
 
-                  // Details Section
-                  _buildDetails(experience),
-                  const SizedBox(height: 24),
+                  // Details Section removed - no need for spacing
 
                   // Tags
                   _buildTags(experience),
@@ -660,30 +897,10 @@ class _ExperienceDetailScreenState extends State<ExperienceDetailScreen> {
     );
   }
 
+  // Details section completely removed as it's redundant
   Widget _buildDetails(ExperienceModel experience) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.grey.shade50,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.grey.shade200),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text(
-            'Details',
-            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-          ),
-          const SizedBox(height: 12),
-          _buildDetailRow(
-            Icons.people,
-            'Available Slots',
-            '${experience.availableSlots} people',
-          ),
-        ],
-      ),
-    );
+    // Return an empty widget as this section is no longer needed
+    return const SizedBox.shrink();
   }
 
   Widget _buildDetailRow(IconData icon, String label, String value) {
@@ -804,7 +1021,7 @@ class _ExperienceDetailScreenState extends State<ExperienceDetailScreen> {
           width: double.infinity,
           height: 52,
           child: ElevatedButton(
-            onPressed: _joinExperience,
+            onPressed: _isJoining ? null : _joinExperience,
             style: ElevatedButton.styleFrom(
               backgroundColor: Colors.blue.shade600,
               foregroundColor: Colors.white,
@@ -812,11 +1029,25 @@ class _ExperienceDetailScreenState extends State<ExperienceDetailScreen> {
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(12),
               ),
+              disabledBackgroundColor: Colors.grey.shade400,
             ),
-            child: const Text(
-              'Join Experience',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
-            ),
+            child:
+                _isJoining
+                    ? SizedBox(
+                      width: 24,
+                      height: 24,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                      ),
+                    )
+                    : const Text(
+                      'Join Experience',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
           ),
         ),
         const SizedBox(height: 12),
@@ -824,7 +1055,7 @@ class _ExperienceDetailScreenState extends State<ExperienceDetailScreen> {
           width: double.infinity,
           height: 48,
           child: OutlinedButton(
-            onPressed: _contactHost,
+            onPressed: _isJoining ? null : _contactHost,
             style: OutlinedButton.styleFrom(
               foregroundColor: Colors.blue.shade600,
               side: BorderSide(color: Colors.blue.shade600),

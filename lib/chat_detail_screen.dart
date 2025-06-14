@@ -1,7 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'models/experience_model.dart';
 import 'models/wish_model.dart';
+import 'models/user_model.dart';
+import 'models/chat_model.dart' as chat_models;
+import 'services/chat_service.dart';
+import 'services/user_service.dart';
+import 'experience_detail_screen.dart';
+import 'wish_detail_screen.dart';
 
 class ChatDetailScreen extends StatefulWidget {
   final String chatId;
@@ -28,65 +35,63 @@ class ChatDetailScreen extends StatefulWidget {
 class _ChatDetailScreenState extends State<ChatDetailScreen> {
   final TextEditingController _messageController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
+  final ChatService _chatService = ChatService();
+  final UserService _userService = UserService();
 
-  // Sample messages for UI demonstration
-  final List<ChatMessage> _messages = [
-    ChatMessage(
-      id: '1',
-      text: 'Hi! I saw your hiking experience and I\'m really interested!',
-      isFromCurrentUser: true,
-      timestamp: DateTime.now().subtract(const Duration(hours: 2)),
-    ),
-    ChatMessage(
-      id: '2',
-      text:
-          'That\'s great! It\'s going to be an amazing adventure. Have you been hiking before?',
-      isFromCurrentUser: false,
-      timestamp: DateTime.now().subtract(const Duration(hours: 1, minutes: 45)),
-    ),
-    ChatMessage(
-      id: '3',
-      text:
-          'Yes, I love hiking! I\'ve done a few trails around the area. What should I bring?',
-      isFromCurrentUser: true,
-      timestamp: DateTime.now().subtract(const Duration(hours: 1, minutes: 30)),
-    ),
-    ChatMessage(
-      id: '4',
-      text:
-          'Perfect! I\'ll send you a detailed packing list. The weather looks great for the weekend.',
-      isFromCurrentUser: false,
-      timestamp: DateTime.now().subtract(const Duration(minutes: 15)),
-    ),
-  ];
+  String? _currentUserId;
+  UserModel? _otherUser;
+  bool _isLoading = true;
+  bool _isSending = false;
+  String? _error;
+  List<chat_models.ChatMessage> _messages = [];
+  Stream<List<chat_models.ChatMessage>>? _messagesStream;
+  chat_models.ChatConversation? _conversation;
 
   @override
   void initState() {
     super.initState();
+    _currentUserId = FirebaseAuth.instance.currentUser?.uid;
+    _initializeChat();
+  }
 
-    // If an initial message is provided, add it to the conversation
-    if (widget.initialMessage != null && widget.initialMessage!.isNotEmpty) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        final initialMessage = ChatMessage(
-          id: 'initial_${DateTime.now().millisecondsSinceEpoch}',
-          text: widget.initialMessage!,
-          isFromCurrentUser: true,
-          timestamp: DateTime.now(),
-        );
-
+  Future<void> _initializeChat() async {
+    try {
+      // Get conversation details
+      final conversation = await _chatService.getConversationById(
+        widget.chatId,
+      );
+      if (conversation == null) {
         setState(() {
-          _messages.add(initialMessage);
+          _error = 'Conversation not found';
+          _isLoading = false;
         });
+        return;
+      }
 
-        // Auto-scroll to bottom after adding initial message
-        if (_scrollController.hasClients) {
-          _scrollController.animateTo(
-            _scrollController.position.maxScrollExtent,
-            duration: const Duration(milliseconds: 300),
-            curve: Curves.easeOut,
-          );
-        }
-      });
+      // Set up real-time messages stream
+      final messagesStream = _chatService.listenToMessages(widget.chatId);
+
+      // Mark messages as read
+      await _chatService.markAsRead(widget.chatId);
+
+      // Get other participant's user details
+      final otherUser = await _chatService.getOtherParticipant(conversation);
+
+      if (mounted) {
+        setState(() {
+          _conversation = conversation;
+          _messagesStream = messagesStream;
+          _otherUser = otherUser;
+          _isLoading = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _error = 'Error loading conversation: $e';
+          _isLoading = false;
+        });
+      }
     }
   }
 
@@ -97,35 +102,124 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
     super.dispose();
   }
 
-  void _sendMessage() {
-    if (_messageController.text.trim().isEmpty) return;
-
-    final newMessage = ChatMessage(
-      id: DateTime.now().millisecondsSinceEpoch.toString(),
-      text: _messageController.text.trim(),
-      isFromCurrentUser: true,
-      timestamp: DateTime.now(),
-    );
+  Future<void> _sendMessage() async {
+    final text = _messageController.text.trim();
+    if (text.isEmpty || _isSending) return;
 
     setState(() {
-      _messages.add(newMessage);
-      _messageController.clear();
+      _isSending = true;
     });
 
-    // Auto-scroll to bottom
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (_scrollController.hasClients) {
-        _scrollController.animateTo(
-          _scrollController.position.maxScrollExtent,
-          duration: const Duration(milliseconds: 300),
-          curve: Curves.easeOut,
+    try {
+      // Clear the input field immediately for better UX
+      _messageController.clear();
+
+      // Send the message using the chat service
+      await _chatService.sendMessage(conversationId: widget.chatId, text: text);
+
+      // Auto-scroll to bottom
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (_scrollController.hasClients) {
+          _scrollController.animateTo(
+            _scrollController.position.maxScrollExtent,
+            duration: const Duration(milliseconds: 300),
+            curve: Curves.easeOut,
+          );
+        }
+      });
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to send message: $e'),
+            backgroundColor: Colors.red,
+          ),
         );
       }
-    });
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isSending = false;
+        });
+      }
+    }
+  }
+
+  void _viewExperienceOrWish() {
+    if (widget.experience != null) {
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder:
+              (context) => ExperienceDetailScreen(
+                experienceId: widget.experience!.experienceId,
+                experience: widget.experience,
+              ),
+        ),
+      );
+    } else if (widget.wish != null) {
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder:
+              (context) => WishDetailScreen(
+                wishId: widget.wish!.wishId,
+                wish: widget.wish,
+              ),
+        ),
+      );
+    }
   }
 
   @override
   Widget build(BuildContext context) {
+    if (_isLoading) {
+      return Scaffold(
+        appBar: AppBar(
+          title: const Text('Loading...'),
+          leading: IconButton(
+            icon: const Icon(Icons.arrow_back),
+            onPressed: () => Navigator.of(context).pop(),
+          ),
+        ),
+        body: const Center(child: CircularProgressIndicator()),
+      );
+    }
+
+    if (_error != null) {
+      return Scaffold(
+        appBar: AppBar(
+          title: const Text('Error'),
+          leading: IconButton(
+            icon: const Icon(Icons.arrow_back),
+            onPressed: () => Navigator.of(context).pop(),
+          ),
+        ),
+        body: Center(
+          child: Padding(
+            padding: const EdgeInsets.all(20.0),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(Icons.error_outline, size: 48, color: Colors.red.shade400),
+                const SizedBox(height: 16),
+                Text(
+                  _error!,
+                  style: const TextStyle(fontSize: 16),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 24),
+                ElevatedButton(
+                  onPressed: () => Navigator.of(context).pop(),
+                  child: const Text('Go Back'),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+    }
+
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: _buildAppBar(),
@@ -366,62 +460,114 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
   }
 
   Widget _buildMessagesList() {
-    return ListView.builder(
-      controller: _scrollController,
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      itemCount: _messages.length,
-      itemBuilder: (context, index) {
-        final message = _messages[index];
-        final showTimestamp =
-            index == 0 ||
-            _messages[index - 1].timestamp
-                    .difference(message.timestamp)
-                    .inMinutes
-                    .abs() >
-                15;
+    if (_messagesStream == null) {
+      return const Center(child: Text('No messages'));
+    }
 
-        return Column(
-          children: [
-            if (showTimestamp)
-              Padding(
-                padding: const EdgeInsets.symmetric(vertical: 16),
-                child: Text(
-                  _formatMessageTimestamp(message.timestamp),
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: Colors.grey.shade500,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
+    return StreamBuilder<List<chat_models.ChatMessage>>(
+      stream: _messagesStream,
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting &&
+            _messages.isEmpty) {
+          return const Center(child: CircularProgressIndicator());
+        }
+
+        if (snapshot.hasError) {
+          return Center(
+            child: Text(
+              'Error loading messages: ${snapshot.error}',
+              style: TextStyle(color: Colors.red.shade700),
+            ),
+          );
+        }
+
+        final messages = snapshot.data ?? [];
+
+        // Store the messages for reference
+        _messages = messages;
+
+        if (messages.isEmpty) {
+          return const Center(
+            child: Text(
+              'No messages yet. Start the conversation!',
+              style: TextStyle(
+                fontSize: 16,
+                color: Colors.grey,
+                fontStyle: FontStyle.italic,
               ),
-            _buildMessageBubble(message),
-          ],
+            ),
+          );
+        }
+
+        // Reverse the list for correct display order (StreamBuilder gives newest first)
+        final displayMessages = messages.toList();
+
+        return ListView.builder(
+          controller: _scrollController,
+          reverse: true, // Display newest at bottom
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          itemCount: displayMessages.length,
+          itemBuilder: (context, index) {
+            final message = displayMessages[index];
+            final showTimestamp =
+                index == 0 ||
+                displayMessages[index - 1].timestamp
+                        .difference(message.timestamp)
+                        .inMinutes
+                        .abs() >
+                    15;
+
+            return Column(
+              children: [
+                if (showTimestamp)
+                  Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    child: Text(
+                      _formatMessageTimestamp(message.timestamp),
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Colors.grey.shade500,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ),
+                _buildMessageBubble(message),
+              ],
+            );
+          },
         );
       },
     );
   }
 
-  Widget _buildMessageBubble(ChatMessage message) {
+  Widget _buildMessageBubble(chat_models.ChatMessage message) {
+    final isFromCurrentUser = message.senderId == _currentUserId;
+
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 2),
       child: Row(
         mainAxisAlignment:
-            message.isFromCurrentUser
-                ? MainAxisAlignment.end
-                : MainAxisAlignment.start,
+            isFromCurrentUser ? MainAxisAlignment.end : MainAxisAlignment.start,
         children: [
-          if (!message.isFromCurrentUser) ...[
+          if (!isFromCurrentUser) ...[
             CircleAvatar(
               radius: 16,
               backgroundColor: Colors.grey.shade300,
               backgroundImage:
                   widget.userAvatar != null
                       ? NetworkImage(widget.userAvatar!)
+                      : _otherUser?.avatarUrl != null &&
+                          _otherUser!.avatarUrl.isNotEmpty
+                      ? NetworkImage(_otherUser!.avatarUrl)
                       : null,
               child:
-                  widget.userAvatar == null
+                  widget.userAvatar == null &&
+                          (_otherUser?.avatarUrl == null ||
+                              _otherUser!.avatarUrl.isEmpty)
                       ? Text(
-                        widget.userName[0].toUpperCase(),
+                        widget.userName.isNotEmpty
+                            ? widget.userName[0].toUpperCase()
+                            : '?',
                         style: const TextStyle(
                           fontSize: 12,
                           fontWeight: FontWeight.w600,
@@ -438,28 +584,68 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
               decoration: BoxDecoration(
                 color:
-                    message.isFromCurrentUser
+                    isFromCurrentUser
                         ? Colors.blue.shade600
                         : Colors.grey.shade200,
                 borderRadius: BorderRadius.circular(18),
               ),
-              child: Text(
-                message.text,
-                style: TextStyle(
-                  fontSize: 15,
-                  color:
-                      message.isFromCurrentUser ? Colors.white : Colors.black,
-                  height: 1.3,
-                ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    message.text,
+                    style: TextStyle(
+                      fontSize: 15,
+                      color: isFromCurrentUser ? Colors.white : Colors.black,
+                      height: 1.3,
+                    ),
+                  ),
+
+                  // Message status indicator (only for current user's messages)
+                  if (isFromCurrentUser)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 4),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        mainAxisAlignment: MainAxisAlignment.end,
+                        children: [
+                          Text(
+                            _getMessageStatusText(message.status),
+                            style: TextStyle(
+                              fontSize: 10,
+                              color: Colors.white.withOpacity(0.7),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                ],
               ),
             ),
           ),
 
-          if (message.isFromCurrentUser) const SizedBox(width: 40),
-          if (!message.isFromCurrentUser) const SizedBox(width: 40),
+          if (isFromCurrentUser) const SizedBox(width: 40),
+          if (!isFromCurrentUser) const SizedBox(width: 40),
         ],
       ),
     );
+  }
+
+  String _getMessageStatusText(chat_models.MessageStatus status) {
+    switch (status) {
+      case chat_models.MessageStatus.sending:
+        return 'Sending...';
+      case chat_models.MessageStatus.sent:
+        return 'Sent';
+      case chat_models.MessageStatus.delivered:
+        return 'Delivered';
+      case chat_models.MessageStatus.read:
+        return 'Read';
+      case chat_models.MessageStatus.failed:
+        return 'Failed';
+      default:
+        return '';
+    }
   }
 
   Widget _buildMessageInput() {
@@ -491,15 +677,18 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
                       vertical: 12,
                     ),
                   ),
-                  onChanged:
-                      (_) => setState(() {}), // Rebuild to update send button
+                  onChanged: (_) {
+                    // Update typing status and rebuild to update send button
+                    setState(() {});
+                    // TODO: Implement debounced typing indicator with _chatService.updateTypingStatus
+                  },
                 ),
               ),
             ),
             const SizedBox(width: 8),
             GestureDetector(
               onTap:
-                  _messageController.text.trim().isNotEmpty
+                  (_messageController.text.trim().isNotEmpty && !_isSending)
                       ? _sendMessage
                       : null,
               child: Container(
@@ -508,18 +697,31 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
                 decoration: BoxDecoration(
                   color:
                       _messageController.text.trim().isNotEmpty
-                          ? Colors.blue.shade600
+                          ? (_isSending
+                              ? Colors.blue.shade300
+                              : Colors.blue.shade600)
                           : Colors.grey.shade300,
                   shape: BoxShape.circle,
                 ),
-                child: Icon(
-                  Icons.send,
-                  color:
-                      _messageController.text.trim().isNotEmpty
-                          ? Colors.white
-                          : Colors.grey.shade500,
-                  size: 20,
-                ),
+                child:
+                    _isSending
+                        ? Padding(
+                          padding: const EdgeInsets.all(10.0),
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            valueColor: AlwaysStoppedAnimation<Color>(
+                              Colors.white,
+                            ),
+                          ),
+                        )
+                        : Icon(
+                          Icons.send,
+                          color:
+                              _messageController.text.trim().isNotEmpty
+                                  ? Colors.white
+                                  : Colors.grey.shade500,
+                          size: 20,
+                        ),
               ),
             ),
           ],
@@ -540,19 +742,4 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
       return DateFormat('MMM dd, HH:mm').format(timestamp);
     }
   }
-}
-
-// Data model for chat messages
-class ChatMessage {
-  final String id;
-  final String text;
-  final bool isFromCurrentUser;
-  final DateTime timestamp;
-
-  ChatMessage({
-    required this.id,
-    required this.text,
-    required this.isFromCurrentUser,
-    required this.timestamp,
-  });
 }

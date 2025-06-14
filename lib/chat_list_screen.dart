@@ -1,6 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'chat_detail_screen.dart';
+import 'models/chat_model.dart';
+import 'models/user_model.dart';
+import 'models/experience_model.dart';
+import 'models/wish_model.dart';
+import 'services/chat_service.dart';
+import 'services/user_service.dart';
 
 class ChatListScreen extends StatefulWidget {
   const ChatListScreen({super.key});
@@ -10,33 +17,46 @@ class ChatListScreen extends StatefulWidget {
 }
 
 class _ChatListScreenState extends State<ChatListScreen> {
-  // Sample data for UI demonstration
-  final List<ChatPreview> _chats = [
-    ChatPreview(
-      id: '1',
-      userName: 'Sarah Chen',
-      lastMessage: 'Thanks for offering to help with the hiking trip!',
-      timestamp: DateTime.now().subtract(const Duration(minutes: 15)),
-      unreadCount: 2,
-      userAvatar: null,
-    ),
-    ChatPreview(
-      id: '2',
-      userName: 'Mike Johnson',
-      lastMessage: 'When would be a good time to meet up?',
-      timestamp: DateTime.now().subtract(const Duration(hours: 2)),
-      unreadCount: 0,
-      userAvatar: null,
-    ),
-    ChatPreview(
-      id: '3',
-      userName: 'Emma Wilson',
-      lastMessage: 'I can help you with the cooking class!',
-      timestamp: DateTime.now().subtract(const Duration(days: 1)),
-      unreadCount: 1,
-      userAvatar: null,
-    ),
-  ];
+  final ChatService _chatService = ChatService();
+  final UserService _userService = UserService();
+
+  bool _isLoading = true;
+  String? _error;
+  String? _currentUserId;
+  List<ChatConversationDisplay> _conversations = [];
+  Stream<List<ChatConversation>>? _conversationsStream;
+
+  @override
+  void initState() {
+    super.initState();
+    _currentUserId = FirebaseAuth.instance.currentUser?.uid;
+    _initializeChats();
+  }
+
+  Future<void> _initializeChats() async {
+    if (_currentUserId == null) {
+      setState(() {
+        _isLoading = false;
+        _error = 'Please log in to view your messages';
+      });
+      return;
+    }
+
+    try {
+      // Set up the stream for real-time updates
+      final conversationsStream = _chatService.listenToUserConversations();
+
+      setState(() {
+        _conversationsStream = conversationsStream;
+        _isLoading = false;
+      });
+    } catch (e) {
+      setState(() {
+        _error = 'Error loading conversations: $e';
+        _isLoading = false;
+      });
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -54,9 +74,138 @@ class _ChatListScreenState extends State<ChatListScreen> {
           ),
         ),
         centerTitle: false,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.refresh, color: Colors.black),
+            onPressed: _initializeChats,
+          ),
+        ],
       ),
-      body: _chats.isEmpty ? _buildEmptyState() : _buildChatList(),
+      body: _buildBody(),
     );
+  }
+
+  Widget _buildBody() {
+    if (_isLoading) {
+      return const Center(child: CircularProgressIndicator());
+    }
+
+    if (_error != null) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.error_outline, size: 48, color: Colors.red.shade400),
+            const SizedBox(height: 16),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 32),
+              child: Text(
+                _error!,
+                style: const TextStyle(fontSize: 16),
+                textAlign: TextAlign.center,
+              ),
+            ),
+            const SizedBox(height: 16),
+            ElevatedButton(
+              onPressed: _initializeChats,
+              child: const Text('Retry'),
+            ),
+          ],
+        ),
+      );
+    }
+
+    if (_conversationsStream == null) {
+      return _buildEmptyState();
+    }
+
+    return StreamBuilder<List<ChatConversation>>(
+      stream: _conversationsStream,
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting &&
+            _conversations.isEmpty) {
+          return const Center(child: CircularProgressIndicator());
+        }
+
+        if (snapshot.hasError) {
+          return Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(Icons.error_outline, size: 48, color: Colors.red.shade400),
+                const SizedBox(height: 16),
+                Text(
+                  'Error loading conversations: ${snapshot.error}',
+                  style: const TextStyle(fontSize: 16),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 16),
+                ElevatedButton(
+                  onPressed: _initializeChats,
+                  child: const Text('Retry'),
+                ),
+              ],
+            ),
+          );
+        }
+
+        final conversations = snapshot.data ?? [];
+
+        if (conversations.isEmpty) {
+          return _buildEmptyState();
+        }
+
+        // Process conversations to display format
+        _processConversations(conversations);
+
+        return _buildChatList();
+      },
+    );
+  }
+
+  Future<void> _processConversations(
+    List<ChatConversation> conversations,
+  ) async {
+    if (_currentUserId == null) return;
+
+    final List<ChatConversationDisplay> displayConversations = [];
+
+    for (final conversation in conversations) {
+      // Get other user details
+      final otherUser = await _chatService.getOtherParticipant(conversation);
+
+      // Get experience or wish details if applicable
+      ExperienceModel? experience;
+      WishModel? wish;
+
+      if (conversation.experienceId != null) {
+        experience = await _chatService.getConversationExperience(conversation);
+      } else if (conversation.wishId != null) {
+        wish = await _chatService.getConversationWish(conversation);
+      }
+
+      // Create display object
+      final display = ChatConversationDisplay(
+        conversation: conversation,
+        otherUser: otherUser,
+        experience: experience,
+        wish: wish,
+        unreadCount: conversation.unreadCounts[_currentUserId] ?? 0,
+      );
+
+      displayConversations.add(display);
+    }
+
+    // Sort by last message time (newest first)
+    displayConversations.sort(
+      (a, b) => b.conversation.lastMessageTime.compareTo(
+        a.conversation.lastMessageTime,
+      ),
+    );
+
+    setState(() {
+      _conversations = displayConversations;
+    });
   }
 
   Widget _buildEmptyState() {
@@ -133,33 +282,66 @@ class _ChatListScreenState extends State<ChatListScreen> {
   }
 
   Widget _buildChatList() {
-    return ListView.separated(
-      padding: const EdgeInsets.symmetric(vertical: 8),
-      itemCount: _chats.length,
-      separatorBuilder:
-          (context, index) =>
-              Divider(height: 1, color: Colors.grey.shade200, indent: 80),
-      itemBuilder: (context, index) {
-        final chat = _chats[index];
-        return _buildChatTile(chat);
-      },
+    return RefreshIndicator(
+      onRefresh: _initializeChats,
+      child: ListView.separated(
+        padding: const EdgeInsets.symmetric(vertical: 8),
+        itemCount: _conversations.length,
+        separatorBuilder:
+            (context, index) =>
+                Divider(height: 1, color: Colors.grey.shade200, indent: 80),
+        itemBuilder: (context, index) {
+          final chatDisplay = _conversations[index];
+          return _buildChatTile(chatDisplay);
+        },
+      ),
     );
   }
 
-  Widget _buildChatTile(ChatPreview chat) {
+  Widget _buildChatTile(ChatConversationDisplay chatDisplay) {
+    final chat = chatDisplay.conversation;
+    final otherUser = chatDisplay.otherUser;
+
+    // Get user name and avatar
+    String userName = 'User';
+    String? userAvatar;
+
+    if (otherUser != null) {
+      userName =
+          otherUser.displayName.isNotEmpty ? otherUser.displayName : 'User';
+      userAvatar = otherUser.avatarUrl.isNotEmpty ? otherUser.avatarUrl : null;
+    }
+
+    // Online status (placeholder - implement actual status if available)
+    final bool isOnline = false;
+
+    // Unread count from the current user's perspective
+    final unreadCount = chatDisplay.unreadCount;
+
     return InkWell(
-      onTap: () {
-        Navigator.push(
+      onTap: () async {
+        // Mark as read when opening the chat
+        await _chatService.markAsRead(chat.id);
+
+        if (!mounted) return;
+
+        // Navigate to chat detail screen
+        await Navigator.push(
           context,
           MaterialPageRoute(
             builder:
                 (context) => ChatDetailScreen(
                   chatId: chat.id,
-                  userName: chat.userName,
-                  userAvatar: chat.userAvatar,
+                  userName: userName,
+                  userAvatar: userAvatar,
+                  experience: chatDisplay.experience,
+                  wish: chatDisplay.wish,
                 ),
           ),
         );
+
+        // Refresh data when returning
+        _initializeChats();
       },
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
@@ -172,13 +354,13 @@ class _ChatListScreenState extends State<ChatListScreen> {
                   radius: 28,
                   backgroundColor: Colors.grey.shade300,
                   backgroundImage:
-                      chat.userAvatar != null
-                          ? NetworkImage(chat.userAvatar!)
-                          : null,
+                      userAvatar != null ? NetworkImage(userAvatar) : null,
                   child:
-                      chat.userAvatar == null
+                      userAvatar == null
                           ? Text(
-                            chat.userName[0].toUpperCase(),
+                            userName.isNotEmpty
+                                ? userName[0].toUpperCase()
+                                : '?',
                             style: const TextStyle(
                               fontSize: 20,
                               fontWeight: FontWeight.w600,
@@ -187,20 +369,21 @@ class _ChatListScreenState extends State<ChatListScreen> {
                           )
                           : null,
                 ),
-                // Online indicator (optional)
-                Positioned(
-                  bottom: 2,
-                  right: 2,
-                  child: Container(
-                    width: 14,
-                    height: 14,
-                    decoration: BoxDecoration(
-                      color: Colors.green.shade400,
-                      shape: BoxShape.circle,
-                      border: Border.all(color: Colors.white, width: 2),
+                // Online indicator (if online)
+                if (isOnline)
+                  Positioned(
+                    bottom: 2,
+                    right: 2,
+                    child: Container(
+                      width: 14,
+                      height: 14,
+                      decoration: BoxDecoration(
+                        color: Colors.green.shade400,
+                        shape: BoxShape.circle,
+                        border: Border.all(color: Colors.white, width: 2),
+                      ),
                     ),
                   ),
-                ),
               ],
             ),
             const SizedBox(width: 16),
@@ -214,11 +397,11 @@ class _ChatListScreenState extends State<ChatListScreen> {
                     children: [
                       Expanded(
                         child: Text(
-                          chat.userName,
+                          userName,
                           style: TextStyle(
                             fontSize: 16,
                             fontWeight:
-                                chat.unreadCount > 0
+                                unreadCount > 0
                                     ? FontWeight.w600
                                     : FontWeight.w500,
                             color: Colors.black,
@@ -227,15 +410,15 @@ class _ChatListScreenState extends State<ChatListScreen> {
                         ),
                       ),
                       Text(
-                        _formatTimestamp(chat.timestamp),
+                        _formatTimestamp(chat.lastMessageTime),
                         style: TextStyle(
                           fontSize: 14,
                           color:
-                              chat.unreadCount > 0
+                              unreadCount > 0
                                   ? Colors.blue.shade600
                                   : Colors.grey.shade600,
                           fontWeight:
-                              chat.unreadCount > 0
+                              unreadCount > 0
                                   ? FontWeight.w500
                                   : FontWeight.normal,
                         ),
@@ -245,17 +428,47 @@ class _ChatListScreenState extends State<ChatListScreen> {
                   const SizedBox(height: 4),
                   Row(
                     children: [
+                      // Context badge for experience/wish (optional)
+                      if (chatDisplay.experience != null ||
+                          chatDisplay.wish != null) ...[
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 6,
+                            vertical: 2,
+                          ),
+                          margin: const EdgeInsets.only(right: 6),
+                          decoration: BoxDecoration(
+                            color:
+                                chatDisplay.experience != null
+                                    ? Colors.blue.shade100
+                                    : Colors.purple.shade100,
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                          child: Text(
+                            chatDisplay.experience != null ? 'EXP' : 'WISH',
+                            style: TextStyle(
+                              fontSize: 8,
+                              fontWeight: FontWeight.bold,
+                              color:
+                                  chatDisplay.experience != null
+                                      ? Colors.blue.shade800
+                                      : Colors.purple.shade800,
+                            ),
+                          ),
+                        ),
+                      ],
+
                       Expanded(
                         child: Text(
-                          chat.lastMessage,
+                          chat.lastMessageText,
                           style: TextStyle(
                             fontSize: 15,
                             color:
-                                chat.unreadCount > 0
+                                unreadCount > 0
                                     ? Colors.grey.shade800
                                     : Colors.grey.shade600,
                             fontWeight:
-                                chat.unreadCount > 0
+                                unreadCount > 0
                                     ? FontWeight.w500
                                     : FontWeight.normal,
                           ),
@@ -263,7 +476,7 @@ class _ChatListScreenState extends State<ChatListScreen> {
                           overflow: TextOverflow.ellipsis,
                         ),
                       ),
-                      if (chat.unreadCount > 0) ...[
+                      if (unreadCount > 0) ...[
                         const SizedBox(width: 8),
                         Container(
                           padding: const EdgeInsets.symmetric(
@@ -276,7 +489,7 @@ class _ChatListScreenState extends State<ChatListScreen> {
                           ),
                           constraints: const BoxConstraints(minWidth: 20),
                           child: Text(
-                            chat.unreadCount.toString(),
+                            unreadCount.toString(),
                             style: const TextStyle(
                               color: Colors.white,
                               fontSize: 12,
@@ -317,21 +530,19 @@ class _ChatListScreenState extends State<ChatListScreen> {
   }
 }
 
-// Data model for chat preview
-class ChatPreview {
-  final String id;
-  final String userName;
-  final String lastMessage;
-  final DateTime timestamp;
+/// Helper class to hold processed conversation data for display
+class ChatConversationDisplay {
+  final ChatConversation conversation;
+  final UserModel? otherUser;
+  final ExperienceModel? experience;
+  final WishModel? wish;
   final int unreadCount;
-  final String? userAvatar;
 
-  ChatPreview({
-    required this.id,
-    required this.userName,
-    required this.lastMessage,
-    required this.timestamp,
+  ChatConversationDisplay({
+    required this.conversation,
+    required this.otherUser,
+    this.experience,
+    this.wish,
     required this.unreadCount,
-    this.userAvatar,
   });
 }

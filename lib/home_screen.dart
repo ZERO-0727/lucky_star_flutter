@@ -157,7 +157,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
         ),
         const SizedBox(height: 12),
         SizedBox(
-          height: 120,
+          height: 125, // Increased from 120 to 125 to prevent overflow
           child: ListView(
             scrollDirection: Axis.horizontal,
             children: [
@@ -191,7 +191,10 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   Widget _buildConnectionCard(String imageUrl, String name, String role) {
     return Container(
       margin: const EdgeInsets.only(right: 12),
+      width: 105, // Fixed width to constrain the card
       child: Column(
+        mainAxisSize:
+            MainAxisSize.min, // Prevents overflow by minimizing height
         children: [
           Container(
             width: 80,
@@ -199,23 +202,42 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
             decoration: BoxDecoration(
               shape: BoxShape.circle,
               border: Border.all(color: const Color(0xFF7153DF), width: 2),
-              image: DecorationImage(
-                image: NetworkImage(imageUrl),
+            ),
+            child: ClipOval(
+              child: Image.network(
+                imageUrl,
                 fit: BoxFit.cover,
+                width: 80,
+                height: 80,
+                errorBuilder: (context, error, stackTrace) {
+                  return Container(
+                    color: Colors.grey.shade200,
+                    child: const Icon(
+                      Icons.person,
+                      color: Colors.grey,
+                      size: 40,
+                    ),
+                  );
+                },
               ),
             ),
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 6), // Reduced spacing
           Text(
             name,
             style: GoogleFonts.poppins(
               fontSize: 14,
               fontWeight: FontWeight.bold,
             ),
+            textAlign: TextAlign.center,
+            overflow: TextOverflow.ellipsis, // Handle text overflow
           ),
           Text(
             role,
             style: GoogleFonts.poppins(fontSize: 12, color: Colors.grey[600]),
+            textAlign: TextAlign.center,
+            overflow: TextOverflow.ellipsis, // Handle text overflow
+            maxLines: 1,
           ),
         ],
       ),
@@ -265,7 +287,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                 45,
               ),
               _buildExperienceCard(
-                'https://images.unsplash.com/photo-1512314889869-02171f8a44cc?w=300',
+                'https://images.unsplash.com/photo-1542038784456-1ea8e935640e?w=300',
                 'Photography Tour',
                 'Explore city through lens',
                 'Osaka',
@@ -317,6 +339,46 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
               height: 150,
               width: double.infinity,
               fit: BoxFit.cover,
+              errorBuilder: (context, error, stackTrace) {
+                return Container(
+                  height: 150,
+                  width: double.infinity,
+                  color: Colors.grey.shade200,
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(
+                        Icons.image_not_supported,
+                        color: Colors.grey.shade400,
+                        size: 40,
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        "Image not available",
+                        style: TextStyle(color: Colors.grey.shade600),
+                      ),
+                    ],
+                  ),
+                );
+              },
+              loadingBuilder: (context, child, loadingProgress) {
+                if (loadingProgress == null) return child;
+                return Container(
+                  height: 150,
+                  width: double.infinity,
+                  color: Colors.grey.shade100,
+                  child: Center(
+                    child: CircularProgressIndicator(
+                      value:
+                          loadingProgress.expectedTotalBytes != null
+                              ? loadingProgress.cumulativeBytesLoaded /
+                                  loadingProgress.expectedTotalBytes!
+                              : null,
+                      color: const Color(0xFF7153DF),
+                    ),
+                  ),
+                );
+              },
             ),
           ),
           Padding(
