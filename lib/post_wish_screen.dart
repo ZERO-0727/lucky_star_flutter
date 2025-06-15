@@ -351,7 +351,7 @@ class _PostWishScreenState extends State<PostWishScreen> {
     await _uploadImageToFirebase(image);
   }
 
-  // Remove an image from the list and update Firestore
+  // Remove an image from the list and update Firestore with animation
   Future<void> _removeImage(ImageItem image) async {
     // First check if the image is currently uploading
     if (image.status == ImageStatus.uploading ||
@@ -365,55 +365,77 @@ class _PostWishScreenState extends State<PostWishScreen> {
       return;
     }
 
-    try {
-      // Remove from local state first
-      setState(() {
-        _images.remove(image);
-        if (image.url != null) {
-          _uploadedUrls.remove(image.url);
-        }
-      });
+    // Store URL for Firestore update
+    final String? imageUrl = image.url;
+    final bool wasSavedToFirestore = image.savedToFirestore;
 
-      // If successfully uploaded to Firestore, remove from Firestore array
-      if (image.url != null &&
-          image.savedToFirestore &&
-          _currentWishId != null) {
-        print('🗑️ REMOVING URL FROM FIRESTORE: ${image.url}');
+    // Set the image to be animating out (for UI purposes only)
+    setState(() {
+      image.status = ImageStatus.pending; // Change status to reflect deletion
+    });
+
+    // Start the Firestore update if needed
+    bool firestoreUpdateSuccessful = true;
+    if (imageUrl != null && wasSavedToFirestore && _currentWishId != null) {
+      try {
+        print('🗑️ REMOVING URL FROM FIRESTORE: $imageUrl');
 
         await _firestore.collection('wishes').doc(_currentWishId!).update({
-          'photoUrls': FieldValue.arrayRemove([image.url]),
+          'photoUrls': FieldValue.arrayRemove([imageUrl]),
           'updatedAt': FieldValue.serverTimestamp(),
         });
 
-        print('✅ URL REMOVED FROM FIRESTORE: ${image.url}');
+        print('✅ URL REMOVED FROM FIRESTORE: $imageUrl');
+      } catch (e) {
+        print('❌ ERROR REMOVING IMAGE FROM FIRESTORE: $e');
+        firestoreUpdateSuccessful = false;
 
-        // Show success message
+        // Show error message
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Failed to remove image: $e'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+      }
+    }
+
+    // Only proceed with removing from UI if Firestore update was successful or not needed
+    if (firestoreUpdateSuccessful) {
+      // Remove from local state after a short delay for animation
+      await Future.delayed(const Duration(milliseconds: 300));
+
+      if (mounted) {
+        setState(() {
+          _images.remove(image);
+          if (imageUrl != null) {
+            _uploadedUrls.remove(imageUrl);
+          }
+        });
+
+        // Show success message with smooth animation
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('Image removed successfully'),
             backgroundColor: Colors.green,
             duration: Duration(seconds: 1),
+            behavior: SnackBarBehavior.floating,
+            margin: EdgeInsets.all(10),
+            animation: null, // Uses default smooth animation
           ),
         );
       }
-    } catch (e) {
-      print('❌ ERROR REMOVING IMAGE: $e');
-
-      // Show error message
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Failed to remove image: $e'),
-          backgroundColor: Colors.red,
-        ),
-      );
-
-      // Restore the image in the local state
-      setState(() {
-        _images.add(image);
-        if (image.url != null) {
-          _uploadedUrls.add(image.url!);
-        }
-      });
+    } else {
+      // Restore the image status if Firestore update failed
+      if (mounted) {
+        setState(() {
+          // Reset the status to what it was before
+          image.status =
+              imageUrl != null ? ImageStatus.success : ImageStatus.failed;
+        });
+      }
     }
   }
 

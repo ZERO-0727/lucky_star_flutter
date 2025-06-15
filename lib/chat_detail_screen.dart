@@ -102,9 +102,9 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
     super.dispose();
   }
 
-  Future<void> _sendMessage() async {
+  Future<bool> _sendMessage() async {
     final text = _messageController.text.trim();
-    if (text.isEmpty || _isSending) return;
+    if (text.isEmpty || _isSending) return false;
 
     setState(() {
       _isSending = true;
@@ -127,6 +127,13 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
           );
         }
       });
+
+      // Set the result flag to true so the previous screen knows a message was sent
+      if (Navigator.canPop(context)) {
+        Navigator.pop(context, true);
+      }
+
+      return true;
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -136,6 +143,7 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
           ),
         );
       }
+      return false;
     } finally {
       if (mounted) {
         setState(() {
@@ -380,9 +388,7 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
 
         // View button
         TextButton(
-          onPressed: () {
-            // TODO: Navigate to experience detail
-          },
+          onPressed: _viewExperienceOrWish,
           style: TextButton.styleFrom(
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
           ),
@@ -440,9 +446,7 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
 
         // View button
         TextButton(
-          onPressed: () {
-            // TODO: Navigate to wish detail
-          },
+          onPressed: _viewExperienceOrWish,
           style: TextButton.styleFrom(
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
           ),

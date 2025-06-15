@@ -29,6 +29,7 @@ import 'app_wrapper.dart';
 import 'screens/image_upload_test_screen.dart';
 import 'experience_detail_screen.dart';
 import 'chat_list_screen.dart';
+import 'chat_detail_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -170,6 +171,19 @@ class LuckyStarApp extends StatelessWidget {
             return MaterialPageRoute(
               builder: (context) => const WishWallScreen(initialTabIndex: 1),
             );
+          case '/chat-detail':
+            final args = settings.arguments as Map<String, dynamic>? ?? {};
+            return MaterialPageRoute(
+              builder:
+                  (context) => ChatDetailScreen(
+                    chatId: args['chatId'] ?? '',
+                    userName: args['userName'] ?? 'User',
+                    userAvatar: args['userAvatar'],
+                    experience: args['experience'],
+                    wish: args['wish'],
+                    initialMessage: args['initialMessage'],
+                  ),
+            );
           default:
             return MaterialPageRoute(
               builder: (context) => const MainNavigation(),
@@ -221,24 +235,6 @@ class _MainNavigationState extends State<MainNavigation> {
             icon: Icon(_tabIcons[index]),
             label: _tabLabels[index],
           ),
-        ),
-      ),
-    );
-  }
-}
-
-// Placeholder ChatPage widget
-class ChatPage extends StatelessWidget {
-  const ChatPage({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: const Text('Chat (Placeholder)')),
-      body: const Center(
-        child: Text(
-          'ChatPage Placeholder\nReplace with actual chat screen.',
-          textAlign: TextAlign.center,
         ),
       ),
     );

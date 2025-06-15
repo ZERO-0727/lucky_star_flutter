@@ -320,28 +320,56 @@ class _ChatListScreenState extends State<ChatListScreen> {
 
     return InkWell(
       onTap: () async {
-        // Mark as read when opening the chat
-        await _chatService.markAsRead(chat.id);
+        try {
+          setState(() => _isLoading = true);
 
-        if (!mounted) return;
+          // Mark as read when opening the chat
+          await _chatService.markAsRead(chat.id);
 
-        // Navigate to chat detail screen
-        await Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder:
-                (context) => ChatDetailScreen(
-                  chatId: chat.id,
-                  userName: userName,
-                  userAvatar: userAvatar,
-                  experience: chatDisplay.experience,
-                  wish: chatDisplay.wish,
+          if (!mounted) return;
+          setState(() => _isLoading = false);
+
+          // Navigate to chat detail screen
+          final result = await Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder:
+                  (context) => ChatDetailScreen(
+                    chatId: chat.id,
+                    userName: userName,
+                    userAvatar: userAvatar,
+                    experience: chatDisplay.experience,
+                    wish: chatDisplay.wish,
+                  ),
+            ),
+          );
+
+          // Refresh data when returning
+          if (mounted) {
+            _initializeChats();
+
+            // Show snackbar if there was a result (e.g. message sent)
+            if (result == true) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('Message sent successfully'),
+                  backgroundColor: Colors.green,
+                  duration: Duration(seconds: 2),
                 ),
-          ),
-        );
-
-        // Refresh data when returning
-        _initializeChats();
+              );
+            }
+          }
+        } catch (e) {
+          if (mounted) {
+            setState(() => _isLoading = false);
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text('Error opening chat: $e'),
+                backgroundColor: Colors.red,
+              ),
+            );
+          }
+        }
       },
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),

@@ -9,6 +9,7 @@ import 'models/user_model.dart';
 import 'services/wish_service.dart';
 import 'services/favorites_service.dart';
 import 'services/user_service.dart';
+import 'services/chat_service.dart';
 import 'chat_detail_screen.dart';
 
 class WishDetailScreen extends StatefulWidget {
@@ -23,11 +24,13 @@ class WishDetailScreen extends StatefulWidget {
 
 class _WishDetailScreenState extends State<WishDetailScreen> {
   final UserService _userService = UserService();
+  final ChatService _chatService = ChatService();
   WishModel? _wish;
   UserModel? _publisher;
   bool _isLoading = true;
   bool _isLoadingPublisher = true;
   bool _isFavorited = false;
+  bool _isProcessingAction = false;
   String? _error;
   String? _currentUserId;
 
@@ -163,6 +166,10 @@ class _WishDetailScreenState extends State<WishDetailScreen> {
   Future<void> _showHelpFulfillDialog(WishModel wish) async {
     final TextEditingController messageController = TextEditingController();
 
+    // Set default message
+    messageController.text =
+        'Hi, I would like to help fulfill your wish for ${wish.title}!';
+
     await showDialog(
       context: context,
       builder:
@@ -284,7 +291,7 @@ class _WishDetailScreenState extends State<WishDetailScreen> {
                 child: const Text('Cancel'),
               ),
               ElevatedButton(
-                onPressed: () {
+                onPressed: () async {
                   if (messageController.text.trim().isEmpty) {
                     ScaffoldMessenger.of(context).showSnackBar(
                       const SnackBar(
@@ -296,21 +303,10 @@ class _WishDetailScreenState extends State<WishDetailScreen> {
                   }
 
                   Navigator.of(context).pop();
-
-                  // Navigate to chat with initial message
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder:
-                          (context) => ChatDetailScreen(
-                            chatId:
-                                '${wish.wishId}_${_currentUserId ?? 'guest'}',
-                            userName: 'Wisher', // TODO: Get actual wisher name
-                            userAvatar: null, // TODO: Get actual wisher avatar
-                            wish: wish,
-                            initialMessage: messageController.text.trim(),
-                          ),
-                    ),
+                  _createChatWithWisher(
+                    wish,
+                    messageController.text.trim(),
+                    true,
                   );
                 },
                 style: ElevatedButton.styleFrom(
@@ -324,14 +320,94 @@ class _WishDetailScreenState extends State<WishDetailScreen> {
     );
   }
 
+  Future<void> _createChatWithWisher(
+    WishModel wish,
+    String initialMessage,
+    bool navigate,
+  ) async {
+    if (_currentUserId == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('You must be logged in to send messages'),
+          backgroundColor: Colors.orange,
+        ),
+      );
+      return;
+    }
+
+    if (_isProcessingAction) return;
+
+    setState(() {
+      _isProcessingAction = true;
+    });
+
+    try {
+      // Check if we're trying to message ourselves
+      if (_currentUserId == wish.userId) {
+        throw Exception('You cannot send messages to yourself');
+      }
+
+      // Create or get existing conversation
+      final conversationId = await _chatService.createConversation(
+        otherUserId: wish.userId,
+        wishId: wish.wishId,
+        initialMessage: initialMessage,
+      );
+
+      if (mounted) {
+        // Show success message
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Message sent successfully'),
+            backgroundColor: Colors.green,
+          ),
+        );
+
+        // Navigate to chat detail screen if requested
+        if (navigate) {
+          final publisherName = _publisher?.displayName ?? 'Wisher';
+          final publisherAvatar = _publisher?.avatarUrl;
+
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder:
+                  (context) => ChatDetailScreen(
+                    chatId: conversationId,
+                    userName: publisherName,
+                    userAvatar: publisherAvatar,
+                    wish: wish,
+                    initialMessage: initialMessage,
+                  ),
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error sending message: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isProcessingAction = false;
+        });
+      }
+    }
+  }
+
+  // Implementation for "Contact Wisher" button
   void _contactWisher() {
-    // TODO: Implement contact wisher functionality
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Contact feature coming soon!'),
-        backgroundColor: Colors.blue,
-      ),
-    );
+    if (_wish == null) return;
+
+    final initialMessage =
+        'Hello! I noticed your wish and I\'d like to connect.';
+    _createChatWithWisher(_wish!, initialMessage, true);
   }
 
   bool _isCurrentUserAuthor() {

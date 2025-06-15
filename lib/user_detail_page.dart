@@ -3,16 +3,18 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'models/user_model.dart';
 import 'services/user_service.dart';
+import 'services/chat_service.dart';
+import 'chat_detail_screen.dart';
 
 class UserDetailPage extends StatefulWidget {
   final String userId;
   final String displayName;
 
   const UserDetailPage({
-    Key? key,
+    super.key,
     required this.userId,
     required this.displayName,
-  }) : super(key: key);
+  });
 
   @override
   State<UserDetailPage> createState() => _UserDetailPageState();
@@ -20,7 +22,9 @@ class UserDetailPage extends StatefulWidget {
 
 class _UserDetailPageState extends State<UserDetailPage> {
   final UserService _userService = UserService();
+  final ChatService _chatService = ChatService();
   bool _isLoading = true;
+  bool _isSendingMessage = false;
   UserModel? _user;
   String? _errorMessage;
 
@@ -331,7 +335,7 @@ class _UserDetailPageState extends State<UserDetailPage> {
   }
 
   Widget _buildInlineUserProfile() {
-    return Container(
+    return SizedBox(
       height: 360, // Increased from 280px to 360px for visual impact
       width: double.infinity,
       child: Stack(
@@ -1005,6 +1009,74 @@ class _UserDetailPageState extends State<UserDetailPage> {
     );
   }
 
+  Future<void> _sendMessage() async {
+    // Prevent multiple taps
+    if (_isSendingMessage || _user == null) return;
+
+    setState(() {
+      _isSendingMessage = true;
+    });
+
+    try {
+      final currentUser = FirebaseAuth.instance.currentUser;
+      if (currentUser == null) {
+        throw Exception('You must be logged in to send messages');
+      }
+
+      // Check if we're trying to message ourselves
+      if (currentUser.uid == widget.userId) {
+        throw Exception('You cannot send messages to yourself');
+      }
+
+      // Create or get existing conversation
+      final conversationId = await _chatService.createConversation(
+        otherUserId: widget.userId,
+        // Optional initial message
+        initialMessage: 'Hello! I saw your profile and wanted to connect.',
+      );
+
+      if (mounted) {
+        // Navigate to chat detail screen
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder:
+                (context) => ChatDetailScreen(
+                  chatId: conversationId,
+                  userName: _user!.displayName,
+                  userAvatar: _user!.avatarUrl,
+                  initialMessage:
+                      'Hello! I saw your profile and wanted to connect.',
+                ),
+          ),
+        );
+
+        // Show success message
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Chat created successfully'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error creating chat: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isSendingMessage = false;
+        });
+      }
+    }
+  }
+
   Widget _buildBottomButtons() {
     // Hide bottom buttons when viewing own profile
     if (_isViewingOwnProfile) {
@@ -1054,16 +1126,23 @@ class _UserDetailPageState extends State<UserDetailPage> {
             const SizedBox(width: 16),
             Expanded(
               child: OutlinedButton.icon(
-                onPressed: () {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('Message feature coming soon'),
-                      backgroundColor: Colors.blue,
-                    ),
-                  );
-                },
-                icon: const Icon(Icons.message),
-                label: const Text('Send Message'),
+                onPressed: _isSendingMessage ? null : _sendMessage,
+                icon:
+                    _isSendingMessage
+                        ? SizedBox(
+                          width: 16,
+                          height: 16,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            valueColor: AlwaysStoppedAnimation<Color>(
+                              const Color(0xFF7153DF),
+                            ),
+                          ),
+                        )
+                        : const Icon(Icons.message),
+                label: Text(
+                  _isSendingMessage ? 'Connecting...' : 'Send Message',
+                ),
                 style: OutlinedButton.styleFrom(
                   foregroundColor: const Color(0xFF7153DF),
                   side: const BorderSide(color: Color(0xFF7153DF)),
