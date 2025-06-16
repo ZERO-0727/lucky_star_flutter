@@ -1219,16 +1219,16 @@ class _PostExperienceScreenState extends State<PostExperienceScreen> {
                                                   },
                                                   child: Container(
                                                     padding:
-                                                        const EdgeInsets.all(6),
+                                                        const EdgeInsets.all(8),
                                                     decoration: BoxDecoration(
-                                                      color: Colors.red
+                                                      color: Colors.red.shade700
                                                           .withOpacity(0.9),
                                                       shape: BoxShape.circle,
                                                       boxShadow: [
                                                         BoxShadow(
                                                           color: Colors.black
-                                                              .withOpacity(0.2),
-                                                          blurRadius: 2,
+                                                              .withOpacity(0.3),
+                                                          blurRadius: 3,
                                                           offset: const Offset(
                                                             0,
                                                             1,
@@ -1237,8 +1237,8 @@ class _PostExperienceScreenState extends State<PostExperienceScreen> {
                                                       ],
                                                     ),
                                                     child: const Icon(
-                                                      Icons.delete_outline,
-                                                      size: 16,
+                                                      Icons.close,
+                                                      size: 18,
                                                       color: Colors.white,
                                                     ),
                                                   ),

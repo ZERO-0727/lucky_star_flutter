@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'search_page.dart';
-import 'experience_detail_screen.dart';
 import 'models/experience_model.dart';
 import 'models/wish_model.dart';
 import 'widgets/experience_card.dart';
@@ -21,6 +20,9 @@ class _WishWallScreenState extends State<WishWallScreen>
   late TabController _tabController;
   String? _selectedDateFilter;
   String? _selectedTag;
+  String? _selectedLocation;
+
+  // Available filter options
   final List<String> _availableTags = [
     'All',
     'Food',
@@ -29,6 +31,14 @@ class _WishWallScreenState extends State<WishWallScreen>
     'Culture',
     'Adventure',
     'Learning',
+  ];
+
+  final List<String> _availableLocations = [
+    'All',
+    'Canada',
+    'United States',
+    'Australia',
+    'Japan',
   ];
 
   @override
@@ -69,12 +79,37 @@ class _WishWallScreenState extends State<WishWallScreen>
             padding: const EdgeInsets.all(16),
             child: Column(
               children: [
+                // Location filter (new) - show on both tabs
+                DropdownButtonFormField<String>(
+                  value: _selectedLocation,
+                  decoration: const InputDecoration(
+                    labelText: 'Filter by Location',
+                    border: OutlineInputBorder(),
+                    prefixIcon: Icon(Icons.location_on),
+                  ),
+                  items:
+                      _availableLocations.map((location) {
+                        return DropdownMenuItem(
+                          value: location == 'All' ? null : location,
+                          child: Text(location),
+                        );
+                      }).toList(),
+                  onChanged: (value) {
+                    setState(() {
+                      _selectedLocation = value;
+                    });
+                  },
+                ),
+
+                const SizedBox(height: 12),
+
                 // Date filter
                 DropdownButtonFormField<String>(
                   value: _selectedDateFilter,
                   decoration: const InputDecoration(
                     labelText: 'Filter by Date',
                     border: OutlineInputBorder(),
+                    prefixIcon: Icon(Icons.calendar_today),
                   ),
                   items: const [
                     DropdownMenuItem(value: 'today', child: Text('Today')),
@@ -104,6 +139,7 @@ class _WishWallScreenState extends State<WishWallScreen>
                     decoration: const InputDecoration(
                       labelText: 'Filter by Category',
                       border: OutlineInputBorder(),
+                      prefixIcon: Icon(Icons.category),
                     ),
                     items:
                         _availableTags.map((tag) {
@@ -247,15 +283,22 @@ class _WishWallScreenState extends State<WishWallScreen>
       print('🔍 Building Firestore query with filters:');
       print('  - Date filter: $_selectedDateFilter');
       print('  - Tag filter: $_selectedTag');
+      print('  - Location filter: $_selectedLocation');
 
       Query query = FirebaseFirestore.instance
           .collection('experiences')
           .where('status', isEqualTo: 'active');
 
-      // Handle different query combinations to avoid complex composite indexes
+      // Location filter - apply first if present
+      if (_selectedLocation != null) {
+        print('  - Using location filter: $_selectedLocation');
+        query = query.where('location', isEqualTo: _selectedLocation);
+      }
+
+      // Apply date and tag filters after location (if present)
       if (_selectedTag != null && _selectedDateFilter != null) {
-        // Complex case: both tag and date filter
-        print('  - Using complex query: status + tags + createdAt + orderBy');
+        // Complex case: both tag and date filter with possible location
+        print('  - Using complex query with multiple filters');
 
         DateTime filterDate = _getFilterDate(_selectedDateFilter!);
 
@@ -264,23 +307,31 @@ class _WishWallScreenState extends State<WishWallScreen>
             .where('createdAt', isGreaterThan: Timestamp.fromDate(filterDate))
             .orderBy('createdAt', descending: true);
 
-        print(
-          '  - Required index: experiences (status ASC, tags ASC, createdAt DESC)',
-        );
+        if (_selectedLocation != null) {
+          print(
+            '  - Required index: experiences (status, location, tags, createdAt)',
+          );
+        } else {
+          print('  - Required index: experiences (status, tags, createdAt)');
+        }
       } else if (_selectedTag != null) {
-        // Tag filter only
-        print('  - Using tag query: status + tags + orderBy');
+        // Tag filter only (with possible location)
+        print('  - Using tag filter');
 
         query = query
             .where('tags', arrayContains: _selectedTag)
             .orderBy('createdAt', descending: true);
 
-        print(
-          '  - Required index: experiences (status ASC, tags ASC, createdAt DESC)',
-        );
+        if (_selectedLocation != null) {
+          print(
+            '  - Required index: experiences (status, location, tags, createdAt)',
+          );
+        } else {
+          print('  - Required index: experiences (status, tags, createdAt)');
+        }
       } else if (_selectedDateFilter != null) {
-        // Date filter only
-        print('  - Using date query: status + createdAt + orderBy');
+        // Date filter only (with possible location)
+        print('  - Using date filter');
 
         DateTime filterDate = _getFilterDate(_selectedDateFilter!);
 
@@ -288,14 +339,25 @@ class _WishWallScreenState extends State<WishWallScreen>
             .where('createdAt', isGreaterThan: Timestamp.fromDate(filterDate))
             .orderBy('createdAt', descending: true);
 
-        print('  - Required index: experiences (status ASC, createdAt DESC)');
+        if (_selectedLocation != null) {
+          print(
+            '  - Required index: experiences (status, location, createdAt)',
+          );
+        } else {
+          print('  - Required index: experiences (status, createdAt)');
+        }
       } else {
-        // No filters, just basic query
-        print('  - Using basic query: status + orderBy');
-
+        // Only location filter or no filters at all
+        print('  - Using basic query with ordering');
         query = query.orderBy('createdAt', descending: true);
 
-        print('  - Required index: experiences (status ASC, createdAt DESC)');
+        if (_selectedLocation != null) {
+          print(
+            '  - Required index: experiences (status, location, createdAt)',
+          );
+        } else {
+          print('  - Required index: experiences (status, createdAt)');
+        }
       }
 
       print('  - Final query limit: 50');
@@ -319,14 +381,21 @@ class _WishWallScreenState extends State<WishWallScreen>
       // Debug logging to see exact query being made
       print('🔍 Building Firestore query for wishes with filters:');
       print('  - Date filter: $_selectedDateFilter');
+      print('  - Location filter: $_selectedLocation');
 
       Query query = FirebaseFirestore.instance
           .collection('wishes')
           .where('status', isEqualTo: 'Open');
 
+      // Apply location filter first if present
+      if (_selectedLocation != null) {
+        print('  - Using location filter: $_selectedLocation');
+        query = query.where('location', isEqualTo: _selectedLocation);
+      }
+
       if (_selectedDateFilter != null) {
-        // Date filter only for wishes
-        print('  - Using date query: status + createdAt + orderBy');
+        // Date filter (with possible location)
+        print('  - Using date filter');
 
         DateTime filterDate = _getFilterDate(_selectedDateFilter!);
 
@@ -334,14 +403,22 @@ class _WishWallScreenState extends State<WishWallScreen>
             .where('createdAt', isGreaterThan: Timestamp.fromDate(filterDate))
             .orderBy('createdAt', descending: true);
 
-        print('  - Required index: wishes (status ASC, createdAt DESC)');
+        if (_selectedLocation != null) {
+          print('  - Required index: wishes (status, location, createdAt)');
+        } else {
+          print('  - Required index: wishes (status, createdAt)');
+        }
       } else {
-        // No filters, just basic query
-        print('  - Using basic query: status + orderBy');
+        // Only location filter or no filters
+        print('  - Using basic query with ordering');
 
         query = query.orderBy('createdAt', descending: true);
 
-        print('  - Required index: wishes (status ASC, createdAt DESC)');
+        if (_selectedLocation != null) {
+          print('  - Required index: wishes (status, location, createdAt)');
+        } else {
+          print('  - Required index: wishes (status, createdAt)');
+        }
       }
 
       print('  - Final query limit: 50');
@@ -420,11 +497,13 @@ class _WishWallScreenState extends State<WishWallScreen>
             // Action buttons
             Column(
               children: [
-                if (_selectedDateFilter != null) ...[
+                if (_selectedDateFilter != null ||
+                    _selectedLocation != null) ...[
                   OutlinedButton.icon(
                     onPressed: () {
                       setState(() {
                         _selectedDateFilter = null;
+                        _selectedLocation = null;
                       });
                     },
                     icon: const Icon(Icons.clear),
@@ -461,7 +540,11 @@ class _WishWallScreenState extends State<WishWallScreen>
   }
 
   String _getEmptyWishStateMessage() {
-    if (_selectedDateFilter != null) {
+    if (_selectedLocation != null && _selectedDateFilter != null) {
+      return 'No wishes found in $_selectedLocation for $_selectedDateFilter.\nTry adjusting your filters or make your own wish!';
+    } else if (_selectedLocation != null) {
+      return 'No wishes found in $_selectedLocation.\nTry a different location or make your own wish!';
+    } else if (_selectedDateFilter != null) {
       return 'No wishes found for $_selectedDateFilter.\nTry a different date range or make your own wish!';
     } else {
       return 'Be the first to make a wish and let the\ncommunity help make it come true!';
@@ -512,12 +595,15 @@ class _WishWallScreenState extends State<WishWallScreen>
             // Action buttons
             Column(
               children: [
-                if (_selectedDateFilter != null || _selectedTag != null) ...[
+                if (_selectedDateFilter != null ||
+                    _selectedTag != null ||
+                    _selectedLocation != null) ...[
                   OutlinedButton.icon(
                     onPressed: () {
                       setState(() {
                         _selectedDateFilter = null;
                         _selectedTag = null;
+                        _selectedLocation = null;
                       });
                     },
                     icon: const Icon(Icons.clear),
@@ -554,13 +640,38 @@ class _WishWallScreenState extends State<WishWallScreen>
   }
 
   String _getEmptyStateMessage() {
-    if (_selectedDateFilter != null && _selectedTag != null) {
-      return 'No experiences found for $_selectedTag in $_selectedDateFilter timeframe.\nTry adjusting your filters or be the first to share!';
-    } else if (_selectedDateFilter != null) {
+    // All three filters applied
+    if (_selectedLocation != null &&
+        _selectedDateFilter != null &&
+        _selectedTag != null) {
+      return 'No $_selectedTag experiences found in $_selectedLocation for $_selectedDateFilter timeframe.\nTry adjusting your filters or be the first to share!';
+    }
+    // Location + Date filter
+    else if (_selectedLocation != null && _selectedDateFilter != null) {
+      return 'No experiences found in $_selectedLocation for $_selectedDateFilter.\nTry adjusting your filters or share your own!';
+    }
+    // Location + Tag filter
+    else if (_selectedLocation != null && _selectedTag != null) {
+      return 'No $_selectedTag experiences found in $_selectedLocation.\nTry a different location or category, or share your own!';
+    }
+    // Date + Tag filter
+    else if (_selectedDateFilter != null && _selectedTag != null) {
+      return 'No $_selectedTag experiences found for $_selectedDateFilter timeframe.\nTry adjusting your filters or be the first to share!';
+    }
+    // Only Location filter
+    else if (_selectedLocation != null) {
+      return 'No experiences found in $_selectedLocation.\nTry a different location or share your own!';
+    }
+    // Only Date filter
+    else if (_selectedDateFilter != null) {
       return 'No experiences found for $_selectedDateFilter.\nTry a different date range or share your own!';
-    } else if (_selectedTag != null) {
-      return 'No $_selectedTag experiences found.\nTry a different category or share yours!';
-    } else {
+    }
+    // Only Tag filter
+    else if (_selectedTag != null) {
+      return 'No $_selectedTag experiences found.\nTry a different category or share your own!';
+    }
+    // No filters
+    else {
       return 'Be the first to share an amazing experience\nwith the community!';
     }
   }

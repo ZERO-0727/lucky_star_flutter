@@ -3,6 +3,7 @@ import 'feedback_page.dart';
 import 'donation_page.dart';
 import 'user_verification_page.dart';
 import 'screens/auth/account_management_screen.dart';
+import 'screens/auth/change_password_screen.dart'; // Add this import
 import 'services/auth_service.dart';
 import 'welcome_page.dart';
 
@@ -157,10 +158,11 @@ class _AccountSettingsPageState extends State<AccountSettingsPage> {
               padding: const EdgeInsets.symmetric(vertical: 8.0),
               child: OutlinedButton(
                 onPressed: () {
-                  // Navigate to change password
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('Change Password coming soon'),
+                  // Navigate to change password screen
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => const ChangePasswordScreen(),
                     ),
                   );
                 },
