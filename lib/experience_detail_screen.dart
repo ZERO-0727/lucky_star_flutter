@@ -783,76 +783,183 @@ class _ExperienceDetailScreenState extends State<ExperienceDetailScreen> {
       );
     }
 
+    // Current displayed image index for PageView
+    final ValueNotifier<int> currentIndex = ValueNotifier<int>(0);
+
     if (photoUrls.length == 1) {
-      return Container(
-        height: 240,
-        color: Colors.white, // White background for padding
-        child: Center(
-          child: AspectRatio(
-            aspectRatio: 4 / 3, // Fixed 4:3 aspect ratio
-            child: Container(
-              decoration: BoxDecoration(color: Colors.grey.shade100),
-              child: Image.network(
-                photoUrls.first,
-                fit: BoxFit.contain, // Show full image with padding if needed
-                errorBuilder: (context, error, stackTrace) {
-                  return Container(
-                    color: Colors.grey.shade300,
-                    child: const Center(
-                      child: Icon(
-                        Icons.broken_image,
-                        size: 80,
-                        color: Colors.grey,
-                      ),
+      return GestureDetector(
+        onTap: () => _showFullscreenImage(context, photoUrls, 0),
+        child: Container(
+          height: 500, // Maximum height for desktop as per requirements
+          constraints: const BoxConstraints(maxHeight: 500),
+          width: double.infinity,
+          color: const Color(0xFFF5F5F5), // Light gray background (#f5f5f5)
+          child: Center(
+            child: Image.network(
+              photoUrls.first,
+              fit: BoxFit.contain, // Complete display of image
+              errorBuilder: (context, error, stackTrace) {
+                return Container(
+                  color: Colors.grey.shade300,
+                  child: const Center(
+                    child: Icon(
+                      Icons.broken_image,
+                      size: 80,
+                      color: Colors.grey,
                     ),
-                  );
-                },
-              ),
+                  ),
+                );
+              },
+              loadingBuilder: (context, child, loadingProgress) {
+                if (loadingProgress == null) return child;
+                return Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      CircularProgressIndicator(
+                        value:
+                            loadingProgress.expectedTotalBytes != null
+                                ? loadingProgress.cumulativeBytesLoaded /
+                                    loadingProgress.expectedTotalBytes!
+                                : null,
+                        color: Colors.grey.shade600,
+                      ),
+                      const SizedBox(height: 16),
+                      Text(
+                        'Loading image...',
+                        style: TextStyle(
+                          color: Colors.grey.shade700,
+                          fontSize: 14,
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+              },
             ),
           ),
         ),
       );
     }
 
-    return SizedBox(
-      height: 240,
-      child: PageView.builder(
-        itemCount: photoUrls.length,
-        itemBuilder: (context, index) {
-          return Stack(
+    // Multiple images with carousel
+    return Column(
+      children: [
+        SizedBox(
+          height: 500, // Maximum height for desktop
+          child: Stack(
             children: [
-              Container(
-                color: Colors.white, // White background for padding
-                child: Center(
-                  child: AspectRatio(
-                    aspectRatio: 4 / 3, // Fixed 4:3 aspect ratio
+              // Main carousel
+              PageView.builder(
+                itemCount: photoUrls.length,
+                onPageChanged: (index) {
+                  currentIndex.value = index;
+                },
+                itemBuilder: (context, index) {
+                  return GestureDetector(
+                    onTap:
+                        () => _showFullscreenImage(context, photoUrls, index),
                     child: Container(
-                      decoration: BoxDecoration(color: Colors.grey.shade100),
-                      child: Image.network(
-                        photoUrls[index],
-                        fit:
-                            BoxFit
-                                .contain, // Show full image with padding if needed
-                        errorBuilder: (context, error, stackTrace) {
-                          return Container(
-                            color: Colors.grey.shade300,
-                            child: const Center(
-                              child: Icon(
-                                Icons.broken_image,
-                                size: 80,
-                                color: Colors.grey,
+                      color: const Color(0xFFF5F5F5), // Light gray background
+                      child: Center(
+                        child: Image.network(
+                          photoUrls[index],
+                          fit: BoxFit.contain, // Complete display
+                          errorBuilder: (context, error, stackTrace) {
+                            return Container(
+                              color: Colors.grey.shade300,
+                              child: const Center(
+                                child: Icon(
+                                  Icons.broken_image,
+                                  size: 80,
+                                  color: Colors.grey,
+                                ),
                               ),
-                            ),
-                          );
+                            );
+                          },
+                          loadingBuilder: (context, child, loadingProgress) {
+                            if (loadingProgress == null) return child;
+                            return Center(
+                              child: Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  CircularProgressIndicator(
+                                    value:
+                                        loadingProgress.expectedTotalBytes !=
+                                                null
+                                            ? loadingProgress
+                                                    .cumulativeBytesLoaded /
+                                                loadingProgress
+                                                    .expectedTotalBytes!
+                                            : null,
+                                    color: Colors.grey.shade600,
+                                  ),
+                                  const SizedBox(height: 16),
+                                  Text(
+                                    'Loading image...',
+                                    style: TextStyle(
+                                      color: Colors.grey.shade700,
+                                      fontSize: 14,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            );
+                          },
+                        ),
+                      ),
+                    ),
+                  );
+                },
+              ),
+
+              // Left and right navigation arrows
+              Positioned.fill(
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    // Left arrow
+                    Padding(
+                      padding: const EdgeInsets.only(left: 8.0),
+                      child: IconButton(
+                        icon: const Icon(
+                          Icons.arrow_back_ios,
+                          color: Colors.black54,
+                        ),
+                        onPressed: () {
+                          if (currentIndex.value > 0) {
+                            currentIndex.value--;
+                          } else {
+                            currentIndex.value =
+                                photoUrls.length - 1; // Loop to end
+                          }
                         },
                       ),
                     ),
-                  ),
+                    // Right arrow
+                    Padding(
+                      padding: const EdgeInsets.only(right: 8.0),
+                      child: IconButton(
+                        icon: const Icon(
+                          Icons.arrow_forward_ios,
+                          color: Colors.black54,
+                        ),
+                        onPressed: () {
+                          if (currentIndex.value < photoUrls.length - 1) {
+                            currentIndex.value++;
+                          } else {
+                            currentIndex.value = 0; // Loop to beginning
+                          }
+                        },
+                      ),
+                    ),
+                  ],
                 ),
               ),
-              // Photo counter
+
+              // Image counter
               Positioned(
-                bottom: 16,
+                top: 16,
                 right: 16,
                 child: Container(
                   padding: const EdgeInsets.symmetric(
@@ -863,20 +970,221 @@ class _ExperienceDetailScreenState extends State<ExperienceDetailScreen> {
                     color: Colors.black.withOpacity(0.7),
                     borderRadius: BorderRadius.circular(20),
                   ),
-                  child: Text(
-                    '${index + 1}/${photoUrls.length}',
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 14,
-                      fontWeight: FontWeight.w500,
+                  child: ValueListenableBuilder<int>(
+                    valueListenable: currentIndex,
+                    builder: (context, index, _) {
+                      return Text(
+                        '${index + 1}/${photoUrls.length}',
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 14,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      );
+                    },
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+
+        // Dot indicators at bottom
+        const SizedBox(height: 12),
+        ValueListenableBuilder<int>(
+          valueListenable: currentIndex,
+          builder: (context, index, _) {
+            return Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: List.generate(
+                photoUrls.length,
+                (i) => Container(
+                  width: 8,
+                  height: 8,
+                  margin: const EdgeInsets.symmetric(horizontal: 4),
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color:
+                        i == index
+                            ? Colors.blue.shade600
+                            : Colors.grey.shade300,
+                  ),
+                ),
+              ),
+            );
+          },
+        ),
+      ],
+    );
+  }
+
+  // Method to show fullscreen image viewer
+  void _showFullscreenImage(
+    BuildContext context,
+    List<String> photoUrls,
+    int initialIndex,
+  ) {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        final ValueNotifier<int> currentIndex = ValueNotifier<int>(
+          initialIndex,
+        );
+
+        return Dialog(
+          backgroundColor: Colors.black,
+          insetPadding: EdgeInsets.zero,
+          child: Stack(
+            fit: StackFit.expand,
+            children: [
+              // Main image viewer with PageView for swiping
+              PageView.builder(
+                itemCount: photoUrls.length,
+                controller: PageController(initialPage: initialIndex),
+                onPageChanged: (index) {
+                  currentIndex.value = index;
+                },
+                itemBuilder: (context, index) {
+                  return InteractiveViewer(
+                    minScale: 0.5,
+                    maxScale: 4.0,
+                    child: Center(
+                      child: Image.network(
+                        photoUrls[index],
+                        fit: BoxFit.contain,
+                        errorBuilder: (context, error, stackTrace) {
+                          return Center(
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                const Icon(
+                                  Icons.broken_image,
+                                  size: 80,
+                                  color: Colors.grey,
+                                ),
+                                const SizedBox(height: 16),
+                                Text(
+                                  'Image could not be loaded',
+                                  style: TextStyle(color: Colors.grey.shade400),
+                                ),
+                              ],
+                            ),
+                          );
+                        },
+                      ),
+                    ),
+                  );
+                },
+              ),
+
+              // Close button (X)
+              Positioned(
+                top: 16,
+                right: 16,
+                child: IconButton(
+                  icon: const Icon(Icons.close, color: Colors.white, size: 28),
+                  onPressed: () {
+                    Navigator.of(context).pop();
+                  },
+                ),
+              ),
+
+              // Image counter
+              Positioned(
+                top: 16,
+                left: 16,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 6,
+                  ),
+                  decoration: BoxDecoration(
+                    color: Colors.black.withOpacity(0.5),
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: ValueListenableBuilder<int>(
+                    valueListenable: currentIndex,
+                    builder: (context, index, _) {
+                      return Text(
+                        '${index + 1}/${photoUrls.length}',
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 14,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      );
+                    },
+                  ),
+                ),
+              ),
+
+              // Navigation arrows (only show for multiple images)
+              if (photoUrls.length > 1)
+                Positioned.fill(
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      // Left arrow
+                      IconButton(
+                        icon: const Icon(
+                          Icons.arrow_back_ios,
+                          color: Colors.white,
+                          size: 32,
+                        ),
+                        onPressed: () {
+                          if (currentIndex.value > 0) {
+                            currentIndex.value--;
+                          } else {
+                            currentIndex.value =
+                                photoUrls.length - 1; // Loop to end
+                          }
+                        },
+                      ),
+                      // Right arrow
+                      IconButton(
+                        icon: const Icon(
+                          Icons.arrow_forward_ios,
+                          color: Colors.white,
+                          size: 32,
+                        ),
+                        onPressed: () {
+                          if (currentIndex.value < photoUrls.length - 1) {
+                            currentIndex.value++;
+                          } else {
+                            currentIndex.value = 0; // Loop to beginning
+                          }
+                        },
+                      ),
+                    ],
+                  ),
+                ),
+
+              // Hint text for zooming
+              Positioned(
+                bottom: 16,
+                left: 0,
+                right: 0,
+                child: Center(
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 8,
+                    ),
+                    decoration: BoxDecoration(
+                      color: Colors.black.withOpacity(0.5),
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: const Text(
+                      'Pinch to zoom • Swipe to navigate',
+                      style: TextStyle(color: Colors.white, fontSize: 14),
                     ),
                   ),
                 ),
               ),
             ],
-          );
-        },
-      ),
+          ),
+        );
+      },
     );
   }
 

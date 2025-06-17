@@ -5,6 +5,7 @@ import '../models/experience_model.dart';
 import '../models/user_model.dart';
 import '../experience_detail_screen.dart';
 import '../services/user_service.dart';
+import 'shared/card_image.dart';
 
 class ExperienceCard extends StatefulWidget {
   final ExperienceModel experience;
@@ -22,17 +23,48 @@ class ExperienceCard extends StatefulWidget {
   State<ExperienceCard> createState() => _ExperienceCardState();
 }
 
-class _ExperienceCardState extends State<ExperienceCard> {
+class _ExperienceCardState extends State<ExperienceCard>
+    with SingleTickerProviderStateMixin {
   bool _isFavorited = false;
   UserModel? _publisher;
   bool _isLoading = true;
   final UserService _userService = UserService();
+
+  // Animation controller for hover effects
+  late AnimationController _animationController;
+  late Animation<double> _scaleAnimation;
+  bool _isHovered = false;
+  bool _isPressed = false;
+
+  // Design tokens
+  static const Color _primaryTextColor = Color(0xFF1A1A1A);
+  static const Color _secondaryTextColor = Color(0xFF666666);
+  static const Color _auxiliaryTextColor = Color(0xFF999999);
+  static const Color _brandColor = Color(0xFF6B46C1); // Purple brand color
+  static const Color _cardBackgroundColor = Colors.white;
+  static const Color _infoAreaBackgroundColor = Color(0xFFFAFAFA);
 
   @override
   void initState() {
     super.initState();
     _isFavorited = widget.isFavorited;
     _fetchPublisherData();
+
+    // Initialize animation controller
+    _animationController = AnimationController(
+      duration: const Duration(milliseconds: 200),
+      vsync: this,
+    );
+
+    _scaleAnimation = Tween<double>(begin: 1.0, end: 0.98).animate(
+      CurvedAnimation(parent: _animationController, curve: Curves.easeOut),
+    );
+  }
+
+  @override
+  void dispose() {
+    _animationController.dispose();
+    super.dispose();
   }
 
   // Fetch user data for the experience publisher
@@ -74,38 +106,133 @@ class _ExperienceCardState extends State<ExperienceCard> {
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      elevation: 1,
-      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      child: InkWell(
-        onTap: () {
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder:
-                  (context) => ExperienceDetailScreen(
-                    experienceId: widget.experience.experienceId,
-                    experience: widget.experience,
+    return AnimatedBuilder(
+      animation: _scaleAnimation,
+      builder: (context, child) {
+        return Transform.scale(
+          scale: _scaleAnimation.value,
+          child: MouseRegion(
+            cursor: SystemMouseCursors.click,
+            onEnter: (_) => setState(() => _isHovered = true),
+            onExit: (_) => setState(() => _isHovered = false),
+            child: GestureDetector(
+              onTapDown: (_) {
+                setState(() => _isPressed = true);
+                _animationController.forward();
+              },
+              onTapUp: (_) {
+                setState(() => _isPressed = false);
+                _animationController.reverse();
+              },
+              onTapCancel: () {
+                setState(() => _isPressed = false);
+                _animationController.reverse();
+              },
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder:
+                        (context) => ExperienceDetailScreen(
+                          experienceId: widget.experience.experienceId,
+                          experience: widget.experience,
+                        ),
                   ),
-            ),
-          );
-        },
-        borderRadius: BorderRadius.circular(12),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Featured image at the top
-            _buildImageHeader(),
+                );
+              },
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 300),
+                curve: Curves.easeOut,
+                margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                decoration: BoxDecoration(
+                  color: _cardBackgroundColor,
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(
+                    color: Colors.black.withOpacity(0.05),
+                    width: 1,
+                  ),
+                  boxShadow:
+                      _isHovered
+                          ? [
+                            BoxShadow(
+                              color: Colors.black.withOpacity(0.08),
+                              blurRadius: 4,
+                              offset: const Offset(0, 2),
+                            ),
+                            BoxShadow(
+                              color: Colors.black.withOpacity(0.06),
+                              blurRadius: 8,
+                              offset: const Offset(0, 4),
+                            ),
+                            BoxShadow(
+                              color: Colors.black.withOpacity(0.04),
+                              blurRadius: 16,
+                              offset: const Offset(0, 8),
+                            ),
+                          ]
+                          : [
+                            BoxShadow(
+                              color: Colors.black.withOpacity(0.05),
+                              blurRadius: 4,
+                              offset: const Offset(0, 2),
+                            ),
+                            BoxShadow(
+                              color: Colors.black.withOpacity(0.03),
+                              blurRadius: 8,
+                              offset: const Offset(0, 4),
+                            ),
+                            BoxShadow(
+                              color: Colors.black.withOpacity(0.02),
+                              blurRadius: 16,
+                              offset: const Offset(0, 8),
+                            ),
+                          ],
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Featured image at the top
+                    _buildImageHeader(),
 
-            // Content section - Airbnb-style layout
-            Padding(
-              padding: const EdgeInsets.all(16),
-              child: _buildContentSection(),
+                    // Content area with subtle background
+                    Container(
+                      decoration: const BoxDecoration(
+                        color: _infoAreaBackgroundColor,
+                        borderRadius: BorderRadius.vertical(
+                          bottom: Radius.circular(16),
+                        ),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          // User info section
+                          Padding(
+                            padding: const EdgeInsets.all(16),
+                            child: _buildUserInfo(),
+                          ),
+
+                          // Subtle separator
+                          Container(
+                            height: 1,
+                            margin: const EdgeInsets.symmetric(horizontal: 16),
+                            color: Colors.grey.withOpacity(0.1),
+                          ),
+
+                          // Main content section
+                          Padding(
+                            padding: const EdgeInsets.all(16),
+                            child: _buildContentSection(),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
             ),
-          ],
-        ),
-      ),
+          ),
+        );
+      },
     );
   }
 
@@ -113,94 +240,46 @@ class _ExperienceCardState extends State<ExperienceCard> {
   Widget _buildImageHeader() {
     return Stack(
       children: [
-        // Image container - optimized for consistent aspect ratio and display
-        AspectRatio(
-          aspectRatio: 16 / 9, // 16:9 ratio for consistent appearance
-          child: Container(
-            width: double.infinity,
-            decoration: BoxDecoration(
-              color: Colors.grey.shade200,
-              borderRadius: const BorderRadius.vertical(
-                top: Radius.circular(12),
-              ),
-            ),
-            child:
-                widget.experience.photoUrls.isNotEmpty
-                    ? ClipRRect(
-                      borderRadius: const BorderRadius.vertical(
-                        top: Radius.circular(12),
-                      ),
-                      child: Image.network(
-                        widget.experience.photoUrls.first,
-                        fit:
-                            BoxFit
-                                .cover, // Cover ensures full container filling
-                        alignment:
-                            Alignment
-                                .center, // Center crop for better subject focus
-                        errorBuilder: (context, error, stackTrace) {
-                          return Center(
-                            child: Icon(
-                              Icons.image_not_supported_outlined,
-                              size: 40,
-                              color: Colors.grey.shade400,
-                            ),
-                          );
-                        },
-                        loadingBuilder: (context, child, loadingProgress) {
-                          if (loadingProgress == null) return child;
-                          return Center(
-                            child: CircularProgressIndicator(
-                              value:
-                                  loadingProgress.expectedTotalBytes != null
-                                      ? loadingProgress.cumulativeBytesLoaded /
-                                          loadingProgress.expectedTotalBytes!
-                                      : null,
-                              strokeWidth: 2,
-                              color: Colors.grey.shade400,
-                            ),
-                          );
-                        },
-                      ),
-                    )
-                    : Center(
-                      child: Icon(
-                        Icons.panorama_outlined,
-                        size: 40,
-                        color: Colors.grey.shade400,
-                      ),
-                    ),
-          ),
+        // Use the unified CardImage component
+        CardImage(
+          photoUrls: widget.experience.photoUrls,
+          height: 180,
+          progressIndicatorColor: _brandColor,
         ),
 
-        // Favorite button - star icon (unified style)
+        // Favorite button
         Positioned(
           top: 12,
           right: 12,
-          child: GestureDetector(
-            onTap: () {
-              setState(() {
-                _isFavorited = !_isFavorited;
-              });
-              widget.onFavoriteToggle?.call();
-            },
-            child: Container(
-              padding: const EdgeInsets.all(6),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                shape: BoxShape.circle,
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.1),
-                    blurRadius: 4,
-                    offset: const Offset(0, 2),
-                  ),
-                ],
-              ),
-              child: Icon(
-                _isFavorited ? Icons.star : Icons.star_border,
-                color: _isFavorited ? Colors.amber : Colors.grey.shade700,
-                size: 18,
+          child: Material(
+            color: Colors.transparent,
+            child: InkWell(
+              onTap: () {
+                setState(() {
+                  _isFavorited = !_isFavorited;
+                });
+                widget.onFavoriteToggle?.call();
+              },
+              customBorder: const CircleBorder(),
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 200),
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: Colors.white.withOpacity(0.95),
+                  shape: BoxShape.circle,
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.15),
+                      blurRadius: 8,
+                      offset: const Offset(0, 2),
+                    ),
+                  ],
+                ),
+                child: Icon(
+                  _isFavorited ? Icons.star : Icons.star_border,
+                  color: _isFavorited ? Colors.amber : _secondaryTextColor,
+                  size: 20,
+                ),
               ),
             ),
           ),
@@ -209,67 +288,76 @@ class _ExperienceCardState extends State<ExperienceCard> {
     );
   }
 
-  // Host info row (Airbnb style - minimal, at bottom of card)
+  // Host info row with improved layout
   Widget _buildUserInfo() {
     return Row(
+      crossAxisAlignment: CrossAxisAlignment.center,
       children: [
-        // User Avatar (circular)
+        // User Avatar (32px as per requirements)
         _isLoading || _publisher == null || _publisher!.avatarUrl.isEmpty
             ? CircleAvatar(
-              radius: 16,
+              radius: 16, // 32px diameter
               backgroundColor: Colors.grey.shade200,
-              child: Icon(Icons.person, color: Colors.grey.shade500, size: 18),
+              child: Icon(Icons.person, color: Colors.grey.shade500, size: 16),
             )
             : CircleAvatar(
-              radius: 16,
+              radius: 16, // 32px diameter
               backgroundImage: NetworkImage(_publisher!.avatarUrl),
               backgroundColor: Colors.grey.shade200,
             ),
         const SizedBox(width: 8),
 
-        // Username + verification
+        // Username + badges
         Expanded(
           child: Row(
             children: [
+              // Username
               Flexible(
                 child: Text(
                   _isLoading ||
                           _publisher == null ||
                           _publisher!.displayName.isEmpty
-                      ? 'Host: ${widget.experience.userId.substring(0, min(8, widget.experience.userId.length))}...'
+                      ? 'Host'
                       : _publisher!.displayName,
-                  style: const TextStyle(
-                    fontSize: 13,
+                  style: TextStyle(
+                    fontSize: 14,
                     fontWeight: FontWeight.w500,
+                    color: _secondaryTextColor,
                   ),
                   overflow: TextOverflow.ellipsis,
                 ),
               ),
 
-              const SizedBox(width: 4),
-
-              // Simple verification dot
+              // Verification badge
               if (_publisher != null)
-                Icon(Icons.verified, size: 14, color: Colors.teal.shade700),
+                Container(
+                  margin: const EdgeInsets.only(left: 6),
+                  child: Icon(Icons.verified, size: 16, color: _brandColor),
+                ),
 
-              // Pro badge if user has Pro membership
+              // Pro badge
               if (_publisher != null && _isProMember)
                 Container(
-                  margin: const EdgeInsets.only(left: 4),
+                  margin: const EdgeInsets.only(left: 8),
                   padding: const EdgeInsets.symmetric(
-                    horizontal: 5,
-                    vertical: 1,
+                    horizontal: 8,
+                    vertical: 2,
                   ),
                   decoration: BoxDecoration(
-                    color: Colors.amber.shade700,
+                    gradient: const LinearGradient(
+                      colors: [Color(0xFFFFB800), Color(0xFFFF8A00)],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                    ),
                     borderRadius: BorderRadius.circular(4),
                   ),
                   child: const Text(
                     'PRO',
                     style: TextStyle(
                       color: Colors.white,
-                      fontSize: 9,
+                      fontSize: 10,
                       fontWeight: FontWeight.bold,
+                      letterSpacing: 0.5,
                     ),
                   ),
                 ),
@@ -277,10 +365,10 @@ class _ExperienceCardState extends State<ExperienceCard> {
           ),
         ),
 
-        // Posted date (right aligned, subtle)
+        // Posted date (right-aligned)
         Text(
           _formatDate(widget.experience.createdAt),
-          style: TextStyle(fontSize: 11, color: Colors.grey.shade500),
+          style: TextStyle(fontSize: 12, color: _auxiliaryTextColor),
         ),
       ],
     );
@@ -290,96 +378,146 @@ class _ExperienceCardState extends State<ExperienceCard> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // Title (Airbnb style - clean, larger)
+        // Title (increased size and weight)
+        const SizedBox(height: 4),
         Text(
           widget.experience.title,
-          style: const TextStyle(
-            fontSize: 16,
+          style: TextStyle(
+            fontSize: 18,
             fontWeight: FontWeight.w600,
             height: 1.3,
+            color: _primaryTextColor,
           ),
           maxLines: 2,
           overflow: TextOverflow.ellipsis,
         ),
         const SizedBox(height: 8),
 
-        // Participant count (directly below title as requested)
+        // Location with icon
         Row(
           children: [
-            Icon(Icons.people, size: 14, color: Colors.grey.shade700),
-            const SizedBox(width: 4),
-            Text(
-              '${widget.experience.availableSlots - widget.experience.currentParticipants} available slots',
-              style: TextStyle(
-                fontSize: 13,
-                fontWeight: FontWeight.w500,
-                color: Colors.grey.shade700,
-              ),
+            Icon(
+              Icons.location_on_outlined,
+              size: 16,
+              color: _auxiliaryTextColor,
             ),
-          ],
-        ),
-        const SizedBox(height: 6),
-
-        // Location (below participant count as requested)
-        Row(
-          children: [
-            Icon(Icons.location_on, size: 14, color: Colors.grey.shade700),
             const SizedBox(width: 4),
             Expanded(
               child: Text(
                 widget.experience.location ?? 'Location not specified',
-                style: TextStyle(fontSize: 13, color: Colors.grey.shade700),
+                style: TextStyle(fontSize: 12, color: _auxiliaryTextColor),
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
               ),
             ),
           ],
         ),
-        const SizedBox(height: 6),
+        const SizedBox(height: 8),
 
-        // Date (below location)
+        // Date with icon
         Row(
           children: [
-            Icon(Icons.calendar_today, size: 14, color: Colors.grey.shade700),
+            Icon(
+              Icons.calendar_today_outlined,
+              size: 16,
+              color: _auxiliaryTextColor,
+            ),
             const SizedBox(width: 4),
-            Text(
-              _formatExperienceDate(widget.experience.date),
-              style: TextStyle(fontSize: 13, color: Colors.grey.shade700),
+            Expanded(
+              child: Text(
+                _formatExperienceDate(widget.experience.date),
+                style: TextStyle(fontSize: 12, color: _auxiliaryTextColor),
+              ),
             ),
           ],
         ),
         const SizedBox(height: 8),
 
-        // Category tag (at the bottom as in Airbnb)
-        if (widget.experience.tags.isNotEmpty)
-          Container(
-            margin: const EdgeInsets.only(top: 4),
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-            decoration: BoxDecoration(
-              color: Colors.grey.shade100,
-              borderRadius: BorderRadius.circular(4),
-            ),
-            child: Text(
-              widget.experience.tags.first,
-              style: TextStyle(
-                fontSize: 12,
-                fontWeight: FontWeight.w500,
-                color: Colors.grey.shade700,
+        // Available slots as prominent pill button
+        Container(
+          margin: const EdgeInsets.symmetric(vertical: 8),
+          child: InkWell(
+            onTap: () {
+              // Handle slots tap
+            },
+            borderRadius: BorderRadius.circular(20),
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 200),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              decoration: BoxDecoration(
+                color: _brandColor.withOpacity(_isHovered ? 0.15 : 0.1),
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(
+                  color: _brandColor.withOpacity(0.3),
+                  width: 1,
+                ),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(Icons.people_outline, size: 16, color: _brandColor),
+                  const SizedBox(width: 6),
+                  Text(
+                    '${widget.experience.availableSlots - widget.experience.currentParticipants} available slots',
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                      color: _brandColor,
+                    ),
+                  ),
+                ],
               ),
             ),
           ),
+        ),
 
-        const SizedBox(height: 12),
+        // Tags section with unified design
+        if (widget.experience.tags.isNotEmpty) ...[
+          const SizedBox(height: 6),
+          Wrap(
+            spacing: 6,
+            runSpacing: 6,
+            children:
+                widget.experience.tags.take(4).map((tag) {
+                  // Primary tag (first tag)
+                  final bool isPrimary =
+                      widget.experience.tags.indexOf(tag) == 0;
 
-        // Host info (at bottom as in Airbnb)
-        _buildUserInfo(),
+                  return AnimatedContainer(
+                    duration: const Duration(milliseconds: 200),
+                    height: 28,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 4,
+                    ),
+                    decoration: BoxDecoration(
+                      color:
+                          isPrimary
+                              ? _brandColor
+                              : _brandColor.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(14),
+                      border:
+                          !isPrimary
+                              ? Border.all(
+                                color: _brandColor.withOpacity(0.2),
+                                width: 1,
+                              )
+                              : null,
+                    ),
+                    child: Text(
+                      tag,
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w500,
+                        color: isPrimary ? Colors.white : _brandColor,
+                      ),
+                    ),
+                  );
+                }).toList(),
+          ),
+        ],
       ],
     );
-  }
-
-  Widget _buildThirdRow() {
-    // We no longer need this row since we moved the slots display to the second row
-    return const SizedBox.shrink();
   }
 
   String _formatDate(DateTime? date) {
@@ -421,7 +559,7 @@ class _ExperienceCardState extends State<ExperienceCard> {
     }
 
     // For events within the next 7 days
-    if (date.difference(now).inDays < 7) {
+    if (date.difference(now).inDays < 7 && date.isAfter(now)) {
       return '${_getDayOfWeek(date)} at ${_formatTime(date)}';
     }
 
