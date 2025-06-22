@@ -1059,7 +1059,10 @@ class _UserDetailPageState extends State<UserDetailPage> {
           ),
         );
       }
-    } catch (e) {
+    } catch (e, stackTrace) {
+      // Print detailed error information to terminal
+      _printDetailedError('Send Message', e, stackTrace);
+
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -1157,5 +1160,101 @@ class _UserDetailPageState extends State<UserDetailPage> {
         ),
       ),
     );
+  }
+
+  /// Print detailed error information to terminal for debugging
+  /// This is especially useful for Firestore database index errors
+  void _printDetailedError(
+    String actionType,
+    dynamic error,
+    StackTrace? stackTrace,
+  ) {
+    print('\n' + '=' * 80);
+    print('🚨 CHAT/MESSAGING ERROR DETAILS');
+    print('=' * 80);
+    print('Action Type: $actionType');
+    print('Screen: User Detail Page');
+    print('Timestamp: ${DateTime.now().toIso8601String()}');
+
+    if (_user != null) {
+      print('\nUser Context:');
+      print('  - Target User ID: ${_user!.userId}');
+      print('  - Target User Name: ${_user!.displayName}');
+      print('  - Target User Status: ${_user!.status}');
+      if (_user!.location.isNotEmpty) {
+        print('  - Target User Location: ${_user!.location}');
+      }
+    }
+
+    final currentUser = FirebaseAuth.instance.currentUser;
+    if (currentUser != null) {
+      print('\nCurrent User Context:');
+      print('  - Current User ID: ${currentUser.uid}');
+    }
+
+    print('\nError Details:');
+    print('  Error Type: ${error.runtimeType}');
+    print('  Error Message: $error');
+
+    // Check if this looks like a Firestore index error
+    final errorString = error.toString().toLowerCase();
+    if (errorString.contains('index') ||
+        errorString.contains('composite') ||
+        errorString.contains('requires an index')) {
+      print('\n🔍 INDEX ERROR DETECTED!');
+      print('This error indicates that a Firestore database index is missing.');
+      print('Follow these steps to resolve:');
+      print('');
+      print('1. Go to Firebase Console: https://console.firebase.google.com/');
+      print('2. Navigate to your project');
+      print('3. Go to Firestore Database > Indexes');
+      print(
+        '4. Look for the suggested index configuration in the error message above',
+      );
+      print('5. Create the composite index as suggested');
+      print('');
+      print(
+        'Alternative: Check the Firebase Console for automatic index creation suggestions.',
+      );
+    }
+
+    // Check for permission errors
+    if (errorString.contains('permission') || errorString.contains('denied')) {
+      print('\n🔒 PERMISSION ERROR DETECTED!');
+      print(
+        'This error indicates insufficient Firestore security rules permissions.',
+      );
+      print(
+        'Check your Firestore security rules for the chats/conversations collection.',
+      );
+    }
+
+    // Print current action configuration for debugging
+    print('\nAction Configuration:');
+    print('  Collection: chats/conversations');
+    print('  Operation: Create conversation and send message');
+
+    if (actionType.contains('Send Message')) {
+      print('  Scenario: Direct message to user from profile page');
+      print(
+        '  Required Fields: participants, lastMessage, createdAt, updatedAt',
+      );
+    }
+
+    print('\n💡 Common Chat Service Index Requirements:');
+    print('  Collection: chats');
+    print('  Typical indexes needed:');
+    print('    - participants (Arrays), updatedAt (Descending)');
+    print('    - participants (Arrays), createdAt (Descending)');
+
+    // Print stack trace if available
+    if (stackTrace != null) {
+      print('\nStack Trace:');
+      print(stackTrace.toString());
+    }
+
+    print('=' * 80);
+    print('END ERROR DETAILS');
+    print('=' * 80 + '\n');
   }
 }

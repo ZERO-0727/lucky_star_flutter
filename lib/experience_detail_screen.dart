@@ -101,10 +101,7 @@ class _ExperienceDetailScreenState extends State<ExperienceDetailScreen> {
         }
       }
 
-      if (_publisher == null) {
-        // Fallback to userId if userRef not available or fails
-        _publisher = await _userService.getUserById(_experience!.userId);
-      }
+      _publisher ??= await _userService.getUserById(_experience!.userId);
     } catch (e) {
       print('Error fetching publisher data: $e');
     } finally {
@@ -394,7 +391,10 @@ class _ExperienceDetailScreenState extends State<ExperienceDetailScreen> {
                         ),
                       );
                     }
-                  } catch (e) {
+                  } catch (e, stackTrace) {
+                    // Print detailed error information to terminal
+                    _printDetailedError('Join Experience', e, stackTrace);
+
                     if (mounted) {
                       ScaffoldMessenger.of(context).showSnackBar(
                         SnackBar(
@@ -471,7 +471,10 @@ class _ExperienceDetailScreenState extends State<ExperienceDetailScreen> {
           ),
         );
       }
-    } catch (e) {
+    } catch (e, stackTrace) {
+      // Print detailed error information to terminal
+      _printDetailedError('Contact Host', e, stackTrace);
+
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -1496,5 +1499,106 @@ class _ExperienceDetailScreenState extends State<ExperienceDetailScreen> {
     } else {
       return 'Just now';
     }
+  }
+
+  /// Print detailed error information to terminal for debugging
+  /// This is especially useful for Firestore database index errors
+  void _printDetailedError(
+    String actionType,
+    dynamic error,
+    StackTrace? stackTrace,
+  ) {
+    print('\n' + '=' * 80);
+    print('🚨 CHAT/MESSAGING ERROR DETAILS');
+    print('=' * 80);
+    print('Action Type: $actionType');
+    print('Screen: Experience Detail Screen');
+    print('Timestamp: ${DateTime.now().toIso8601String()}');
+
+    if (_experience != null) {
+      print('\nExperience Context:');
+      print('  - Experience ID: ${_experience!.experienceId}');
+      print('  - Host User ID: ${_experience!.userId}');
+      print('  - Experience Title: ${_experience!.title}');
+      print('  - Experience Location: ${_experience!.location}');
+    }
+
+    if (_currentUserId != null) {
+      print('\nUser Context:');
+      print('  - Current User ID: $_currentUserId');
+    }
+
+    print('\nError Details:');
+    print('  Error Type: ${error.runtimeType}');
+    print('  Error Message: $error');
+
+    // Check if this looks like a Firestore index error
+    final errorString = error.toString().toLowerCase();
+    if (errorString.contains('index') ||
+        errorString.contains('composite') ||
+        errorString.contains('requires an index')) {
+      print('\n🔍 INDEX ERROR DETECTED!');
+      print('This error indicates that a Firestore database index is missing.');
+      print('Follow these steps to resolve:');
+      print('');
+      print('1. Go to Firebase Console: https://console.firebase.google.com/');
+      print('2. Navigate to your project');
+      print('3. Go to Firestore Database > Indexes');
+      print(
+        '4. Look for the suggested index configuration in the error message above',
+      );
+      print('5. Create the composite index as suggested');
+      print('');
+      print(
+        'Alternative: Check the Firebase Console for automatic index creation suggestions.',
+      );
+    }
+
+    // Check for permission errors
+    if (errorString.contains('permission') || errorString.contains('denied')) {
+      print('\n🔒 PERMISSION ERROR DETECTED!');
+      print(
+        'This error indicates insufficient Firestore security rules permissions.',
+      );
+      print(
+        'Check your Firestore security rules for the chats/conversations collection.',
+      );
+    }
+
+    // Print current action configuration for debugging
+    print('\nAction Configuration:');
+    print('  Collection: chats/conversations');
+    print('  Operation: Create conversation and send message');
+
+    if (actionType.contains('Contact Host')) {
+      print('  Scenario: Direct contact to experience host');
+      print(
+        '  Required Fields: participants, experienceId, lastMessage, createdAt, updatedAt',
+      );
+    } else if (actionType.contains('Join Experience')) {
+      print('  Scenario: Join experience with initial message');
+      print(
+        '  Required Fields: participants, experienceId, lastMessage, initialMessage, createdAt, updatedAt',
+      );
+    }
+
+    print('\n💡 Common Chat Service Index Requirements:');
+    print('  Collection: chats');
+    print('  Typical indexes needed:');
+    print('    - participants (Arrays), updatedAt (Descending)');
+    print(
+      '    - participants (Arrays), experienceId (Ascending), updatedAt (Descending)',
+    );
+    print('    - experienceId (Ascending), updatedAt (Descending)');
+
+    // Print stack trace if available
+    if (stackTrace != null) {
+      print('\nStack Trace:');
+      print(stackTrace.toString());
+    }
+
+    print('=' * 80);
+    print('END ERROR DETAILS');
+    print('=' * 80 + '\n');
   }
 }

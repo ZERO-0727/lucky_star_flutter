@@ -128,6 +128,13 @@ class _ChatListScreenState extends State<ChatListScreen> {
         }
 
         if (snapshot.hasError) {
+          // Print detailed error information to terminal
+          _printDetailedError(
+            'Chat List Stream',
+            snapshot.error,
+            snapshot.stackTrace,
+          );
+
           return Center(
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
@@ -359,7 +366,10 @@ class _ChatListScreenState extends State<ChatListScreen> {
               );
             }
           }
-        } catch (e) {
+        } catch (e, stackTrace) {
+          // Print detailed error information to terminal
+          _printDetailedError('Chat Navigation', e, stackTrace);
+
           if (mounted) {
             setState(() => _isLoading = false);
             ScaffoldMessenger.of(context).showSnackBar(
@@ -555,6 +565,108 @@ class _ChatListScreenState extends State<ChatListScreen> {
       // Older - show date
       return DateFormat('MM/dd').format(timestamp);
     }
+  }
+
+  /// Print detailed error information to terminal for debugging
+  /// This is especially useful for Firestore database index errors
+  void _printDetailedError(
+    String actionType,
+    dynamic error,
+    StackTrace? stackTrace,
+  ) {
+    print('\n' + '=' * 80);
+    print('🚨 CHAT LIST ERROR DETAILS');
+    print('=' * 80);
+    print('Action Type: $actionType');
+    print('Screen: Chat List Screen');
+    print('Timestamp: ${DateTime.now().toIso8601String()}');
+
+    if (_currentUserId != null) {
+      print('\nUser Context:');
+      print('  - Current User ID: $_currentUserId');
+      print('  - Conversations Count: ${_conversations.length}');
+    }
+
+    print('\nError Details:');
+    print('  Error Type: ${error.runtimeType}');
+    print('  Error Message: $error');
+
+    // Check if this looks like a Firestore index error
+    final errorString = error.toString().toLowerCase();
+    if (errorString.contains('index') ||
+        errorString.contains('composite') ||
+        errorString.contains('requires an index')) {
+      print('\n🔍 INDEX ERROR DETECTED!');
+      print('This error indicates that a Firestore database index is missing.');
+      print('Follow these steps to resolve:');
+      print('');
+      print('1. Go to Firebase Console: https://console.firebase.google.com/');
+      print('2. Navigate to your project');
+      print('3. Go to Firestore Database > Indexes');
+      print(
+        '4. Look for the suggested index configuration in the error message above',
+      );
+      print('5. Create the composite index as suggested');
+      print('');
+      print(
+        'Alternative: Check the Firebase Console for automatic index creation suggestions.',
+      );
+    }
+
+    // Check for permission errors
+    if (errorString.contains('permission') || errorString.contains('denied')) {
+      print('\n🔒 PERMISSION ERROR DETECTED!');
+      print(
+        'This error indicates insufficient Firestore security rules permissions.',
+      );
+      print(
+        'Check your Firestore security rules for the chats/conversations collection.',
+      );
+    }
+
+    // Print current action configuration for debugging
+    print('\nAction Configuration:');
+
+    if (actionType.contains('Chat List Stream')) {
+      print('  Collection: chats/conversations');
+      print('  Operation: Listen to user conversations stream');
+      print('  Scenario: Loading conversation list from My Page chat overview');
+      print(
+        '  Required Fields: participants, lastMessageTime, lastMessageText, unreadCounts',
+      );
+      print(
+        '  Typical query: where participants array-contains currentUserId, orderBy lastMessageTime desc',
+      );
+    } else if (actionType.contains('Chat Navigation')) {
+      print('  Collection: chats/conversations');
+      print(
+        '  Operation: Mark conversation as read and navigate to chat detail',
+      );
+      print('  Scenario: User clicked on conversation from chat list');
+      print('  Actions: markAsRead() then navigate to ChatDetailScreen');
+    }
+
+    print('\n💡 Common Chat Service Index Requirements:');
+    print('  Collection: chats');
+    print('  Typical indexes needed:');
+    print('    - participants (Arrays), lastMessageTime (Descending)');
+    print('    - participants (Arrays), updatedAt (Descending)');
+    print(
+      '    - participants (Arrays), experienceId (Ascending), lastMessageTime (Descending)',
+    );
+    print(
+      '    - participants (Arrays), wishId (Ascending), lastMessageTime (Descending)',
+    );
+
+    // Print stack trace if available
+    if (stackTrace != null) {
+      print('\nStack Trace:');
+      print(stackTrace.toString());
+    }
+
+    print('=' * 80);
+    print('END ERROR DETAILS');
+    print('=' * 80 + '\n');
   }
 }
 

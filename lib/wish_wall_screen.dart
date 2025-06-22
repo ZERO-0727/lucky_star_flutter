@@ -180,6 +180,13 @@ class _WishWallScreenState extends State<WishWallScreen>
       stream: _getFilteredWishesStream(),
       builder: (context, snapshot) {
         if (snapshot.hasError) {
+          // Print detailed error information to terminal
+          _printDetailedError(
+            'Wish List Query',
+            snapshot.error,
+            snapshot.stackTrace,
+          );
+
           return Center(
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
@@ -231,6 +238,13 @@ class _WishWallScreenState extends State<WishWallScreen>
       stream: _getFilteredExperiencesStream(),
       builder: (context, snapshot) {
         if (snapshot.hasError) {
+          // Print detailed error information to terminal
+          _printDetailedError(
+            'Share Experience Query',
+            snapshot.error,
+            snapshot.stackTrace,
+          );
+
           return Center(
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
@@ -705,5 +719,132 @@ class _WishWallScreenState extends State<WishWallScreen>
         );
       },
     );
+  }
+
+  /// Print detailed error information to terminal for debugging
+  /// This is especially useful for Firestore database index errors
+  void _printDetailedError(
+    String queryType,
+    dynamic error,
+    StackTrace? stackTrace,
+  ) {
+    print('\n' + '=' * 80);
+    print('🚨 FIRESTORE QUERY ERROR DETAILS');
+    print('=' * 80);
+    print('Query Type: $queryType');
+    print('Timestamp: ${DateTime.now().toIso8601String()}');
+    print('\nApplied Filters:');
+    print('  - Date Filter: $_selectedDateFilter');
+    print('  - Tag Filter: $_selectedTag');
+    print('  - Location Filter: $_selectedLocation');
+
+    print('\nError Details:');
+    print('  Error Type: ${error.runtimeType}');
+    print('  Error Message: $error');
+
+    // Check if this looks like a Firestore index error
+    final errorString = error.toString().toLowerCase();
+    if (errorString.contains('index') ||
+        errorString.contains('composite') ||
+        errorString.contains('requires an index')) {
+      print('\n🔍 INDEX ERROR DETECTED!');
+      print('This error indicates that a Firestore database index is missing.');
+      print('Follow these steps to resolve:');
+      print('');
+      print('1. Go to Firebase Console: https://console.firebase.google.com/');
+      print('2. Navigate to your project');
+      print('3. Go to Firestore Database > Indexes');
+      print(
+        '4. Look for the suggested index configuration in the error message above',
+      );
+      print('5. Create the composite index as suggested');
+      print('');
+      print(
+        'Alternative: Check the Firebase Console for automatic index creation suggestions.',
+      );
+    }
+
+    // Print current query configuration for debugging
+    print('\nCurrent Query Configuration:');
+    final collection = queryType.contains('Wish') ? 'wishes' : 'experiences';
+    print('  Collection: $collection');
+
+    if (queryType.contains('Wish')) {
+      print('  Base Filter: status == "Open"');
+      if (_selectedLocation != null) {
+        print('  Location Filter: location == "$_selectedLocation"');
+      }
+      if (_selectedDateFilter != null) {
+        print(
+          '  Date Filter: createdAt > ${_getFilterDate(_selectedDateFilter!)}',
+        );
+      }
+      print('  Order By: createdAt DESC');
+      print('  Limit: 50');
+
+      // Suggest required index
+      if (_selectedLocation != null && _selectedDateFilter != null) {
+        print('\n📋 Required Index:');
+        print('  Collection: wishes');
+        print(
+          '  Fields: status (Ascending), location (Ascending), createdAt (Descending)',
+        );
+      } else if (_selectedLocation != null) {
+        print('\n📋 Required Index:');
+        print('  Collection: wishes');
+        print(
+          '  Fields: status (Ascending), location (Ascending), createdAt (Descending)',
+        );
+      } else if (_selectedDateFilter != null) {
+        print('\n📋 Required Index:');
+        print('  Collection: wishes');
+        print('  Fields: status (Ascending), createdAt (Descending)');
+      }
+    } else {
+      print('  Base Filter: status == "active"');
+      if (_selectedLocation != null) {
+        print('  Location Filter: location == "$_selectedLocation"');
+      }
+      if (_selectedTag != null) {
+        print('  Tag Filter: tags array-contains "$_selectedTag"');
+      }
+      if (_selectedDateFilter != null) {
+        print(
+          '  Date Filter: createdAt > ${_getFilterDate(_selectedDateFilter!)}',
+        );
+      }
+      print('  Order By: createdAt DESC');
+      print('  Limit: 50');
+
+      // Suggest required index
+      List<String> indexFields = ['status (Ascending)'];
+      if (_selectedLocation != null) {
+        indexFields.add('location (Ascending)');
+      }
+      if (_selectedTag != null) {
+        indexFields.add('tags (Arrays)');
+      }
+      if (_selectedDateFilter != null ||
+          _selectedTag != null ||
+          _selectedLocation != null) {
+        indexFields.add('createdAt (Descending)');
+      }
+
+      if (indexFields.length > 2) {
+        print('\n📋 Required Index:');
+        print('  Collection: experiences');
+        print('  Fields: ${indexFields.join(', ')}');
+      }
+    }
+
+    // Print stack trace if available
+    if (stackTrace != null) {
+      print('\nStack Trace:');
+      print(stackTrace.toString());
+    }
+
+    print('=' * 80);
+    print('END ERROR DETAILS');
+    print('=' * 80 + '\n');
   }
 }

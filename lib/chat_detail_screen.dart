@@ -85,7 +85,10 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
           _isLoading = false;
         });
       }
-    } catch (e) {
+    } catch (e, stackTrace) {
+      // Print detailed error information to terminal
+      _printDetailedError('Chat Initialization', e, stackTrace);
+
       if (mounted) {
         setState(() {
           _error = 'Error loading conversation: $e';
@@ -134,7 +137,10 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
       }
 
       return true;
-    } catch (e) {
+    } catch (e, stackTrace) {
+      // Print detailed error information to terminal
+      _printDetailedError('Send Message', e, stackTrace);
+
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -477,6 +483,13 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
         }
 
         if (snapshot.hasError) {
+          // Print detailed error information to terminal
+          _printDetailedError(
+            'Messages Stream',
+            snapshot.error,
+            snapshot.stackTrace,
+          );
+
           return Center(
             child: Text(
               'Error loading messages: ${snapshot.error}',
@@ -745,5 +758,134 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
     } else {
       return DateFormat('MMM dd, HH:mm').format(timestamp);
     }
+  }
+
+  /// Print detailed error information to terminal for debugging
+  /// This is especially useful for Firestore database index errors
+  void _printDetailedError(
+    String actionType,
+    dynamic error,
+    StackTrace? stackTrace,
+  ) {
+    print('\n' + '=' * 80);
+    print('🚨 CHAT DETAIL SCREEN ERROR DETAILS');
+    print('=' * 80);
+    print('Action Type: $actionType');
+    print('Screen: Chat Detail Screen');
+    print('Timestamp: ${DateTime.now().toIso8601String()}');
+
+    if (_currentUserId != null) {
+      print('\nUser Context:');
+      print('  - Current User ID: $_currentUserId');
+      print('  - Chat ID: ${widget.chatId}');
+      print('  - Other User: ${widget.userName}');
+
+      if (widget.experience != null) {
+        print('  - Experience Context: ${widget.experience!.experienceId}');
+        print('  - Experience Title: ${widget.experience!.title}');
+        print('  - Experience Location: ${widget.experience!.location}');
+      }
+
+      if (widget.wish != null) {
+        print('  - Wish Context: ${widget.wish!.wishId}');
+        print('  - Wish Title: ${widget.wish!.title}');
+        print('  - Wish Location: ${widget.wish!.location}');
+      }
+    }
+
+    print('\nError Details:');
+    print('  Error Type: ${error.runtimeType}');
+    print('  Error Message: $error');
+
+    // Check if this looks like a Firestore index error
+    final errorString = error.toString().toLowerCase();
+    if (errorString.contains('index') ||
+        errorString.contains('composite') ||
+        errorString.contains('requires an index')) {
+      print('\n🔍 INDEX ERROR DETECTED!');
+      print('This error indicates that a Firestore database index is missing.');
+      print('Follow these steps to resolve:');
+      print('');
+      print('1. Go to Firebase Console: https://console.firebase.google.com/');
+      print('2. Navigate to your project');
+      print('3. Go to Firestore Database > Indexes');
+      print(
+        '4. Look for the suggested index configuration in the error message above',
+      );
+      print('5. Create the composite index as suggested');
+      print('');
+      print(
+        'Alternative: Check the Firebase Console for automatic index creation suggestions.',
+      );
+    }
+
+    // Check for permission errors
+    if (errorString.contains('permission') || errorString.contains('denied')) {
+      print('\n🔒 PERMISSION ERROR DETECTED!');
+      print(
+        'This error indicates insufficient Firestore security rules permissions.',
+      );
+      print(
+        'Check your Firestore security rules for the chats/messages collection.',
+      );
+    }
+
+    // Print current action configuration for debugging
+    print('\nAction Configuration:');
+
+    if (actionType.contains('Chat Initialization')) {
+      print('  Collection: chats/conversations');
+      print('  Operation: Load conversation details and set up message stream');
+      print(
+        '  Scenario: User navigated from Experience/Wish Detail "Contact Host/Wisher" button',
+      );
+      print(
+        '  Actions: getConversationById, listenToMessages, markAsRead, getOtherParticipant',
+      );
+    } else if (actionType.contains('Send Message')) {
+      print('  Collection: chats/messages');
+      print('  Operation: Send new message to conversation');
+      print('  Scenario: User typed and sent a message in chat');
+      print('  Actions: sendMessage with conversation ID and message text');
+    } else if (actionType.contains('Messages Stream')) {
+      print('  Collection: chats/messages');
+      print('  Operation: Listen to real-time messages stream');
+      print('  Scenario: Loading and displaying messages in chat detail view');
+      print(
+        '  Query: Listen to messages where conversationId = chatId, orderBy timestamp',
+      );
+    }
+
+    print('\n💡 Common Chat Detail Index Requirements:');
+    print('  Collection: messages');
+    print('  Typical indexes needed:');
+    print('    - conversationId (Ascending), timestamp (Ascending)');
+    print('    - conversationId (Ascending), timestamp (Descending)');
+    print(
+      '    - senderId (Ascending), conversationId (Ascending), timestamp (Descending)',
+    );
+    print(
+      '    - status (Ascending), conversationId (Ascending), timestamp (Descending)',
+    );
+
+    print('\n  Collection: conversations');
+    print('  Typical indexes needed:');
+    print('    - participants (Arrays), lastMessageTime (Descending)');
+    print(
+      '    - participants (Arrays), experienceId (Ascending), lastMessageTime (Descending)',
+    );
+    print(
+      '    - participants (Arrays), wishId (Ascending), lastMessageTime (Descending)',
+    );
+
+    // Print stack trace if available
+    if (stackTrace != null) {
+      print('\nStack Trace:');
+      print(stackTrace.toString());
+    }
+
+    print('=' * 80);
+    print('END ERROR DETAILS');
+    print('=' * 80 + '\n');
   }
 }

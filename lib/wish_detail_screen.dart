@@ -6,7 +6,6 @@ import 'package:flutter/services.dart';
 import 'dart:math';
 import 'models/wish_model.dart';
 import 'models/user_model.dart';
-import 'services/wish_service.dart';
 import 'services/favorites_service.dart';
 import 'services/user_service.dart';
 import 'services/chat_service.dart';
@@ -383,7 +382,10 @@ class _WishDetailScreenState extends State<WishDetailScreen> {
           );
         }
       }
-    } catch (e) {
+    } catch (e, stackTrace) {
+      // Print detailed error information to terminal
+      _printDetailedError('Contact Wisher', e, stackTrace);
+
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -1459,7 +1461,7 @@ class _WishDetailScreenState extends State<WishDetailScreen> {
               const SizedBox(width: 8),
               Text(
                 wish.preferredDate != null
-                    ? DateFormat('MMM dd, yyyy').format(wish.preferredDate!)
+                    ? DateFormat('MMM dd, yyyy').format(wish.preferredDate)
                     : 'Flexible date',
                 style: TextStyle(
                   fontSize: 16,
@@ -1491,5 +1493,109 @@ class _WishDetailScreenState extends State<WishDetailScreen> {
     } else {
       return 'Just now';
     }
+  }
+
+  /// Print detailed error information to terminal for debugging
+  /// This is especially useful for Firestore database index errors
+  void _printDetailedError(
+    String actionType,
+    dynamic error,
+    StackTrace? stackTrace,
+  ) {
+    print('\n' + '=' * 80);
+    print('🚨 CHAT/MESSAGING ERROR DETAILS');
+    print('=' * 80);
+    print('Action Type: $actionType');
+    print('Screen: Wish Detail Screen');
+    print('Timestamp: ${DateTime.now().toIso8601String()}');
+
+    if (_wish != null) {
+      print('\nWish Context:');
+      print('  - Wish ID: ${_wish!.wishId}');
+      print('  - Wisher User ID: ${_wish!.userId}');
+      print('  - Wish Title: ${_wish!.title}');
+      print('  - Wish Location: ${_wish!.location}');
+      if (_wish!.budget != null) {
+        print('  - Budget: ${_wish!.formattedBudget}');
+      }
+    }
+
+    if (_currentUserId != null) {
+      print('\nUser Context:');
+      print('  - Current User ID: $_currentUserId');
+    }
+
+    print('\nError Details:');
+    print('  Error Type: ${error.runtimeType}');
+    print('  Error Message: $error');
+
+    // Check if this looks like a Firestore index error
+    final errorString = error.toString().toLowerCase();
+    if (errorString.contains('index') ||
+        errorString.contains('composite') ||
+        errorString.contains('requires an index')) {
+      print('\n🔍 INDEX ERROR DETECTED!');
+      print('This error indicates that a Firestore database index is missing.');
+      print('Follow these steps to resolve:');
+      print('');
+      print('1. Go to Firebase Console: https://console.firebase.google.com/');
+      print('2. Navigate to your project');
+      print('3. Go to Firestore Database > Indexes');
+      print(
+        '4. Look for the suggested index configuration in the error message above',
+      );
+      print('5. Create the composite index as suggested');
+      print('');
+      print(
+        'Alternative: Check the Firebase Console for automatic index creation suggestions.',
+      );
+    }
+
+    // Check for permission errors
+    if (errorString.contains('permission') || errorString.contains('denied')) {
+      print('\n🔒 PERMISSION ERROR DETECTED!');
+      print(
+        'This error indicates insufficient Firestore security rules permissions.',
+      );
+      print(
+        'Check your Firestore security rules for the chats/conversations collection.',
+      );
+    }
+
+    // Print current action configuration for debugging
+    print('\nAction Configuration:');
+    print('  Collection: chats/conversations');
+    print('  Operation: Create conversation and send message');
+
+    if (actionType.contains('Contact Wisher')) {
+      print('  Scenario: Contact wish creator to help fulfill wish');
+      print(
+        '  Required Fields: participants, wishId, lastMessage, createdAt, updatedAt',
+      );
+    } else if (actionType.contains('Help Fulfill')) {
+      print('  Scenario: Offer to help fulfill the wish with initial message');
+      print(
+        '  Required Fields: participants, wishId, lastMessage, initialMessage, createdAt, updatedAt',
+      );
+    }
+
+    print('\n💡 Common Chat Service Index Requirements:');
+    print('  Collection: chats');
+    print('  Typical indexes needed:');
+    print('    - participants (Arrays), updatedAt (Descending)');
+    print(
+      '    - participants (Arrays), wishId (Ascending), updatedAt (Descending)',
+    );
+    print('    - wishId (Ascending), updatedAt (Descending)');
+
+    // Print stack trace if available
+    if (stackTrace != null) {
+      print('\nStack Trace:');
+      print(stackTrace.toString());
+    }
+
+    print('=' * 80);
+    print('END ERROR DETAILS');
+    print('=' * 80 + '\n');
   }
 }
