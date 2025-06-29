@@ -5,7 +5,7 @@
 export interface WorldIDConfig {
   appId: string;
   apiKey: string;
-  verificationLevel: 'orb' | 'device' | 'phone';
+  verificationLevel: "orb" | "device" | "phone";
   baseUrl: string;
 }
 

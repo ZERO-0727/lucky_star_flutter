@@ -1,20 +1,22 @@
 /**
  * World ID Utility Functions
  */
-import {WorldIDConfig, WorldIDVerificationResponse, VerificationRequest} from '../types/worldid';
-import fetch from 'node-fetch';
+import {WorldIDConfig, WorldIDVerificationResponse, VerificationRequest} from "../types/worldid";
+import * as functions from "firebase-functions";
+import fetch from "node-fetch";
 
 /**
- * Get World ID configuration from environment variables
+ * Get World ID configuration from Firebase Functions config
  */
 export function getWorldIDConfig(): WorldIDConfig {
-  const appId = process.env.WORLD_ID_APP_ID;
-  const apiKey = process.env.WORLD_ID_API_KEY;
-  const verificationLevel = (process.env.WORLD_ID_VERIFICATION_LEVEL || 'orb') as 'orb' | 'device' | 'phone';
-  const baseUrl = process.env.WORLD_ID_API_BASE_URL || 'https://developer.worldcoin.org/api/v1';
+  const config = functions.config();
+  const appId = config.worldid?.app_id;
+  const apiKey = config.worldid?.api_key;
+  const verificationLevel = (config.worldid?.verification_level || "orb") as "orb" | "device" | "phone";
+  const baseUrl = config.worldid?.api_base_url || "https://developer.worldcoin.org/api/v1";
 
   if (!appId || !apiKey) {
-    throw new Error('World ID configuration missing. Please set WORLD_ID_APP_ID and WORLD_ID_API_KEY environment variables.');
+    throw new Error("World ID configuration missing. Please set worldid.app_id and worldid.api_key using Firebase Functions config.");
   }
 
   return {
@@ -43,10 +45,10 @@ export async function verifyWorldIDProof(
 ): Promise<WorldIDVerificationResponse> {
   try {
     const response = await fetch(`${config.baseUrl}/verify/${config.appId}`, {
-      method: 'POST',
+      method: "POST",
       headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${config.apiKey}`,
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${config.apiKey}`,
       },
       body: JSON.stringify({
         nullifier_hash: proof.nullifier_hash,
@@ -58,26 +60,28 @@ export async function verifyWorldIDProof(
     });
 
     if (!response.ok) {
-      const errorData = await response.json();
-      console.error('World ID verification failed:', errorData);
+      const errorData = await response.json() as any;
+      console.error("World ID verification failed:", errorData);
       return {
         success: false,
-        detail: errorData.detail || 'Verification failed',
-        code: errorData.code || 'VERIFICATION_ERROR',
+        detail: errorData.detail || "Verification failed",
+        code: errorData.code || "VERIFICATION_ERROR",
       };
     }
 
-    const data = await response.json();
+    const data = await response.json() as any;
     return {
       success: true,
-      ...data,
+      detail: data.detail || "Verification successful",
+      code: data.code || "SUCCESS",
+      attribute: data,
     };
   } catch (error) {
-    console.error('Error verifying World ID proof:', error);
+    console.error("Error verifying World ID proof:", error);
     return {
       success: false,
-      detail: 'Network error during verification',
-      code: 'NETWORK_ERROR',
+      detail: "Network error during verification",
+      code: "NETWORK_ERROR",
     };
   }
 }
@@ -88,7 +92,7 @@ export async function verifyWorldIDProof(
 export function generateWorldIDVerificationUrl(
   appId: string,
   signal: string,
-  action: string = 'verify'
+  action = "verify"
 ): string {
   const params = new URLSearchParams({
     app_id: appId,
@@ -114,7 +118,7 @@ export function validateNullifierHash(nullifierHash: string): boolean {
 export function validateProof(proof: string): boolean {
   try {
     // Basic validation - proof should be a valid JSON string or hex string
-    if (proof.startsWith('{') && proof.endsWith('}')) {
+    if (proof.startsWith("{") && proof.endsWith("}")) {
       JSON.parse(proof);
       return true;
     }
@@ -126,16 +130,18 @@ export function validateProof(proof: string): boolean {
 }
 
 /**
- * Get trust score boost amount from environment
+ * Get trust score boost amount from Firebase Functions config
  */
 export function getTrustScoreBoost(): number {
-  const boost = process.env.TRUST_SCORE_BOOST;
+  const config = functions.config();
+  const boost = config.worldid?.trust_score_boost;
   return boost ? parseInt(boost, 10) : 50;
 }
 
 /**
- * Get verification badge name from environment
+ * Get verification badge name from Firebase Functions config
  */
 export function getVerificationBadgeName(): string {
-  return process.env.VERIFICATION_BADGE_NAME || 'World ID Verified';
+  const config = functions.config();
+  return config.worldid?.verification_badge_name || "World ID Verified";
 }

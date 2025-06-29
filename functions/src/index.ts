@@ -7,4 +7,4 @@ export {
   initWorldIDVerification,
   verifyWorldIDProof,
   getWorldIDVerificationStatus,
-} from './worldid/verification';
+} from "./worldid/verification";
