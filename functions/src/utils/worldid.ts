@@ -28,6 +28,14 @@ export function getWorldIDConfig(): WorldIDConfig {
 }
 
 /**
+ * Get World ID action from Firebase Functions config
+ */
+export function getWorldIDAction(): string {
+  const config = functions.config();
+  return config.worldid?.action || "world-id-verification";
+}
+
+/**
  * Generate a unique signal for verification
  */
 export function generateSignal(userId: string, action: string): string {
@@ -134,7 +142,7 @@ export function validateProof(proof: string): boolean {
  */
 export function getTrustScoreBoost(): number {
   const config = functions.config();
-  const boost = config.worldid?.trust_score_boost;
+  const boost = config.trust?.score_boost;
   return boost ? parseInt(boost, 10) : 50;
 }
 
@@ -143,5 +151,5 @@ export function getTrustScoreBoost(): number {
  */
 export function getVerificationBadgeName(): string {
   const config = functions.config();
-  return config.worldid?.verification_badge_name || "World ID Verified";
+  return config.verification?.badge_name || "World ID Verified";
 }
