@@ -9,7 +9,7 @@
 	<key>PLIST_VERSION</key>
 	<string>1</string>
 	<key>BUNDLE_ID</key>
-	<string>com.luckystar.ios</string>
+	<string>app.cosmosoul.prod</string>
 	<key>PROJECT_ID</key>
 	<string>luckystar-flutter-12d06</string>
 	<key>STORAGE_BUCKET</key>
@@ -25,6 +25,6 @@
 	<key>IS_SIGNIN_ENABLED</key>
 	<true></true>
 	<key>GOOGLE_APP_ID</key>
-	<string>1:976828644099:ios:f97d07e8775ae08bde8736</string>
+	<string>1:976828644099:ios:75cb2660deb1eca4de8736</string>
 </dict>
 </plist>
