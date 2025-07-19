@@ -7,9 +7,9 @@
   "client": [
     {
       "client_info": {
-        "mobilesdk_app_id": "1:976828644099:android:34a7e88c9a45d92bde8736",
+        "mobilesdk_app_id": "1:976828644099:android:6ad39ee936b0837ade8736",
         "android_client_info": {
-          "package_name": "com.luckystar.app"
+          "package_name": "app.cosmosoul.prod"
         }
       },
       "oauth_client": [],

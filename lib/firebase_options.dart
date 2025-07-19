@@ -21,10 +21,7 @@ class DefaultFirebaseOptions {
     }
     switch (defaultTargetPlatform) {
       case TargetPlatform.android:
-        throw UnsupportedError(
-          'DefaultFirebaseOptions have not been configured for android - '
-          'you can reconfigure this by running the FlutterFire CLI again.',
-        );
+        return android;
       case TargetPlatform.iOS:
         return ios;
       case TargetPlatform.macOS:
@@ -51,20 +48,29 @@ class DefaultFirebaseOptions {
 
   static const FirebaseOptions web = FirebaseOptions(
     apiKey: 'AIzaSyDZHw72q3lKCqFhdtNtYLTuVA94Wzqod7E',
-    appId: '1:976828644099:web:b44516c9617f98cbde8736',
+    appId: '1:976828644099:web:6968ad1553113d0ede8736',
     messagingSenderId: '976828644099',
     projectId: 'luckystar-flutter-12d06',
     authDomain: 'luckystar-flutter-12d06.firebaseapp.com',
     storageBucket: 'luckystar-flutter-12d06.firebasestorage.app',
-    measurementId: 'G-609SFVYNDW',
+    measurementId: 'G-CNR1YFP1ZG',
+  );
+
+  static const FirebaseOptions android = FirebaseOptions(
+    apiKey: 'AIzaSyBQTJdoRMMQn7RtX4ML5UBBvLgyQN9ctG0',
+    appId: '1:976828644099:android:6ad39ee936b0837ade8736',
+    messagingSenderId: '976828644099',
+    projectId: 'luckystar-flutter-12d06',
+    storageBucket: 'luckystar-flutter-12d06.firebasestorage.app',
   );
 
   static const FirebaseOptions ios = FirebaseOptions(
     apiKey: 'AIzaSyBLbYwteJqvPJt6OiydLwPsEp6-1b7K2pw',
-    appId: '1:976828644099:ios:f97d07e8775ae08bde8736',
+    appId: '1:976828644099:ios:75cb2660deb1eca4de8736',
     messagingSenderId: '976828644099',
     projectId: 'luckystar-flutter-12d06',
     storageBucket: 'luckystar-flutter-12d06.firebasestorage.app',
-    iosBundleId: 'com.luckystar.ios',
+    iosBundleId: 'app.cosmosoul.prod',
   );
+
 }

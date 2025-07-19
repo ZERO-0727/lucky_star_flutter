@@ -418,8 +418,8 @@ class AuthService {
         final actionCodeSettings = ActionCodeSettings(
           url: 'https://luckystar-flutter-12d06.firebaseapp.com',
           handleCodeInApp: true,
-          androidPackageName: 'com.luckystar.android',
-          iOSBundleId: 'com.luckystar.ios',
+          androidPackageName: 'app.cosmosoul.prod',
+          iOSBundleId: 'app.cosmosoul.prod',
         );
 
         // Send the verification email with ActionCodeSettings
