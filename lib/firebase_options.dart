@@ -72,4 +72,5 @@ class DefaultFirebaseOptions {
     storageBucket: 'luckystar-flutter-12d06.firebasestorage.app',
     iosBundleId: 'app.cosmosoul.prod',
   );
+
 }
