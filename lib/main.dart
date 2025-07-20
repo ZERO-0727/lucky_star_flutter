@@ -32,6 +32,8 @@ import 'chat_list_screen.dart';
 import 'chat_detail_screen.dart';
 import 'favorites_list_screen.dart';
 import 'about_cosmosoul_page.dart';
+import 'all_favorite_wishes_page.dart';
+import 'all_favorite_experiences_page.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -156,6 +158,9 @@ class CosmoSoulApp extends StatelessWidget {
         '/chat-list': (context) => const ChatListScreen(),
         '/favorites-list': (context) => const FavoritesListScreen(),
         '/about-cosmosoul': (context) => const AboutCosmosoulPage(),
+        '/all-favorite-wishes': (context) => const AllFavoriteWishesPage(),
+        '/all-favorite-experiences':
+            (context) => const AllFavoriteExperiencesPage(),
       },
       onGenerateRoute: (settings) {
         switch (settings.name) {

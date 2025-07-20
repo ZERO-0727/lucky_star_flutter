@@ -312,8 +312,6 @@ class _MyPageState extends State<MyPage> with SingleTickerProviderStateMixin {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 _buildProfileHeader(),
-                _buildStatisticsPanel(),
-                _buildTabsSection(),
                 _buildTagSection('Languages', _currentUser!.languages),
                 _buildTagSection('Interests', _currentUser!.interests),
                 const SizedBox(height: 30),
