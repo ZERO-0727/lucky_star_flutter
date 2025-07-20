@@ -66,7 +66,7 @@ class _ChatListScreenState extends State<ChatListScreen> {
         backgroundColor: Colors.white,
         elevation: 0,
         title: const Text(
-          'Inbox',
+          'Soul Talk',
           style: TextStyle(
             fontSize: 28,
             fontWeight: FontWeight.w600,
@@ -76,8 +76,20 @@ class _ChatListScreenState extends State<ChatListScreen> {
         centerTitle: false,
         actions: [
           IconButton(
-            icon: const Icon(Icons.refresh, color: Colors.black),
-            onPressed: _initializeChats,
+            icon: const Icon(
+              Icons.notifications_none_outlined,
+              color: Colors.black,
+            ),
+            onPressed: () {
+              // TODO: Implement notification center
+              // Show friend requests, new experience messages, system announcements
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('Notification center coming soon!'),
+                  duration: Duration(seconds: 2),
+                ),
+              );
+            },
           ),
         ],
       ),

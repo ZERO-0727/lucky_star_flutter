@@ -1,7 +1,7 @@
 # Debugging: Blank Screen on Launch (Flutter Web)
 
 ## Task Description
-After setting up the main navigation with five tabs (Home, Plaza, Wish Wall, User Plaza, Chat), the app compiles and launches in Chrome without errors. However, the screen remains completely blank (white screen), and no UI is visible.
+After setting up the main navigation with five tabs (Home, Plaza, Wish Wall, Soul Plaza, Chat), the app compiles and launches in Chrome without errors. However, the screen remains completely blank (white screen), and no UI is visible.
 
 ## What We've Verified
 - main.dart is correctly pointing to LuckyStarApp(), which sets MainNavigation() as the home.

@@ -42,8 +42,6 @@ class PostExperienceScreen extends StatefulWidget {
 
 class _PostExperienceScreenState extends State<PostExperienceScreen> {
   final _formKey = GlobalKey<FormState>();
-  DateTime? _selectedDate;
-  TimeOfDay? _selectedTime;
   final List<String> _categories = [
     'Food',
     'Sport',
@@ -504,29 +502,6 @@ class _PostExperienceScreenState extends State<PostExperienceScreen> {
     }
   }
 
-  // Basic form functions
-  Future<void> _selectDate(BuildContext context) async {
-    final DateTime? picked = await showDatePicker(
-      context: context,
-      initialDate: DateTime.now(),
-      firstDate: DateTime.now(),
-      lastDate: DateTime(DateTime.now().year + 1),
-    );
-    if (picked != null && picked != _selectedDate) {
-      setState(() => _selectedDate = picked);
-    }
-  }
-
-  Future<void> _selectTime(BuildContext context) async {
-    final TimeOfDay? picked = await showTimePicker(
-      context: context,
-      initialTime: TimeOfDay.now(),
-    );
-    if (picked != null && picked != _selectedTime) {
-      setState(() => _selectedTime = picked);
-    }
-  }
-
   // Submit form - just updates metadata, images already uploaded
   Future<void> _submitForm() async {
     if (!_formKey.currentState!.validate()) {
@@ -583,9 +558,15 @@ class _PostExperienceScreenState extends State<PostExperienceScreen> {
       if (proceed != true) return;
     }
 
-    if (_selectedDate == null || _selectedTime == null) {
+    // Check if at least one image is uploaded successfully
+    final successfulImages =
+        _images.where((img) => img.status == ImageStatus.success).toList();
+    if (successfulImages.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please select date and time')),
+        const SnackBar(
+          content: Text('Please upload at least one image'),
+          backgroundColor: Colors.orange,
+        ),
       );
       return;
     }
@@ -609,21 +590,12 @@ class _PostExperienceScreenState extends State<PostExperienceScreen> {
     });
 
     try {
-      // Combine date and time
-      final dateTime = DateTime(
-        _selectedDate!.year,
-        _selectedDate!.month,
-        _selectedDate!.day,
-        _selectedTime!.hour,
-        _selectedTime!.minute,
-      );
-
       if (_currentExperienceId == null) {
         // Create document if it doesn't exist yet
         await _createEmptyExperience();
       }
 
-      // Final form submit - just update the metadata
+      // Final form submit - just update the metadata (no date/time needed)
       await _firestore
           .collection('experiences')
           .doc(_currentExperienceId!)
@@ -634,7 +606,6 @@ class _PostExperienceScreenState extends State<PostExperienceScreen> {
                 _locationController.text.trim().isEmpty
                     ? 'Location TBD'
                     : _locationController.text.trim(),
-            'date': Timestamp.fromDate(dateTime),
             'tags': selectedTags,
             'availableSlots': int.tryParse(_slotsController.text) ?? 1,
             'updatedAt': FieldValue.serverTimestamp(),
@@ -896,92 +867,6 @@ class _PostExperienceScreenState extends State<PostExperienceScreen> {
                   }
                   return null;
                 },
-              ),
-              const SizedBox(height: 20),
-
-              // Date & Time Fields
-              Row(
-                children: [
-                  Expanded(
-                    child: InkWell(
-                      onTap: () => _selectDate(context),
-                      child: Container(
-                        padding: const EdgeInsets.all(20),
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(16),
-                          border: Border.all(color: Colors.grey.shade300),
-                        ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'Date',
-                              style: TextStyle(
-                                color: Colors.grey.shade600,
-                                fontSize: 12,
-                                fontWeight: FontWeight.w500,
-                              ),
-                            ),
-                            const SizedBox(height: 4),
-                            Text(
-                              _selectedDate != null
-                                  ? DateFormat.yMd().format(_selectedDate!)
-                                  : 'Select date',
-                              style: TextStyle(
-                                fontSize: 16,
-                                color:
-                                    _selectedDate != null
-                                        ? Colors.black
-                                        : Colors.grey.shade500,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 16),
-                  Expanded(
-                    child: InkWell(
-                      onTap: () => _selectTime(context),
-                      child: Container(
-                        padding: const EdgeInsets.all(20),
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(16),
-                          border: Border.all(color: Colors.grey.shade300),
-                        ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'Time',
-                              style: TextStyle(
-                                color: Colors.grey.shade600,
-                                fontSize: 12,
-                                fontWeight: FontWeight.w500,
-                              ),
-                            ),
-                            const SizedBox(height: 4),
-                            Text(
-                              _selectedTime != null
-                                  ? _selectedTime!.format(context)
-                                  : 'Select time',
-                              style: TextStyle(
-                                fontSize: 16,
-                                color:
-                                    _selectedTime != null
-                                        ? Colors.black
-                                        : Colors.grey.shade500,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
               ),
               const SizedBox(height: 32),
 

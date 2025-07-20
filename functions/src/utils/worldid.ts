@@ -2,21 +2,19 @@
  * World ID Utility Functions
  */
 import {WorldIDConfig, WorldIDVerificationResponse, VerificationRequest} from "../types/worldid";
-import * as functions from "firebase-functions";
 import fetch from "node-fetch";
 
 /**
- * Get World ID configuration from Firebase Functions config
+ * Get World ID configuration from environment variables
  */
 export function getWorldIDConfig(): WorldIDConfig {
-  const config = functions.config();
-  const appId = config.worldid?.app_id;
-  const apiKey = config.worldid?.api_key;
-  const verificationLevel = (config.worldid?.verification_level || "orb") as "orb" | "device" | "phone";
-  const baseUrl = config.worldid?.api_base_url || "https://developer.worldcoin.org/api/v1";
+  const appId = process.env.WORLD_ID_APP_ID;
+  const apiKey = process.env.WORLD_ID_API_KEY;
+  const verificationLevel = (process.env.WORLD_ID_VERIFICATION_LEVEL || "orb") as "orb" | "device" | "phone";
+  const baseUrl = process.env.WORLD_ID_API_BASE_URL || "https://developer.worldcoin.org/api/v1";
 
   if (!appId || !apiKey) {
-    throw new Error("World ID configuration missing. Please set worldid.app_id and worldid.api_key using Firebase Functions config.");
+    throw new Error("World ID configuration missing. Please set WORLD_ID_APP_ID and WORLD_ID_API_KEY environment variables.");
   }
 
   return {
@@ -28,11 +26,10 @@ export function getWorldIDConfig(): WorldIDConfig {
 }
 
 /**
- * Get World ID action from Firebase Functions config
+ * Get World ID action from environment variables
  */
 export function getWorldIDAction(): string {
-  const config = functions.config();
-  return config.worldid?.action || "world-id-verification";
+  return process.env.WORLD_ID_ACTION || "world-id-verification";
 }
 
 /**
@@ -138,18 +135,16 @@ export function validateProof(proof: string): boolean {
 }
 
 /**
- * Get trust score boost amount from Firebase Functions config
+ * Get trust score boost amount from environment variables
  */
 export function getTrustScoreBoost(): number {
-  const config = functions.config();
-  const boost = config.trust?.score_boost;
+  const boost = process.env.TRUST_SCORE_BOOST;
   return boost ? parseInt(boost, 10) : 50;
 }
 
 /**
- * Get verification badge name from Firebase Functions config
+ * Get verification badge name from environment variables
  */
 export function getVerificationBadgeName(): string {
-  const config = functions.config();
-  return config.verification?.badge_name || "World ID Verified";
+  return process.env.VERIFICATION_BADGE_NAME || "World ID Verified";
 }

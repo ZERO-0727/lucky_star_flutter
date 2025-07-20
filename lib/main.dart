@@ -30,6 +30,8 @@ import 'screens/image_upload_test_screen.dart';
 import 'experience_detail_screen.dart';
 import 'chat_list_screen.dart';
 import 'chat_detail_screen.dart';
+import 'favorites_list_screen.dart';
+import 'about_cosmosoul_page.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -73,7 +75,7 @@ void main() async {
     }
 
     print('App initialization completed successfully');
-    runApp(const LuckyStarApp());
+    runApp(const CosmoSoulApp());
   } catch (e, stack) {
     print('FATAL ERROR initializing app: $e');
     print('Stack trace: $stack');
@@ -108,13 +110,13 @@ void main() async {
   }
 }
 
-class LuckyStarApp extends StatelessWidget {
-  const LuckyStarApp({super.key});
+class CosmoSoulApp extends StatelessWidget {
+  const CosmoSoulApp({super.key});
 
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Lucky Star',
+      title: 'CosmoSoul',
       theme: ThemeData(
         primarySwatch: Colors.blue,
         useMaterial3: true,
@@ -152,6 +154,8 @@ class LuckyStarApp extends StatelessWidget {
         '/experience-detail':
             (context) => const ExperienceDetailScreen(experienceId: ''),
         '/chat-list': (context) => const ChatListScreen(),
+        '/favorites-list': (context) => const FavoritesListScreen(),
+        '/about-cosmosoul': (context) => const AboutCosmosoulPage(),
       },
       onGenerateRoute: (settings) {
         switch (settings.name) {
@@ -204,20 +208,26 @@ class MainNavigation extends StatefulWidget {
 class _MainNavigationState extends State<MainNavigation> {
   int _currentIndex = 0;
 
-  // Define the 4 core navigation tabs
+  // Define the 4 core navigation tabs (temporarily hiding Plaza)
   final List<Widget> _tabs = [
-    const PlazaFeedScreen(), // 🌍 Plaza Feed
+    // const PlazaFeedScreen(), // 🌍 Plaza Feed - temporarily hidden
     const WishWallScreen(), // 💫 Wish Wall & Explore
-    const UserPlazaScreen(), // 👥 User Plaza
+    const UserPlazaScreen(), // 👥 Soul Plaza
+    const ChatListScreen(), // 💬 Soul Talk - moved to navigation
     const HomeScreen(), // 🏠 Home Page
   ];
 
-  final List<String> _tabLabels = ['Plaza', 'Wish Wall', 'User Plaza', 'Home'];
+  final List<String> _tabLabels = [
+    'Space Station',
+    'Soul Plaza',
+    'Soul Talk',
+    'Home',
+  ];
 
   final List<IconData> _tabIcons = [
-    Icons.explore,
     Icons.star,
     Icons.person,
+    Icons.chat_bubble_outline,
     Icons.home,
   ];
 

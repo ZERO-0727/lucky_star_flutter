@@ -40,8 +40,6 @@ class PostWishScreen extends StatefulWidget {
 
 class _PostWishScreenState extends State<PostWishScreen> {
   final _formKey = GlobalKey<FormState>();
-  DateTime? _selectedDate;
-  TimeOfDay? _selectedTime;
   final List<String> _categories = [
     'Food',
     'Sport',
@@ -492,29 +490,6 @@ class _PostWishScreenState extends State<PostWishScreen> {
     }
   }
 
-  // Basic form functions
-  Future<void> _selectDate(BuildContext context) async {
-    final DateTime? picked = await showDatePicker(
-      context: context,
-      initialDate: DateTime.now().add(const Duration(days: 7)),
-      firstDate: DateTime.now(),
-      lastDate: DateTime(DateTime.now().year + 1),
-    );
-    if (picked != null && picked != _selectedDate) {
-      setState(() => _selectedDate = picked);
-    }
-  }
-
-  Future<void> _selectTime(BuildContext context) async {
-    final TimeOfDay? picked = await showTimePicker(
-      context: context,
-      initialTime: TimeOfDay.now(),
-    );
-    if (picked != null && picked != _selectedTime) {
-      setState(() => _selectedTime = picked);
-    }
-  }
-
   // Submit form - just updates metadata, images already uploaded
   Future<void> _submitForm() async {
     if (!_formKey.currentState!.validate()) {
@@ -571,9 +546,15 @@ class _PostWishScreenState extends State<PostWishScreen> {
       if (proceed != true) return;
     }
 
-    if (_selectedDate == null || _selectedTime == null) {
+    // Check if at least one image is uploaded successfully
+    final successfulImages =
+        _images.where((img) => img.status == ImageStatus.success).toList();
+    if (successfulImages.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please select preferred date and time')),
+        const SnackBar(
+          content: Text('Please upload at least one image'),
+          backgroundColor: Colors.orange,
+        ),
       );
       return;
     }
@@ -597,15 +578,6 @@ class _PostWishScreenState extends State<PostWishScreen> {
     });
 
     try {
-      // Combine date and time
-      final dateTime = DateTime(
-        _selectedDate!.year,
-        _selectedDate!.month,
-        _selectedDate!.day,
-        _selectedTime!.hour,
-        _selectedTime!.minute,
-      );
-
       if (_currentWishId == null) {
         // Create document if it doesn't exist yet
         await _createEmptyWish();
@@ -617,7 +589,7 @@ class _PostWishScreenState extends State<PostWishScreen> {
         budget = double.tryParse(_budgetController.text.trim());
       }
 
-      // Final form submit - just update the metadata
+      // Final form submit - just update the metadata (no date/time needed)
       Map<String, dynamic> updateData = {
         'title': _titleController.text.trim(),
         'description': _descController.text.trim(),
@@ -625,7 +597,6 @@ class _PostWishScreenState extends State<PostWishScreen> {
             _locationController.text.trim().isEmpty
                 ? 'Location TBD'
                 : _locationController.text.trim(),
-        'preferredDate': Timestamp.fromDate(dateTime),
         'categories': selectedTags,
         'updatedAt': FieldValue.serverTimestamp(),
         'status': 'Open', // Mark as active when user submits
@@ -888,92 +859,6 @@ class _PostWishScreenState extends State<PostWishScreen> {
                   ),
                   contentPadding: const EdgeInsets.all(20),
                 ),
-              ),
-              const SizedBox(height: 20),
-
-              // Date & Time Fields
-              Row(
-                children: [
-                  Expanded(
-                    child: InkWell(
-                      onTap: () => _selectDate(context),
-                      child: Container(
-                        padding: const EdgeInsets.all(20),
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(16),
-                          border: Border.all(color: Colors.grey.shade300),
-                        ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'Preferred Date',
-                              style: TextStyle(
-                                color: Colors.grey.shade600,
-                                fontSize: 12,
-                                fontWeight: FontWeight.w500,
-                              ),
-                            ),
-                            const SizedBox(height: 4),
-                            Text(
-                              _selectedDate != null
-                                  ? DateFormat.yMd().format(_selectedDate!)
-                                  : 'Select date',
-                              style: TextStyle(
-                                fontSize: 16,
-                                color:
-                                    _selectedDate != null
-                                        ? Colors.black
-                                        : Colors.grey.shade500,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 16),
-                  Expanded(
-                    child: InkWell(
-                      onTap: () => _selectTime(context),
-                      child: Container(
-                        padding: const EdgeInsets.all(20),
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(16),
-                          border: Border.all(color: Colors.grey.shade300),
-                        ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'Preferred Time',
-                              style: TextStyle(
-                                color: Colors.grey.shade600,
-                                fontSize: 12,
-                                fontWeight: FontWeight.w500,
-                              ),
-                            ),
-                            const SizedBox(height: 4),
-                            Text(
-                              _selectedTime != null
-                                  ? _selectedTime!.format(context)
-                                  : 'Select time',
-                              style: TextStyle(
-                                fontSize: 16,
-                                color:
-                                    _selectedTime != null
-                                        ? Colors.black
-                                        : Colors.grey.shade500,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
               ),
               const SizedBox(height: 32),
 

@@ -301,7 +301,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   const Icon(Icons.star, size: 80, color: Color(0xFF7153DF)),
                   const SizedBox(height: 16),
                   const Text(
-                    'Lucky Star',
+                    'CosmoSoul',
                     textAlign: TextAlign.center,
                     style: TextStyle(
                       fontSize: 28,

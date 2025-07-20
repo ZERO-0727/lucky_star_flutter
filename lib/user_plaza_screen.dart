@@ -143,7 +143,7 @@ class _UserPlazaScreenState extends State<UserPlazaScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('User Plaza'),
+        title: const Text('Soul Plaza'),
         centerTitle: true,
         backgroundColor: const Color(0xFF7153DF),
         foregroundColor: Colors.white,
@@ -211,6 +211,9 @@ class _UserPlazaScreenState extends State<UserPlazaScreen> {
                                           ),
                                     ),
                                   );
+                                },
+                                onFavoriteChanged: () {
+                                  // Optionally refresh the list or show feedback
                                 },
                               );
                             },

@@ -37,7 +37,7 @@ class WelcomePage extends StatelessWidget {
 
                 // Main title in English
                 Text(
-                  'Welcome to Lucky Star',
+                  'Welcome to CosmoSoul',
                   style: GoogleFonts.poppins(
                     fontSize: 32,
                     fontWeight: FontWeight.bold,
@@ -145,7 +145,7 @@ class WelcomePage extends StatelessWidget {
 
                 // Footer text
                 Text(
-                  '© 2025 Lucky Star. All rights reserved.',
+                  '© 2025 CosmoSoul. All rights reserved.',
                   style: GoogleFonts.poppins(
                     fontSize: 12,
                     color: const Color(0xFF808080),

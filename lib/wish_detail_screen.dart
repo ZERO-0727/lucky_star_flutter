@@ -10,6 +10,7 @@ import 'services/favorites_service.dart';
 import 'services/user_service.dart';
 import 'services/chat_service.dart';
 import 'chat_detail_screen.dart';
+import 'user_detail_page.dart';
 
 class WishDetailScreen extends StatefulWidget {
   final String wishId;
@@ -557,24 +558,43 @@ class _WishDetailScreenState extends State<WishDetailScreen> {
             ),
             title: Row(
               children: [
-                // Publisher Avatar with loading states
-                _isLoadingPublisher ||
-                        _publisher == null ||
-                        _publisher!.avatarUrl.isEmpty
-                    ? CircleAvatar(
-                      radius: 18,
-                      backgroundColor: Theme.of(context).primaryColor,
-                      child: const Icon(
-                        Icons.person,
-                        color: Colors.white,
-                        size: 16,
-                      ),
-                    )
-                    : CircleAvatar(
-                      radius: 18,
-                      backgroundImage: NetworkImage(_publisher!.avatarUrl),
-                      backgroundColor: Colors.grey.shade200,
-                    ),
+                // Publisher Avatar with loading states - Tappable
+                GestureDetector(
+                  onTap: () {
+                    if (_publisher != null) {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder:
+                              (context) => UserDetailPage(
+                                userId: _publisher!.userId,
+                                displayName: _publisher!.displayName,
+                              ),
+                        ),
+                      );
+                    }
+                  },
+                  child:
+                      _isLoadingPublisher ||
+                              _publisher == null ||
+                              _publisher!.avatarUrl.isEmpty
+                          ? CircleAvatar(
+                            radius: 18,
+                            backgroundColor: Theme.of(context).primaryColor,
+                            child: const Icon(
+                              Icons.person,
+                              color: Colors.white,
+                              size: 16,
+                            ),
+                          )
+                          : CircleAvatar(
+                            radius: 18,
+                            backgroundImage: NetworkImage(
+                              _publisher!.avatarUrl,
+                            ),
+                            backgroundColor: Colors.grey.shade200,
+                          ),
+                ),
                 const SizedBox(width: 10),
                 Expanded(
                   child: Row(
@@ -751,8 +771,8 @@ class _WishDetailScreenState extends State<WishDetailScreen> {
                   _buildCategories(wish),
                   const SizedBox(height: 24),
 
-                  // Location & Date (matching Experience Detail style)
-                  _buildLocationAndDate(wish),
+                  // Location (matching Experience Detail style)
+                  _buildLocation(wish),
                   const SizedBox(height: 32),
 
                   // Action Buttons - Only show if NOT the current user's post
@@ -1428,7 +1448,7 @@ class _WishDetailScreenState extends State<WishDetailScreen> {
     );
   }
 
-  Widget _buildLocationAndDate(WishModel wish) {
+  Widget _buildLocation(WishModel wish) {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -1436,40 +1456,19 @@ class _WishDetailScreenState extends State<WishDetailScreen> {
         borderRadius: BorderRadius.circular(12),
         border: Border.all(color: Colors.blue.shade200),
       ),
-      child: Column(
+      child: Row(
         children: [
-          Row(
-            children: [
-              Icon(Icons.location_on, color: Colors.blue.shade600),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Text(
-                  wish.location,
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w600,
-                    color: Colors.blue.shade700,
-                  ),
-                ),
+          Icon(Icons.location_on, color: Colors.blue.shade600),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              wish.location,
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w600,
+                color: Colors.blue.shade700,
               ),
-            ],
-          ),
-          const SizedBox(height: 8),
-          Row(
-            children: [
-              Icon(Icons.calendar_today, color: Colors.blue.shade600),
-              const SizedBox(width: 8),
-              Text(
-                wish.preferredDate != null
-                    ? DateFormat('MMM dd, yyyy').format(wish.preferredDate)
-                    : 'Flexible date',
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w600,
-                  color: Colors.blue.shade700,
-                ),
-              ),
-            ],
+            ),
           ),
         ],
       ),

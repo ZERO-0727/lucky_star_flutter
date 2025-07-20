@@ -168,18 +168,6 @@ class FavoritesService {
     }
   }
 
-  // Initialize user favorites (called when user signs up)
-  static Future<void> initializeUserFavorites(String userId) async {
-    try {
-      await _firestore.collection('users').doc(userId).set({
-        'favorite_experiences': [],
-        'favorite_wishes': [],
-      }, SetOptions(merge: true));
-    } catch (e) {
-      print('Error initializing user favorites: $e');
-    }
-  }
-
   // Get favorite experiences count
   static Future<int> getFavoriteExperiencesCount() async {
     final favorites = await getFavoriteExperiences();
@@ -190,5 +178,131 @@ class FavoritesService {
   static Future<int> getFavoriteWishesCount() async {
     final favorites = await getFavoriteWishes();
     return favorites.length;
+  }
+
+  // ==================== USER FAVORITES ====================
+
+  // Add user to favorites using map structure
+  static Future<bool> addUserToFavorites(String userId) async {
+    if (_currentUserId == null) return false;
+
+    try {
+      await _firestore.collection('users').doc(_currentUserId).update({
+        'favorite_users_map.$userId': FieldValue.serverTimestamp(),
+      });
+      return true;
+    } catch (e) {
+      print('Error adding user to favorites: $e');
+      return false;
+    }
+  }
+
+  // Remove user from favorites
+  static Future<bool> removeUserFromFavorites(String userId) async {
+    if (_currentUserId == null) return false;
+
+    try {
+      await _firestore.collection('users').doc(_currentUserId).update({
+        'favorite_users_map.$userId': FieldValue.delete(),
+      });
+      return true;
+    } catch (e) {
+      print('Error removing user from favorites: $e');
+      return false;
+    }
+  }
+
+  // Check if user is favorited
+  static Future<bool> isUserFavorited(String userId) async {
+    if (_currentUserId == null) return false;
+
+    try {
+      final userDoc =
+          await _firestore.collection('users').doc(_currentUserId).get();
+      if (!userDoc.exists) return false;
+
+      final data = userDoc.data() as Map<String, dynamic>?;
+      final favoriteUsersMap =
+          data?['favorite_users_map'] as Map<String, dynamic>?;
+
+      return favoriteUsersMap?.containsKey(userId) ?? false;
+    } catch (e) {
+      print('Error checking if user is favorited: $e');
+      return false;
+    }
+  }
+
+  // Get user's favorite users (returns list of user IDs sorted by most recent)
+  static Future<List<String>> getFavoriteUsers() async {
+    if (_currentUserId == null) return [];
+
+    try {
+      final userDoc =
+          await _firestore.collection('users').doc(_currentUserId).get();
+      if (!userDoc.exists) return [];
+
+      final data = userDoc.data() as Map<String, dynamic>?;
+      final favoriteUsersMap =
+          data?['favorite_users_map'] as Map<String, dynamic>?;
+
+      if (favoriteUsersMap == null || favoriteUsersMap.isEmpty) return [];
+
+      // Convert map to list and sort by timestamp (most recent first)
+      final favoritesList =
+          favoriteUsersMap.entries
+              .map(
+                (entry) => {
+                  'userId': entry.key,
+                  'timestamp': entry.value as Timestamp?,
+                },
+              )
+              .toList();
+
+      favoritesList.sort((a, b) {
+        final aTimestamp = a['timestamp'] as Timestamp?;
+        final bTimestamp = b['timestamp'] as Timestamp?;
+
+        if (aTimestamp == null && bTimestamp == null) return 0;
+        if (aTimestamp == null) return 1;
+        if (bTimestamp == null) return -1;
+
+        return bTimestamp.compareTo(aTimestamp); // Most recent first
+      });
+
+      return favoritesList.map((item) => item['userId'] as String).toList();
+    } catch (e) {
+      print('Error getting favorite users: $e');
+      return [];
+    }
+  }
+
+  // Toggle user favorite status
+  static Future<bool> toggleUserFavorite(String userId) async {
+    final isFavorited = await isUserFavorited(userId);
+
+    if (isFavorited) {
+      return await removeUserFromFavorites(userId);
+    } else {
+      return await addUserToFavorites(userId);
+    }
+  }
+
+  // Get favorite users count
+  static Future<int> getFavoriteUsersCount() async {
+    final favorites = await getFavoriteUsers();
+    return favorites.length;
+  }
+
+  // Initialize user favorites (called when user signs up) - Updated
+  static Future<void> initializeUserFavorites(String userId) async {
+    try {
+      await _firestore.collection('users').doc(userId).set({
+        'favorite_experiences': [],
+        'favorite_wishes': [],
+        'favorite_users': [],
+      }, SetOptions(merge: true));
+    } catch (e) {
+      print('Error initializing user favorites: $e');
+    }
   }
 }

@@ -9,6 +9,7 @@ import 'services/chat_service.dart';
 import 'services/user_service.dart';
 import 'experience_detail_screen.dart';
 import 'wish_detail_screen.dart';
+import 'user_detail_page.dart';
 
 class ChatDetailScreen extends StatefulWidget {
   final String chatId;
@@ -263,24 +264,40 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
       ),
       title: Row(
         children: [
-          CircleAvatar(
-            radius: 20,
-            backgroundColor: Colors.grey.shade300,
-            backgroundImage:
-                widget.userAvatar != null
-                    ? NetworkImage(widget.userAvatar!)
-                    : null,
-            child:
-                widget.userAvatar == null
-                    ? Text(
-                      widget.userName[0].toUpperCase(),
-                      style: const TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w600,
-                        color: Colors.white,
-                      ),
-                    )
-                    : null,
+          GestureDetector(
+            onTap: () {
+              if (_otherUser != null) {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder:
+                        (context) => UserDetailPage(
+                          userId: _otherUser!.userId,
+                          displayName: _otherUser!.displayName,
+                        ),
+                  ),
+                );
+              }
+            },
+            child: CircleAvatar(
+              radius: 20,
+              backgroundColor: Colors.grey.shade300,
+              backgroundImage:
+                  widget.userAvatar != null
+                      ? NetworkImage(widget.userAvatar!)
+                      : null,
+              child:
+                  widget.userAvatar == null
+                      ? Text(
+                        widget.userName[0].toUpperCase(),
+                        style: const TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.white,
+                        ),
+                      )
+                      : null,
+            ),
           ),
           const SizedBox(width: 12),
           Expanded(

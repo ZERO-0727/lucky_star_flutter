@@ -15,10 +15,8 @@ class WorldIDService {
         throw Exception('User not authenticated');
       }
 
-      final idToken = await user.getIdToken();
-
       final callable = _functions.httpsCallable('initWorldIDVerification');
-      final result = await callable.call({'action': 'verify'});
+      final result = await callable.call({});
 
       final data = result.data;
       if (data['success'] == true) {
@@ -67,8 +65,6 @@ class WorldIDService {
         throw Exception('User not authenticated');
       }
 
-      final idToken = await user.getIdToken();
-
       final callable = _functions.httpsCallable('verifyWorldIDProof');
       final result = await callable.call({
         'nullifier_hash': nullifierHash,
@@ -104,10 +100,8 @@ class WorldIDService {
         throw Exception('User not authenticated');
       }
 
-      final idToken = await user.getIdToken();
-
       final callable = _functions.httpsCallable('getWorldIDVerificationStatus');
-      final result = await callable.call();
+      final result = await callable.call({});
 
       final data = result.data;
       return WorldIDStatusResponse(

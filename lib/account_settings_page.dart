@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'feedback_page.dart';
 import 'donation_page.dart';
 import 'user_verification_page.dart';
 import 'screens/auth/account_management_screen.dart';
-import 'screens/auth/change_password_screen.dart'; // Add this import
+import 'screens/auth/change_password_screen.dart';
 import 'services/auth_service.dart';
 import 'welcome_page.dart';
 
@@ -29,13 +30,61 @@ class _AccountSettingsPageState extends State<AccountSettingsPage> {
   ];
 
   @override
+  void initState() {
+    super.initState();
+    _loadDarkModePreference();
+  }
+
+  // Load dark mode preference from SharedPreferences
+  Future<void> _loadDarkModePreference() async {
+    final prefs = await SharedPreferences.getInstance();
+    setState(() {
+      _darkModeEnabled = prefs.getBool('darkModeEnabled') ?? false;
+    });
+  }
+
+  // Save dark mode preference to SharedPreferences
+  Future<void> _saveDarkModePreference(bool value) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool('darkModeEnabled', value);
+  }
+
+  // Toggle dark mode
+  Future<void> _toggleDarkMode(bool value) async {
+    setState(() {
+      _darkModeEnabled = value;
+    });
+    await _saveDarkModePreference(value);
+  }
+
+  // Get theme colors based on dark mode status
+  Color get _backgroundColor =>
+      _darkModeEnabled ? const Color(0xFF121212) : Colors.white;
+  Color get _cardColor =>
+      _darkModeEnabled ? const Color(0xFF1E1E1E) : Colors.white;
+  Color get _textColor => _darkModeEnabled ? Colors.white : Colors.black;
+  Color get _subtitleColor =>
+      _darkModeEnabled ? const Color(0xFFB3B3B3) : const Color(0xFF666666);
+  Color get _dividerColor =>
+      _darkModeEnabled ? const Color(0xFF333333) : const Color(0xFFE0E0E0);
+  Color get _primaryColor =>
+      _darkModeEnabled ? const Color(0xFF9C27B0) : const Color(0xFF7153DF);
+  Color get _accentColor =>
+      _darkModeEnabled ? const Color(0xFF9C27B0) : const Color(0xFFDCCEF9);
+  Color get _iconColor =>
+      _darkModeEnabled ? const Color(0xFF9C27B0) : const Color(0xFF7153DF);
+
+  @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: _backgroundColor,
       appBar: AppBar(
-        title: const Text('Settings'),
+        title: Text('Settings', style: TextStyle(color: _textColor)),
         centerTitle: true,
+        backgroundColor: _backgroundColor,
+        elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
+          icon: Icon(Icons.arrow_back, color: _textColor),
           onPressed: () => Navigator.pop(context),
         ),
       ),
@@ -76,19 +125,19 @@ class _AccountSettingsPageState extends State<AccountSettingsPage> {
   Widget _buildSectionHeader(String title) {
     return Row(
       children: [
-        Expanded(child: Divider(color: Colors.grey[400], thickness: 1)),
+        Expanded(child: Divider(color: _dividerColor, thickness: 1)),
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16),
           child: Text(
             title,
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 18,
               fontWeight: FontWeight.bold,
-              color: Color(0xFF7153DF),
+              color: _primaryColor,
             ),
           ),
         ),
-        Expanded(child: Divider(color: Colors.grey[400], thickness: 1)),
+        Expanded(child: Divider(color: _dividerColor, thickness: 1)),
       ],
     );
   }
@@ -96,6 +145,7 @@ class _AccountSettingsPageState extends State<AccountSettingsPage> {
   Widget _buildProfileSettingsSection() {
     return Card(
       elevation: 2,
+      color: _cardColor,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       child: Padding(
         padding: const EdgeInsets.all(16.0),
@@ -115,7 +165,7 @@ class _AccountSettingsPageState extends State<AccountSettingsPage> {
                 );
               },
             ),
-            const Divider(),
+            Divider(color: _dividerColor),
             _buildSettingsItem(
               icon: Icons.person,
               title: 'Username',
@@ -129,7 +179,7 @@ class _AccountSettingsPageState extends State<AccountSettingsPage> {
                 );
               },
             ),
-            const Divider(),
+            Divider(color: _dividerColor),
             _buildSettingsItem(
               icon: Icons.email,
               title: 'Email',
@@ -141,7 +191,7 @@ class _AccountSettingsPageState extends State<AccountSettingsPage> {
                 );
               },
             ),
-            const Divider(),
+            Divider(color: _dividerColor),
             _buildSettingsItem(
               icon: Icons.phone,
               title: 'Phone Number',
@@ -153,7 +203,7 @@ class _AccountSettingsPageState extends State<AccountSettingsPage> {
                 );
               },
             ),
-            const Divider(),
+            Divider(color: _dividerColor),
             Padding(
               padding: const EdgeInsets.symmetric(vertical: 8.0),
               child: OutlinedButton(
@@ -167,19 +217,22 @@ class _AccountSettingsPageState extends State<AccountSettingsPage> {
                   );
                 },
                 style: OutlinedButton.styleFrom(
-                  foregroundColor: const Color(0xFF7153DF),
-                  side: const BorderSide(color: Color(0xFF7153DF)),
+                  foregroundColor: _primaryColor,
+                  side: BorderSide(color: _primaryColor),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(8),
                   ),
                   padding: const EdgeInsets.symmetric(vertical: 12),
                 ),
-                child: const Row(
+                child: Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    Icon(Icons.lock_outline),
-                    SizedBox(width: 8),
-                    Text('Change Password'),
+                    Icon(Icons.lock_outline, color: _iconColor),
+                    const SizedBox(width: 8),
+                    Text(
+                      'Change Password',
+                      style: TextStyle(color: _textColor),
+                    ),
                   ],
                 ),
               ),
@@ -193,6 +246,7 @@ class _AccountSettingsPageState extends State<AccountSettingsPage> {
   Widget _buildPreferencesSection() {
     return Card(
       elevation: 2,
+      color: _cardColor,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       child: Padding(
         padding: const EdgeInsets.all(16.0),
@@ -204,70 +258,84 @@ class _AccountSettingsPageState extends State<AccountSettingsPage> {
               padding: const EdgeInsets.symmetric(vertical: 8.0),
               child: Row(
                 children: [
-                  const Icon(Icons.language, color: Color(0xFF7153DF)),
+                  Icon(Icons.language, color: _iconColor),
                   const SizedBox(width: 16),
-                  const Text(
+                  Text(
                     'Language',
-                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w500,
+                      color: _textColor,
+                    ),
                   ),
                   const Spacer(),
-                  DropdownButton<String>(
-                    value: _selectedLanguage,
-                    onChanged: (String? newValue) {
-                      if (newValue != null) {
-                        setState(() {
-                          _selectedLanguage = newValue;
-                        });
-                      }
-                    },
-                    items:
-                        _availableLanguages.map<DropdownMenuItem<String>>((
-                          String value,
-                        ) {
-                          return DropdownMenuItem<String>(
-                            value: value,
-                            child: Text(value),
-                          );
-                        }).toList(),
-                    underline: Container(),
+                  Theme(
+                    data: Theme.of(context).copyWith(canvasColor: _cardColor),
+                    child: DropdownButton<String>(
+                      value: _selectedLanguage,
+                      onChanged: (String? newValue) {
+                        if (newValue != null) {
+                          setState(() {
+                            _selectedLanguage = newValue;
+                          });
+                        }
+                      },
+                      items:
+                          _availableLanguages.map<DropdownMenuItem<String>>((
+                            String value,
+                          ) {
+                            return DropdownMenuItem<String>(
+                              value: value,
+                              child: Text(
+                                value,
+                                style: TextStyle(color: _textColor),
+                              ),
+                            );
+                          }).toList(),
+                      underline: Container(),
+                      dropdownColor: _cardColor,
+                      style: TextStyle(color: _textColor),
+                      iconEnabledColor: _iconColor,
+                    ),
                   ),
                 ],
               ),
             ),
-            const Divider(),
+            Divider(color: _dividerColor),
             // Dark Mode Toggle
             SwitchListTile(
-              title: const Text(
+              title: Text(
                 'Dark Mode',
-                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w500,
+                  color: _textColor,
+                ),
               ),
-              secondary: const Icon(Icons.dark_mode, color: Color(0xFF7153DF)),
+              secondary: Icon(Icons.dark_mode, color: _iconColor),
               value: _darkModeEnabled,
-              onChanged: (bool value) {
-                setState(() {
-                  _darkModeEnabled = value;
-                });
-              },
-              activeColor: const Color(0xFF7153DF),
+              onChanged: _toggleDarkMode,
+              activeColor: _primaryColor,
             ),
-            const Divider(),
+            Divider(color: _dividerColor),
             // Notifications Toggle
             SwitchListTile(
-              title: const Text(
+              title: Text(
                 'Notifications',
-                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w500,
+                  color: _textColor,
+                ),
               ),
-              secondary: const Icon(
-                Icons.notifications,
-                color: Color(0xFF7153DF),
-              ),
+              secondary: Icon(Icons.notifications, color: _iconColor),
               value: _notificationsEnabled,
               onChanged: (bool value) {
                 setState(() {
                   _notificationsEnabled = value;
                 });
               },
-              activeColor: const Color(0xFF7153DF),
+              activeColor: _primaryColor,
             ),
           ],
         ),
@@ -278,6 +346,7 @@ class _AccountSettingsPageState extends State<AccountSettingsPage> {
   Widget _buildAboutAndSupportSection() {
     return Card(
       elevation: 2,
+      color: _cardColor,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       child: Padding(
         padding: const EdgeInsets.all(16.0),
@@ -286,15 +355,12 @@ class _AccountSettingsPageState extends State<AccountSettingsPage> {
           children: [
             _buildSettingsItem(
               icon: Icons.info,
-              title: 'About Lucky Star',
+              title: 'About CosmoSoul',
               onTap: () {
-                // Navigate to about page
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('About page coming soon')),
-                );
+                Navigator.pushNamed(context, '/about-cosmosoul');
               },
             ),
-            const Divider(),
+            Divider(color: _dividerColor),
             _buildSettingsItem(
               icon: Icons.verified_user,
               title: 'Verify Identity',
@@ -317,7 +383,7 @@ class _AccountSettingsPageState extends State<AccountSettingsPage> {
                 );
               },
             ),
-            const Divider(),
+            Divider(color: _dividerColor),
             _buildSettingsItem(
               icon: Icons.privacy_tip,
               title: 'Privacy Policy',
@@ -328,7 +394,7 @@ class _AccountSettingsPageState extends State<AccountSettingsPage> {
                 );
               },
             ),
-            const Divider(),
+            Divider(color: _dividerColor),
             _buildSettingsItem(
               icon: Icons.description,
               title: 'Terms of Service',
@@ -339,7 +405,7 @@ class _AccountSettingsPageState extends State<AccountSettingsPage> {
                 );
               },
             ),
-            const Divider(),
+            Divider(color: _dividerColor),
             _buildSettingsItem(
               icon: Icons.favorite,
               title: 'Support Lucky Star',
@@ -363,13 +429,20 @@ class _AccountSettingsPageState extends State<AccountSettingsPage> {
     required VoidCallback onTap,
   }) {
     return ListTile(
-      leading: Icon(icon, color: const Color(0xFF7153DF)),
+      leading: Icon(icon, color: _iconColor),
       title: Text(
         title,
-        style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
+        style: TextStyle(
+          fontSize: 16,
+          fontWeight: FontWeight.w500,
+          color: _textColor,
+        ),
       ),
-      subtitle: subtitle != null ? Text(subtitle) : null,
-      trailing: const Icon(Icons.chevron_right),
+      subtitle:
+          subtitle != null
+              ? Text(subtitle, style: TextStyle(color: _subtitleColor))
+              : null,
+      trailing: Icon(Icons.chevron_right, color: _subtitleColor),
       onTap: onTap,
       contentPadding: EdgeInsets.zero,
     );

@@ -55,7 +55,7 @@ class _WishWallScreenState extends State<WishWallScreen>
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Wish Wall'),
+        title: const Text('Space Station'),
         actions: [
           IconButton(
             icon: const Icon(Icons.search),
@@ -69,7 +69,7 @@ class _WishWallScreenState extends State<WishWallScreen>
         ],
         bottom: TabBar(
           controller: _tabController,
-          tabs: const [Tab(text: 'Wish Wall'), Tab(text: 'Share Experience')],
+          tabs: const [Tab(text: 'Cosmic Wishes'), Tab(text: 'Unknown Realms')],
         ),
       ),
       body: Column(

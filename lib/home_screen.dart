@@ -6,6 +6,9 @@ import 'trust_reputation_page.dart';
 import 'widgets/upload_progress_bar.dart';
 import 'services/web_image_service.dart';
 import 'services/optimized_image_service.dart';
+import 'services/favorites_service.dart';
+import 'services/user_service.dart';
+import 'models/user_model.dart';
 import 'package:image_picker/image_picker.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -18,12 +21,60 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   late TabController _wishesTabController;
   late TabController _exchangesTabController;
+  List<UserModel> _favoriteUsers = [];
+  bool _isLoadingFavorites = true;
+  final UserService _userService = UserService();
 
   @override
   void initState() {
     super.initState();
     _wishesTabController = TabController(length: 2, vsync: this);
     _exchangesTabController = TabController(length: 3, vsync: this);
+    _loadFavoriteUsers();
+  }
+
+  Future<void> _loadFavoriteUsers() async {
+    try {
+      setState(() {
+        _isLoadingFavorites = true;
+      });
+
+      // Get favorite user IDs (up to 4 most recent)
+      final favoriteUserIds = await FavoritesService.getFavoriteUsers();
+      final List<UserModel> loadedUsers = [];
+
+      // Load user data for each favorite (limit to 4)
+      for (final userId in favoriteUserIds.take(4)) {
+        try {
+          final user = await _userService.getUserById(userId);
+          if (user != null) {
+            loadedUsers.add(user);
+          }
+        } catch (e) {
+          print('Error loading favorite user $userId: $e');
+          // Continue loading other users even if one fails
+        }
+      }
+
+      if (mounted) {
+        setState(() {
+          _favoriteUsers = loadedUsers;
+          _isLoadingFavorites = false;
+        });
+      }
+    } catch (e) {
+      print('Error loading favorite users: $e');
+      if (mounted) {
+        setState(() {
+          _isLoadingFavorites = false;
+        });
+      }
+    }
+  }
+
+  void _onFavoriteChanged() {
+    // Reload favorites when a user is added/removed from favorites
+    _loadFavoriteUsers();
   }
 
   @override
@@ -31,7 +82,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     return Scaffold(
       appBar: AppBar(
         title: const Text(
-          'Lucky Star',
+          'CosmoSoul',
           style: TextStyle(
             color: Colors.white,
             fontWeight: FontWeight.bold,
@@ -45,12 +96,6 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
             icon: const Icon(Icons.notifications, color: Colors.white),
             onPressed: () {
               // TODO: Implement notifications functionality
-            },
-          ),
-          IconButton(
-            icon: const Icon(Icons.chat_bubble_outline, color: Colors.white),
-            onPressed: () {
-              Navigator.pushNamed(context, '/chat-list');
             },
           ),
           IconButton(
@@ -131,7 +176,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          'Welcome to Lucky Star',
+          'Welcome to CosmoSoul',
           style: GoogleFonts.poppins(
             fontSize: 28,
             fontWeight: FontWeight.bold,
@@ -151,40 +196,162 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          'My Connections',
-          style: GoogleFonts.poppins(fontSize: 18, fontWeight: FontWeight.bold),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text(
+              'My LuckyStar',
+              style: GoogleFonts.poppins(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            TextButton(
+              onPressed: () {
+                Navigator.pushNamed(context, '/favorites-list');
+              },
+              child: Text(
+                'See All',
+                style: GoogleFonts.poppins(
+                  fontSize: 14,
+                  color: const Color(0xFF7153DF),
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+          ],
         ),
         const SizedBox(height: 12),
         SizedBox(
-          height: 125, // Increased from 120 to 125 to prevent overflow
-          child: ListView(
-            scrollDirection: Axis.horizontal,
-            children: [
-              _buildConnectionCard(
-                'https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=150',
-                'Emma',
-                'Travel Enthusiast',
-              ),
-              _buildConnectionCard(
-                'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150',
-                'John',
-                'Foodie',
-              ),
-              _buildConnectionCard(
-                'https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=150',
-                'Sarah',
-                'Photographer',
-              ),
-              _buildConnectionCard(
-                'https://images.unsplash.com/photo-1522075469751-3a6694fb2f61?w=150',
-                'Mike',
-                'Tech Expert',
-              ),
-            ],
-          ),
+          height: 125,
+          child:
+              _isLoadingFavorites
+                  ? const Center(
+                    child: CircularProgressIndicator(color: Color(0xFF7153DF)),
+                  )
+                  : _favoriteUsers.isEmpty
+                  ? Center(
+                    child: Text(
+                      'No favorites yet.\nTap ⭐ on user profiles to add them here!',
+                      textAlign: TextAlign.center,
+                      style: GoogleFonts.poppins(
+                        fontSize: 14,
+                        color: Colors.grey[600],
+                      ),
+                    ),
+                  )
+                  : ListView.builder(
+                    scrollDirection: Axis.horizontal,
+                    itemCount: _favoriteUsers.length,
+                    itemBuilder: (context, index) {
+                      final user = _favoriteUsers[index];
+                      return _buildDynamicConnectionCard(user);
+                    },
+                  ),
         ),
       ],
+    );
+  }
+
+  Widget _buildDynamicConnectionCard(UserModel user) {
+    // Get the user's primary interest or use their bio
+    String role = 'LuckyStar User';
+    if (user.interests.isNotEmpty) {
+      role = user.interests.first;
+    } else if (user.bio.isNotEmpty && user.bio.length > 20) {
+      role = '${user.bio.substring(0, 20)}...';
+    }
+
+    return GestureDetector(
+      onTap: () {
+        // Navigate to user detail page
+        Navigator.pushNamed(
+          context,
+          '/user-detail',
+          arguments: {'userId': user.userId, 'displayName': user.displayName},
+        ).then((_) {
+          // Refresh favorites when returning from user detail page
+          _loadFavoriteUsers();
+        });
+      },
+      child: Container(
+        margin: const EdgeInsets.only(right: 12),
+        width: 105,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 80,
+              height: 80,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                border: Border.all(color: const Color(0xFF7153DF), width: 2),
+              ),
+              child: ClipOval(
+                child:
+                    user.avatarUrl.isNotEmpty
+                        ? Image.network(
+                          user.avatarUrl,
+                          fit: BoxFit.cover,
+                          width: 80,
+                          height: 80,
+                          errorBuilder: (context, error, stackTrace) {
+                            return Container(
+                              color: const Color(0xFF7153DF).withOpacity(0.1),
+                              child: Icon(
+                                Icons.person,
+                                color: const Color(0xFF7153DF),
+                                size: 40,
+                              ),
+                            );
+                          },
+                        )
+                        : Container(
+                          decoration: BoxDecoration(
+                            gradient: LinearGradient(
+                              begin: Alignment.topLeft,
+                              end: Alignment.bottomRight,
+                              colors: [
+                                const Color(0xFF7153DF).withOpacity(0.8),
+                                const Color(0xFF9C7EFF).withOpacity(0.6),
+                              ],
+                            ),
+                          ),
+                          child: Center(
+                            child: Text(
+                              user.displayName.isNotEmpty
+                                  ? user.displayName[0].toUpperCase()
+                                  : '?',
+                              style: GoogleFonts.poppins(
+                                fontSize: 24,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.white,
+                              ),
+                            ),
+                          ),
+                        ),
+              ),
+            ),
+            const SizedBox(height: 6),
+            Text(
+              user.displayName,
+              style: GoogleFonts.poppins(
+                fontSize: 14,
+                fontWeight: FontWeight.bold,
+              ),
+              textAlign: TextAlign.center,
+              overflow: TextOverflow.ellipsis,
+            ),
+            Text(
+              role,
+              style: GoogleFonts.poppins(fontSize: 12, color: Colors.grey[600]),
+              textAlign: TextAlign.center,
+              overflow: TextOverflow.ellipsis,
+              maxLines: 1,
+            ),
+          ],
+        ),
+      ),
     );
   }
 

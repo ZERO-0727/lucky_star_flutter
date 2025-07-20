@@ -11,6 +11,7 @@ import 'services/favorites_service.dart';
 import 'services/user_service.dart';
 import 'services/chat_service.dart';
 import 'chat_detail_screen.dart';
+import 'user_detail_page.dart';
 
 class ExperienceDetailScreen extends StatefulWidget {
   final String experienceId;
@@ -540,24 +541,43 @@ class _ExperienceDetailScreenState extends State<ExperienceDetailScreen> {
             ),
             title: Row(
               children: [
-                // Publisher Avatar with loading states
-                _isLoadingPublisher ||
-                        _publisher == null ||
-                        _publisher!.avatarUrl.isEmpty
-                    ? CircleAvatar(
-                      radius: 18,
-                      backgroundColor: Theme.of(context).primaryColor,
-                      child: const Icon(
-                        Icons.person,
-                        color: Colors.white,
-                        size: 16,
-                      ),
-                    )
-                    : CircleAvatar(
-                      radius: 18,
-                      backgroundImage: NetworkImage(_publisher!.avatarUrl),
-                      backgroundColor: Colors.grey.shade200,
-                    ),
+                // Publisher Avatar with loading states - Tappable
+                GestureDetector(
+                  onTap: () {
+                    if (_publisher != null) {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder:
+                              (context) => UserDetailPage(
+                                userId: _publisher!.userId,
+                                displayName: _publisher!.displayName,
+                              ),
+                        ),
+                      );
+                    }
+                  },
+                  child:
+                      _isLoadingPublisher ||
+                              _publisher == null ||
+                              _publisher!.avatarUrl.isEmpty
+                          ? CircleAvatar(
+                            radius: 18,
+                            backgroundColor: Theme.of(context).primaryColor,
+                            child: const Icon(
+                              Icons.person,
+                              color: Colors.white,
+                              size: 16,
+                            ),
+                          )
+                          : CircleAvatar(
+                            radius: 18,
+                            backgroundImage: NetworkImage(
+                              _publisher!.avatarUrl,
+                            ),
+                            backgroundColor: Colors.grey.shade200,
+                          ),
+                ),
                 const SizedBox(width: 10),
                 Expanded(
                   child: Row(
@@ -759,8 +779,8 @@ class _ExperienceDetailScreenState extends State<ExperienceDetailScreen> {
                   _buildTags(experience),
                   const SizedBox(height: 24),
 
-                  // Location & Date
-                  _buildLocationAndDate(experience),
+                  // Location
+                  _buildLocation(experience),
                   const SizedBox(height: 32),
 
                   // Action Buttons - Only show if NOT the current user's post
@@ -1279,7 +1299,7 @@ class _ExperienceDetailScreenState extends State<ExperienceDetailScreen> {
     );
   }
 
-  Widget _buildLocationAndDate(ExperienceModel experience) {
+  Widget _buildLocation(ExperienceModel experience) {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -1287,38 +1307,19 @@ class _ExperienceDetailScreenState extends State<ExperienceDetailScreen> {
         borderRadius: BorderRadius.circular(12),
         border: Border.all(color: Colors.blue.shade200),
       ),
-      child: Column(
+      child: Row(
         children: [
-          Row(
-            children: [
-              Icon(Icons.location_on, color: Colors.blue.shade600),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Text(
-                  experience.location,
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w600,
-                    color: Colors.blue.shade700,
-                  ),
-                ),
+          Icon(Icons.location_on, color: Colors.blue.shade600),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              experience.location,
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w600,
+                color: Colors.blue.shade700,
               ),
-            ],
-          ),
-          const SizedBox(height: 8),
-          Row(
-            children: [
-              Icon(Icons.calendar_today, color: Colors.blue.shade600),
-              const SizedBox(width: 8),
-              Text(
-                _formatDateTime(experience.date),
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w600,
-                  color: Colors.blue.shade700,
-                ),
-              ),
-            ],
+            ),
           ),
         ],
       ),

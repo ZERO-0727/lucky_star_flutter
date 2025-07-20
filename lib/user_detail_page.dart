@@ -4,6 +4,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'models/user_model.dart';
 import 'services/user_service.dart';
 import 'services/chat_service.dart';
+import 'services/favorites_service.dart';
 import 'chat_detail_screen.dart';
 
 class UserDetailPage extends StatefulWidget {
@@ -25,6 +26,8 @@ class _UserDetailPageState extends State<UserDetailPage> {
   final ChatService _chatService = ChatService();
   bool _isLoading = true;
   bool _isSendingMessage = false;
+  bool _isFavorited = false;
+  bool _isToggling = false;
   UserModel? _user;
   String? _errorMessage;
 
@@ -38,6 +41,64 @@ class _UserDetailPageState extends State<UserDetailPage> {
   void initState() {
     super.initState();
     _loadUserData();
+    _checkFavoriteStatus();
+  }
+
+  Future<void> _checkFavoriteStatus() async {
+    if (!_isViewingOwnProfile) {
+      final isFavorited = await FavoritesService.isUserFavorited(widget.userId);
+      if (mounted) {
+        setState(() {
+          _isFavorited = isFavorited;
+        });
+      }
+    }
+  }
+
+  Future<void> _toggleFavorite() async {
+    if (_isToggling || _isViewingOwnProfile) return;
+
+    setState(() {
+      _isToggling = true;
+    });
+
+    try {
+      final success = await FavoritesService.toggleUserFavorite(widget.userId);
+
+      if (success && mounted) {
+        setState(() {
+          _isFavorited = !_isFavorited;
+        });
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              _isFavorited
+                  ? 'Added to My LuckyStar'
+                  : 'Removed from My LuckyStar',
+            ),
+            backgroundColor: _isFavorited ? Colors.green : Colors.orange,
+            duration: const Duration(seconds: 2),
+          ),
+        );
+      }
+    } catch (e) {
+      print('Error toggling favorite: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error updating favorites: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isToggling = false;
+        });
+      }
+    }
   }
 
   Future<void> _loadUserData() async {
@@ -478,14 +539,7 @@ class _UserDetailPageState extends State<UserDetailPage> {
 
   Widget _buildBookmarkButton() {
     return GestureDetector(
-      onTap: () {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Bookmark feature coming soon'),
-            backgroundColor: Colors.blue,
-          ),
-        );
-      },
+      onTap: _isToggling ? null : _toggleFavorite,
       child: Container(
         padding: const EdgeInsets.all(8),
         decoration: BoxDecoration(
@@ -499,7 +553,24 @@ class _UserDetailPageState extends State<UserDetailPage> {
             ),
           ],
         ),
-        child: Icon(Icons.star_border, color: Colors.grey[600], size: 20),
+        child:
+            _isToggling
+                ? SizedBox(
+                  width: 20,
+                  height: 20,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    valueColor: AlwaysStoppedAnimation<Color>(
+                      const Color(0xFF7153DF),
+                    ),
+                  ),
+                )
+                : Icon(
+                  _isFavorited ? Icons.star : Icons.star_border,
+                  color:
+                      _isFavorited ? const Color(0xFF7153DF) : Colors.grey[600],
+                  size: 20,
+                ),
       ),
     );
   }

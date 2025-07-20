@@ -1,22 +1,98 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../models/user_model.dart';
+import '../services/favorites_service.dart';
 
-class UserProfileCard extends StatelessWidget {
+class UserProfileCard extends StatefulWidget {
   final UserModel user;
   final VoidCallback? onTap;
-  final VoidCallback? onBookmark;
-  final bool isBookmarked;
+  final VoidCallback? onFavoriteChanged;
   final bool showDetailedStats;
 
   const UserProfileCard({
     Key? key,
     required this.user,
     this.onTap,
-    this.onBookmark,
-    this.isBookmarked = false,
+    this.onFavoriteChanged,
     this.showDetailedStats = false,
   }) : super(key: key);
+
+  @override
+  State<UserProfileCard> createState() => _UserProfileCardState();
+}
+
+class _UserProfileCardState extends State<UserProfileCard> {
+  bool _isFavorited = false;
+  bool _isToggling = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _checkFavoriteStatus();
+  }
+
+  Future<void> _checkFavoriteStatus() async {
+    final isFavorited = await FavoritesService.isUserFavorited(
+      widget.user.userId,
+    );
+    if (mounted) {
+      setState(() {
+        _isFavorited = isFavorited;
+      });
+    }
+  }
+
+  Future<void> _toggleFavorite() async {
+    if (_isToggling) return;
+
+    setState(() {
+      _isToggling = true;
+    });
+
+    try {
+      final success = await FavoritesService.toggleUserFavorite(
+        widget.user.userId,
+      );
+
+      if (success && mounted) {
+        setState(() {
+          _isFavorited = !_isFavorited;
+        });
+
+        // Notify parent widget about the change
+        widget.onFavoriteChanged?.call();
+
+        // Show feedback
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              _isFavorited
+                  ? 'Added to My LuckyStar'
+                  : 'Removed from My LuckyStar',
+            ),
+            backgroundColor: _isFavorited ? Colors.green : Colors.orange,
+            duration: const Duration(seconds: 2),
+          ),
+        );
+      }
+    } catch (e) {
+      print('Error toggling favorite: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error updating favorites: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isToggling = false;
+        });
+      }
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -26,7 +102,7 @@ class UserProfileCard extends StatelessWidget {
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       clipBehavior: Clip.antiAlias,
       child: InkWell(
-        onTap: onTap,
+        onTap: widget.onTap,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -81,7 +157,7 @@ class UserProfileCard extends StatelessWidget {
   }
 
   Widget _buildOptimizedAvatar() {
-    if (user.avatarUrl.isEmpty) {
+    if (widget.user.avatarUrl.isEmpty) {
       // Fallback gradient background
       return Container(
         decoration: BoxDecoration(
@@ -99,7 +175,7 @@ class UserProfileCard extends StatelessWidget {
 
     return ClipRect(
       child: Image.network(
-        user.avatarUrl,
+        widget.user.avatarUrl,
         width: double.infinity,
         height: 280,
         fit: BoxFit.cover,
@@ -165,7 +241,7 @@ class UserProfileCard extends StatelessWidget {
     String statusText;
     String statusIcon;
 
-    switch (user.status.toLowerCase()) {
+    switch (widget.user.status.toLowerCase()) {
       case 'open to exchange':
       case 'available':
         badgeColor = const Color(0xFF4CAF50); // Green
@@ -221,7 +297,7 @@ class UserProfileCard extends StatelessWidget {
 
   Widget _buildBookmarkButton() {
     return GestureDetector(
-      onTap: onBookmark,
+      onTap: _isToggling ? null : _toggleFavorite,
       child: Container(
         padding: const EdgeInsets.all(8),
         decoration: BoxDecoration(
@@ -235,11 +311,24 @@ class UserProfileCard extends StatelessWidget {
             ),
           ],
         ),
-        child: Icon(
-          isBookmarked ? Icons.star : Icons.star_border,
-          color: isBookmarked ? const Color(0xFF7153DF) : Colors.grey[600],
-          size: 20,
-        ),
+        child:
+            _isToggling
+                ? SizedBox(
+                  width: 20,
+                  height: 20,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    valueColor: AlwaysStoppedAnimation<Color>(
+                      const Color(0xFF7153DF),
+                    ),
+                  ),
+                )
+                : Icon(
+                  _isFavorited ? Icons.star : Icons.star_border,
+                  color:
+                      _isFavorited ? const Color(0xFF7153DF) : Colors.grey[600],
+                  size: 20,
+                ),
       ),
     );
   }
@@ -254,7 +343,7 @@ class UserProfileCard extends StatelessWidget {
           children: [
             Expanded(
               child: Text(
-                user.displayName,
+                widget.user.displayName,
                 style: GoogleFonts.poppins(
                   fontSize: 24,
                   fontWeight: FontWeight.bold,
@@ -274,14 +363,14 @@ class UserProfileCard extends StatelessWidget {
             Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                if (user.isVerified)
+                if (widget.user.isVerified)
                   _buildVerificationBadge(Icons.verified, Colors.blue),
-                if (user.verificationBadges.contains('pro'))
+                if (widget.user.verificationBadges.contains('pro'))
                   _buildVerificationBadge(
                     Icons.workspace_premium,
                     const Color(0xFFFFD700),
                   ),
-                if (user.verificationBadges.contains('web3'))
+                if (widget.user.verificationBadges.contains('web3'))
                   _buildVerificationBadge(
                     Icons.security,
                     const Color(0xFF00E676),
@@ -294,7 +383,7 @@ class UserProfileCard extends StatelessWidget {
         const SizedBox(height: 8),
 
         // Location
-        if (user.location.isNotEmpty) ...[
+        if (widget.user.location.isNotEmpty) ...[
           Row(
             children: [
               Icon(
@@ -305,7 +394,7 @@ class UserProfileCard extends StatelessWidget {
               const SizedBox(width: 4),
               Expanded(
                 child: Text(
-                  user.location,
+                  widget.user.location,
                   style: GoogleFonts.poppins(
                     fontSize: 14,
                     color: Colors.white.withOpacity(0.9),
@@ -326,7 +415,7 @@ class UserProfileCard extends StatelessWidget {
         ],
 
         // Languages
-        if (user.languages.isNotEmpty) ...[
+        if (widget.user.languages.isNotEmpty) ...[
           Row(
             children: [
               Icon(
@@ -337,7 +426,7 @@ class UserProfileCard extends StatelessWidget {
               const SizedBox(width: 4),
               Expanded(
                 child: Text(
-                  user.languages.take(3).join(', '),
+                  widget.user.languages.take(3).join(', '),
                   style: GoogleFonts.poppins(
                     fontSize: 14,
                     color: Colors.white.withOpacity(0.9),
@@ -388,12 +477,12 @@ class UserProfileCard extends StatelessWidget {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               _buildStatItem(
-                '${user.wishesFullfilledCount}',
+                '${widget.user.wishesFullfilledCount}',
                 'Wishes Fulfilled',
                 const Color(0xFF7153DF),
               ),
               _buildStatItem(
-                '${user.experiencesCount}',
+                '${widget.user.experiencesCount}',
                 'Experiences Joined',
                 const Color(0xFF7153DF),
               ),
@@ -434,7 +523,8 @@ class UserProfileCard extends StatelessWidget {
 
   Widget _buildLastActiveWidget() {
     // Calculate days since last active (mock data for now)
-    final daysSinceActive = DateTime.now().difference(user.updatedAt).inDays;
+    final daysSinceActive =
+        DateTime.now().difference(widget.user.updatedAt).inDays;
     String activeText;
 
     if (daysSinceActive == 0) {
@@ -467,7 +557,7 @@ class UserProfileCard extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.end,
       children: [
         Text(
-          '${user.trustScore} / 100',
+          '${widget.user.trustScore} / 100',
           style: GoogleFonts.poppins(
             fontSize: 18,
             fontWeight: FontWeight.bold,
