@@ -132,11 +132,6 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
         }
       });
 
-      // Set the result flag to true so the previous screen knows a message was sent
-      if (Navigator.canPop(context)) {
-        Navigator.pop(context, true);
-      }
-
       return true;
     } catch (e, stackTrace) {
       // Print detailed error information to terminal

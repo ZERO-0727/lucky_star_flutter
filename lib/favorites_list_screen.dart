@@ -3,7 +3,9 @@ import 'package:google_fonts/google_fonts.dart';
 import 'models/user_model.dart';
 import 'services/favorites_service.dart';
 import 'services/user_service.dart';
+import 'services/chat_service.dart';
 import 'user_detail_page.dart';
+import 'chat_detail_screen.dart';
 
 class FavoritesListScreen extends StatefulWidget {
   const FavoritesListScreen({super.key});
@@ -16,6 +18,7 @@ class _FavoritesListScreenState extends State<FavoritesListScreen> {
   List<UserModel> _favoriteUsers = [];
   bool _isLoading = true;
   final UserService _userService = UserService();
+  final ChatService _chatService = ChatService();
 
   @override
   void initState() {
@@ -181,32 +184,36 @@ class _FavoritesListScreenState extends State<FavoritesListScreen> {
       ),
       child: Material(
         color: Colors.transparent,
-        child: InkWell(
-          onTap: () {
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder:
-                    (context) => UserDetailPage(
-                      userId: user.userId,
-                      displayName: user.displayName,
+        child: Padding(
+          padding: const EdgeInsets.all(20),
+          child: Row(
+            children: [
+              // Enhanced User Avatar - Opens Profile
+              GestureDetector(
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder:
+                          (context) => UserDetailPage(
+                            userId: user.userId,
+                            displayName: user.displayName,
+                          ),
                     ),
+                  ).then((_) {
+                    _loadFavoriteUsers();
+                  });
+                },
+                child: _buildModernUserAvatar(user),
               ),
-            ).then((_) {
-              _loadFavoriteUsers();
-            });
-          },
-          borderRadius: BorderRadius.circular(16),
-          child: Padding(
-            padding: const EdgeInsets.all(20),
-            child: Row(
-              children: [
-                // Enhanced User Avatar
-                _buildModernUserAvatar(user),
-                const SizedBox(width: 16),
+              const SizedBox(width: 16),
 
-                // User Information - Expanded to take available space
-                Expanded(
+              // User Information - Opens Chat (Expanded to take available space)
+              Expanded(
+                child: GestureDetector(
+                  onTap: () async {
+                    await _openChatWithUser(user);
+                  },
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
@@ -287,17 +294,71 @@ class _FavoritesListScreenState extends State<FavoritesListScreen> {
                     ],
                   ),
                 ),
+              ),
 
-                const SizedBox(width: 12),
+              const SizedBox(width: 12),
 
-                // Modern Favorite Button
-                _buildModernFavoriteButton(user),
-              ],
-            ),
+              // Modern Favorite Button
+              _buildModernFavoriteButton(user),
+            ],
           ),
         ),
       ),
     );
+  }
+
+  Future<void> _openChatWithUser(UserModel user) async {
+    try {
+      // Show loading indicator
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder:
+            (context) => const Center(
+              child: CircularProgressIndicator(color: Color(0xFF7153DF)),
+            ),
+      );
+
+      // Create or find existing conversation
+      final conversationId = await _chatService.createConversation(
+        otherUserId: user.userId,
+        initialMessage:
+            "Hi! I'd like to connect with you through LuckyStar! 😊",
+      );
+
+      // Close loading dialog
+      if (mounted) Navigator.of(context).pop();
+
+      // Navigate to chat screen
+      if (mounted) {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder:
+                (context) => ChatDetailScreen(
+                  chatId: conversationId,
+                  userName: user.displayName,
+                  userAvatar: user.avatarUrl.isNotEmpty ? user.avatarUrl : null,
+                ),
+          ),
+        );
+      }
+    } catch (e) {
+      // Close loading dialog if still open
+      if (mounted && Navigator.canPop(context)) {
+        Navigator.of(context).pop();
+      }
+
+      print('Error opening chat with user: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to open chat: ${e.toString()}'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
   }
 
   Widget _buildModernUserAvatar(UserModel user) {

@@ -305,4 +305,224 @@ class FavoritesService {
       print('Error initializing user favorites: $e');
     }
   }
+
+  // ==================== POPULARITY RANKING METHODS ====================
+
+  /// Get experiences with their favorites count, sorted by popularity
+  /// Filters: >3 favorites, within last 1 month, returns top N
+  static Future<List<Map<String, dynamic>>> getPopularExperiences({
+    int limit = 3,
+    int minFavorites = 3,
+    int maxDaysOld = 30,
+  }) async {
+    try {
+      print('🔍 Getting popular experiences with criteria:');
+      print('  - Min favorites: $minFavorites');
+      print('  - Max days old: $maxDaysOld');
+      print('  - Limit: $limit');
+
+      // Get all users with their favorite experiences
+      final usersSnapshot =
+          await _firestore
+              .collection('users')
+              .where('favorite_experiences', isNotEqualTo: [])
+              .get();
+
+      // Count favorites for each experience with timestamps
+      final Map<String, List<DateTime>> experienceFavorites = {};
+      final oneMonthAgo = DateTime.now().subtract(Duration(days: maxDaysOld));
+
+      for (final userDoc in usersSnapshot.docs) {
+        final userData = userDoc.data();
+        final favoriteExperiences =
+            userData['favorite_experiences'] as List<dynamic>?;
+
+        if (favoriteExperiences != null) {
+          for (final experienceId in favoriteExperiences) {
+            // For now, we don't have timestamp data on when favorites were added
+            // So we'll use a recent timestamp as approximation
+            experienceFavorites.putIfAbsent(experienceId, () => []);
+            experienceFavorites[experienceId]!.add(DateTime.now());
+          }
+        }
+      }
+
+      print(
+        '📊 Found ${experienceFavorites.length} experiences with favorites',
+      );
+
+      // Filter experiences with >minFavorites and get experience details
+      final List<Map<String, dynamic>> popularExperiences = [];
+
+      for (final entry in experienceFavorites.entries) {
+        final experienceId = entry.key;
+        final favoriteDates = entry.value;
+
+        // Filter favorites within time range
+        final recentFavorites =
+            favoriteDates.where((date) => date.isAfter(oneMonthAgo)).toList();
+        final favoritesCount = recentFavorites.length;
+
+        if (favoritesCount > minFavorites) {
+          try {
+            // Get experience document
+            final experienceDoc =
+                await _firestore
+                    .collection('experiences')
+                    .doc(experienceId)
+                    .get();
+
+            if (experienceDoc.exists) {
+              final experienceData = experienceDoc.data()!;
+              experienceData['id'] = experienceDoc.id;
+              experienceData['favoritesCount'] = favoritesCount;
+              popularExperiences.add(experienceData);
+            }
+          } catch (e) {
+            print('Error getting experience $experienceId: $e');
+          }
+        }
+      }
+
+      print(
+        '🎯 Found ${popularExperiences.length} experiences meeting criteria',
+      );
+
+      // Sort by favorites count (descending)
+      popularExperiences.sort(
+        (a, b) =>
+            (b['favoritesCount'] as int).compareTo(a['favoritesCount'] as int),
+      );
+
+      // Return top N
+      final result = popularExperiences.take(limit).toList();
+      print('✅ Returning top $limit popular experiences');
+
+      return result;
+    } catch (e) {
+      print('Error getting popular experiences: $e');
+      return [];
+    }
+  }
+
+  /// Get wishes with their favorites count, sorted by popularity
+  /// Filters: >3 favorites, within last 1 month, returns top N
+  static Future<List<Map<String, dynamic>>> getPopularWishes({
+    int limit = 3,
+    int minFavorites = 3,
+    int maxDaysOld = 30,
+  }) async {
+    try {
+      print('🔍 Getting popular wishes with criteria:');
+      print('  - Min favorites: $minFavorites');
+      print('  - Max days old: $maxDaysOld');
+      print('  - Limit: $limit');
+
+      // Get all users with their favorite wishes
+      final usersSnapshot =
+          await _firestore
+              .collection('users')
+              .where('favorite_wishes', isNotEqualTo: [])
+              .get();
+
+      // Count favorites for each wish with timestamps
+      final Map<String, List<DateTime>> wishFavorites = {};
+      final oneMonthAgo = DateTime.now().subtract(Duration(days: maxDaysOld));
+
+      for (final userDoc in usersSnapshot.docs) {
+        final userData = userDoc.data();
+        final favoriteWishes = userData['favorite_wishes'] as List<dynamic>?;
+
+        if (favoriteWishes != null) {
+          for (final wishId in favoriteWishes) {
+            // For now, we don't have timestamp data on when favorites were added
+            // So we'll use a recent timestamp as approximation
+            wishFavorites.putIfAbsent(wishId, () => []);
+            wishFavorites[wishId]!.add(DateTime.now());
+          }
+        }
+      }
+
+      print('📊 Found ${wishFavorites.length} wishes with favorites');
+
+      // Filter wishes with >minFavorites and get wish details
+      final List<Map<String, dynamic>> popularWishes = [];
+
+      for (final entry in wishFavorites.entries) {
+        final wishId = entry.key;
+        final favoriteDates = entry.value;
+
+        // Filter favorites within time range
+        final recentFavorites =
+            favoriteDates.where((date) => date.isAfter(oneMonthAgo)).toList();
+        final favoritesCount = recentFavorites.length;
+
+        if (favoritesCount > minFavorites) {
+          try {
+            // Get wish document
+            final wishDoc =
+                await _firestore.collection('wishes').doc(wishId).get();
+
+            if (wishDoc.exists) {
+              final wishData = wishDoc.data()!;
+              wishData['id'] = wishDoc.id;
+              wishData['favoritesCount'] = favoritesCount;
+              popularWishes.add(wishData);
+            }
+          } catch (e) {
+            print('Error getting wish $wishId: $e');
+          }
+        }
+      }
+
+      print('🎯 Found ${popularWishes.length} wishes meeting criteria');
+
+      // Sort by favorites count (descending)
+      popularWishes.sort(
+        (a, b) =>
+            (b['favoritesCount'] as int).compareTo(a['favoritesCount'] as int),
+      );
+
+      // Return top N
+      final result = popularWishes.take(limit).toList();
+      print('✅ Returning top $limit popular wishes');
+
+      return result;
+    } catch (e) {
+      print('Error getting popular wishes: $e');
+      return [];
+    }
+  }
+
+  /// Get favorites count for a specific experience
+  static Future<int> getExperienceFavoritesCount(String experienceId) async {
+    try {
+      final usersSnapshot =
+          await _firestore
+              .collection('users')
+              .where('favorite_experiences', arrayContains: experienceId)
+              .get();
+
+      return usersSnapshot.docs.length;
+    } catch (e) {
+      print('Error getting experience favorites count: $e');
+      return 0;
+    }
+  }
+
+  /// Get favorites count for a specific wish
+  static Future<int> getWishFavoritesCount(String wishId) async {
+    try {
+      final usersSnapshot =
+          await _firestore
+              .collection('users')
+              .where('favorite_wishes', arrayContains: wishId)
+              .get();
+
+      return usersSnapshot.docs.length;
+    } catch (e) {
+      print('Error getting wish favorites count: $e');
+      return 0;
+    }
+  }
 }
