@@ -3,7 +3,6 @@ import 'package:intl/intl.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/services.dart';
-import 'dart:math';
 import 'models/wish_model.dart';
 import 'models/user_model.dart';
 import 'services/favorites_service.dart';
@@ -547,404 +546,96 @@ class _WishDetailScreenState extends State<WishDetailScreen> {
     final wish = _wish!;
 
     return Scaffold(
-      body: CustomScrollView(
-        slivers: [
-          // App Bar with back button + Wisher Info (horizontally aligned)
-          SliverAppBar(
-            leadingWidth: 40, // Slightly reduced width for the back button
-            leading: IconButton(
-              icon: const Icon(Icons.arrow_back, color: Colors.black),
-              onPressed: () => Navigator.of(context).pop(),
+      appBar: AppBar(
+        title: const Text('Wish Details'),
+        actions: [
+          IconButton(
+            icon: Icon(
+              _isFavorited ? Icons.star : Icons.star_border,
+              color: _isFavorited ? Colors.amber : Colors.grey.shade600,
             ),
-            title: Row(
-              children: [
-                // Publisher Avatar with loading states - Tappable
-                GestureDetector(
-                  onTap: () {
-                    if (_publisher != null) {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder:
-                              (context) => UserDetailPage(
-                                userId: _publisher!.userId,
-                                displayName: _publisher!.displayName,
-                              ),
-                        ),
-                      );
-                    }
-                  },
-                  child:
-                      _isLoadingPublisher ||
-                              _publisher == null ||
-                              _publisher!.avatarUrl.isEmpty
-                          ? CircleAvatar(
-                            radius: 18,
-                            backgroundColor: Theme.of(context).primaryColor,
-                            child: const Icon(
-                              Icons.person,
-                              color: Colors.white,
-                              size: 16,
-                            ),
-                          )
-                          : CircleAvatar(
-                            radius: 18,
-                            backgroundImage: NetworkImage(
-                              _publisher!.avatarUrl,
-                            ),
-                            backgroundColor: Colors.grey.shade200,
-                          ),
-                ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: Row(
-                    children: [
-                      Flexible(
-                        child: Text(
-                          _isLoadingPublisher ||
-                                  _publisher == null ||
-                                  _publisher!.displayName.isEmpty
-                              ? 'Wisher: ${_wish!.userId.substring(0, min(8, _wish!.userId.length))}...'
-                              : _publisher!.displayName,
-                          style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.w600,
-                            color: Theme.of(context).primaryColor,
-                          ),
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-
-                      // Pro badge if user has Pro membership
-                      if (_publisher != null && _isProMember)
-                        Container(
-                          margin: const EdgeInsets.only(left: 4),
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 6,
-                            vertical: 2,
-                          ),
-                          decoration: BoxDecoration(
-                            color: Colors.amber.shade700,
-                            borderRadius: BorderRadius.circular(10),
-                          ),
-                          child: const Text(
-                            'PRO',
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontSize: 10,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ),
-                    ],
+            onPressed: _toggleFavorite,
+          ),
+          if (_isCurrentUserAuthor())
+            PopupMenuButton<String>(
+              icon: const Icon(Icons.more_vert),
+              onSelected: _handleMenuAction,
+              itemBuilder: (context) => [
+                const PopupMenuItem(
+                  value: 'share',
+                  child: ListTile(
+                    leading: Icon(Icons.share),
+                    title: Text('Share this post'),
                   ),
                 ),
-              ],
-            ),
-            pinned: true,
-            backgroundColor: Colors.white,
-            elevation: 0,
-            actions: [
-              if (_isCurrentUserAuthor())
-                PopupMenuButton<String>(
-                  icon: const Icon(Icons.more_vert, color: Colors.black),
-                  onSelected: _handleMenuAction,
-                  itemBuilder:
-                      (context) => [
-                        const PopupMenuItem(
-                          value: 'share',
-                          child: ListTile(
-                            leading: Icon(Icons.share),
-                            title: Text('Share this post'),
-                          ),
-                        ),
-                        const PopupMenuItem(
-                          value: 'delete',
-                          child: ListTile(
-                            leading: Icon(Icons.delete, color: Colors.red),
-                            title: Text(
-                              'Delete this post',
-                              style: TextStyle(color: Colors.red),
-                            ),
-                          ),
-                        ),
-                      ],
-                ),
-            ],
-          ),
-
-          // Image Gallery with timestamp overlay at top-right
-          SliverToBoxAdapter(
-            child: Stack(
-              children: [
-                _buildImageGallery(wish.photoUrls),
-
-                // Posted time ago overlay (moved to top-right corner)
-                Positioned(
-                  top: 16,
-                  right: 16,
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 8,
-                      vertical: 4,
-                    ),
-                    decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.85),
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: Colors.grey.withOpacity(0.2)),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(
-                          Icons.access_time,
-                          size: 12,
-                          color: Colors.grey.shade700,
-                        ),
-                        const SizedBox(width: 4),
-                        Text(
-                          _formatTimeAgo(wish.createdAt),
-                          style: TextStyle(
-                            color: Colors.grey.shade800,
-                            fontSize: 12,
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
-                      ],
+                const PopupMenuItem(
+                  value: 'delete',
+                  child: ListTile(
+                    leading: Icon(Icons.delete, color: Colors.red),
+                    title: Text(
+                      'Delete this post',
+                      style: TextStyle(color: Colors.red),
                     ),
                   ),
                 ),
               ],
             ),
-          ),
-
-          // Content
-          SliverToBoxAdapter(
-            child: Padding(
-              padding: const EdgeInsets.all(20.0),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // Title with Star (matching Experience Detail)
-                  Row(
-                    children: [
-                      Expanded(
-                        child: Text(
-                          wish.title,
-                          style: const TextStyle(
-                            fontSize: 28,
-                            fontWeight: FontWeight.bold,
-                            height: 1.2,
-                          ),
-                        ),
-                      ),
-                      IconButton(
-                        icon: Icon(
-                          _isFavorited ? Icons.star : Icons.star_border,
-                          color: Colors.blue.shade600,
-                          size: 28,
-                        ),
-                        onPressed: _toggleFavorite,
-                      ),
-                    ],
-                  ),
-
-                  // Budget display if available
-                  if (wish.budget != null) ...[
-                    const SizedBox(height: 4),
-                    Text(
-                      wish.formattedBudget,
-                      style: TextStyle(
-                        fontSize: 20,
-                        fontWeight: FontWeight.w500,
-                        color: Colors.grey.shade800,
-                      ),
-                    ),
-                  ],
-                  const SizedBox(height: 24),
-
-                  // Description
-                  _buildDescription(wish),
-                  const SizedBox(height: 24),
-
-                  // Categories (matching Experience Detail style)
-                  _buildCategories(wish),
-                  const SizedBox(height: 24),
-
-                  // Location (matching Experience Detail style)
-                  _buildLocation(wish),
-                  const SizedBox(height: 32),
-
-                  // Action Buttons - Only show if NOT the current user's post
-                  if (!_isCurrentUserAuthor()) _buildActionButtons(wish),
-                  const SizedBox(height: 20),
-                ],
-              ),
-            ),
-          ),
         ],
+      ),
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Row 1: User info + date (matching WishCard)
+            _buildUserInfoRow(wish),
+            
+            const SizedBox(height: 12),
+            
+            // Row 2: Category chip (matching WishCard)
+            _buildCategoryChip(wish),
+            
+            const SizedBox(height: 12),
+            
+            // Row 3: Title (matching WishCard but allowing more text)
+            _buildTitle(wish),
+            
+            const SizedBox(height: 12),
+            
+            // Row 4: Description (full description for detail page)
+            _buildDescription(wish),
+            
+            const SizedBox(height: 12),
+            
+            // Row 5: Location and budget
+            _buildLocationBudgetRow(wish),
+            
+            const SizedBox(height: 16),
+            
+                         // Image thumbnails with horizontal scroll
+             if (wish.photoUrls.isNotEmpty) ...[
+               _buildImageThumbnails(wish.photoUrls),
+               const SizedBox(height: 24),
+             ],
+             
+             // Action buttons (if not current user's post)
+             if (!_isCurrentUserAuthor()) _buildActionButtons(wish),
+          ],
+        ),
       ),
     );
   }
 
-  Widget _buildHeader(WishModel wish) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        // Title with star icon on same line
-        Row(
-          children: [
-            Expanded(
-              child: Text(
-                wish.title,
-                style: const TextStyle(
-                  fontSize: 28,
-                  fontWeight: FontWeight.bold,
-                  height: 1.2,
-                ),
-              ),
-            ),
-            IconButton(
-              icon: Icon(
-                _isFavorited ? Icons.star : Icons.star_border,
-                color: Colors.blue.shade600,
-                size: 28,
-              ),
-              onPressed: _toggleFavorite,
-            ),
-          ],
-        ),
-        const SizedBox(height: 12),
-        Row(
-          children: [
-            const CircleAvatar(
-              radius: 20,
-              backgroundColor: Colors.blue,
-              child: Icon(Icons.person, color: Colors.white),
-            ),
-            const SizedBox(width: 12),
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Wisher: ${wish.userId}', // TODO: Get actual user name
-                  style: const TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-                Text(
-                  'Posted ${_formatTimeAgo(wish.createdAt)}',
-                  style: TextStyle(fontSize: 14, color: Colors.grey.shade600),
-                ),
-              ],
-            ),
-            const Spacer(),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-              decoration: BoxDecoration(
-                color: Colors.orange.shade100,
-                borderRadius: BorderRadius.circular(20),
-                border: Border.all(color: Colors.orange.shade300),
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(Icons.star, size: 16, color: Colors.orange.shade700),
-                  const SizedBox(width: 4),
-                  Text(
-                    'Wish',
-                    style: TextStyle(
-                      color: Colors.orange.shade700,
-                      fontWeight: FontWeight.w600,
-                      fontSize: 12,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ],
-    );
-  }
+
 
   Widget _buildDescription(WishModel wish) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const Text(
-          'About this wish',
-          style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-        ),
-        const SizedBox(height: 8),
-        Text(
-          wish.description,
-          style: const TextStyle(fontSize: 16, height: 1.5),
-        ),
-      ],
+    return Text(
+      wish.description,
+      style: const TextStyle(fontSize: 16, height: 1.5),
     );
   }
 
-  Widget _buildDetails(WishModel wish) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.grey.shade50,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.grey.shade200),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text(
-            'Details',
-            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-          ),
-          const SizedBox(height: 12),
-          _buildDetailRow(Icons.location_on, 'Location', wish.location),
-          const SizedBox(height: 8),
-          _buildDetailRow(
-            Icons.schedule,
-            'Preferred Date',
-            wish.preferredDate != null
-                ? _formatDateTime(wish.preferredDate)
-                : 'Flexible',
-          ),
-          const SizedBox(height: 8),
-          _buildDetailRow(
-            Icons.category,
-            'Categories',
-            wish.categories.isNotEmpty ? wish.categories.join(', ') : 'None',
-          ),
-        ],
-      ),
-    );
-  }
 
-  Widget _buildDetailRow(IconData icon, String label, String value) {
-    return Row(
-      children: [
-        Icon(icon, size: 20, color: Colors.grey.shade600),
-        const SizedBox(width: 8),
-        Text(
-          label,
-          style: TextStyle(
-            fontSize: 14,
-            color: Colors.grey.shade600,
-            fontWeight: FontWeight.w500,
-          ),
-        ),
-        const SizedBox(width: 8),
-        Expanded(
-          child: Text(
-            value,
-            style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
-          ),
-        ),
-      ],
-    );
-  }
 
   Widget _buildActionButtons(WishModel wish) {
     return Column(
@@ -990,6 +681,292 @@ class _WishDetailScreenState extends State<WishDetailScreen> {
       ],
     );
   }
+
+  // Row 1: User info row (matching WishCard)
+  Widget _buildUserInfoRow(WishModel wish) {
+    return Row(
+      children: [
+        // Small avatar
+        GestureDetector(
+          onTap: () {
+            if (_publisher != null) {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => UserDetailPage(
+                    userId: _publisher!.userId,
+                    displayName: _publisher!.displayName,
+                  ),
+                ),
+              );
+            }
+          },
+          child: _isLoadingPublisher || _publisher == null || _publisher!.avatarUrl.isEmpty
+              ? CircleAvatar(
+                  radius: 14,
+                  backgroundColor: Colors.grey.shade200,
+                  child: Icon(Icons.person, color: Colors.grey.shade500, size: 14),
+                )
+              : CircleAvatar(
+                  radius: 14,
+                  backgroundImage: NetworkImage(_publisher!.avatarUrl),
+                  backgroundColor: Colors.grey.shade200,
+                ),
+        ),
+        
+        const SizedBox(width: 10),
+        
+        // Username
+        Text(
+          _isLoadingPublisher || _publisher == null || _publisher!.displayName.isEmpty
+              ? 'Anonymous'
+              : _publisher!.displayName,
+          style: const TextStyle(
+            fontSize: 16,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+        
+        const SizedBox(width: 6),
+        
+        // Verification badge
+        if (_publisher != null)
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+            decoration: BoxDecoration(
+              color: Colors.teal.shade50,
+              borderRadius: BorderRadius.circular(4),
+              border: Border.all(color: Colors.teal.shade100),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
+                  Icons.verified,
+                  size: 12,
+                  color: Colors.teal.shade700,
+                ),
+                const SizedBox(width: 2),
+                Text(
+                  "Verified",
+                  style: TextStyle(
+                    fontSize: 10,
+                    fontWeight: FontWeight.w500,
+                    color: Colors.teal.shade700,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        
+        const SizedBox(width: 8),
+        
+        // Separator
+        Text(
+          "・",
+          style: TextStyle(
+            fontSize: 16,
+            color: Colors.grey.shade500,
+          ),
+        ),
+        
+        const SizedBox(width: 8),
+        
+        // Date/time
+        Text(
+          _formatTimeAgo(wish.createdAt),
+          style: TextStyle(
+            fontSize: 16,
+            color: Colors.grey.shade500,
+          ),
+        ),
+        
+        // Pro badge if user has Pro membership
+        if (_publisher != null && _isProMember) ...[
+          const SizedBox(width: 8),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+            decoration: BoxDecoration(
+              gradient: const LinearGradient(
+                colors: [Color(0xFFFFB800), Color(0xFFFF8A00)],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+              borderRadius: BorderRadius.circular(4),
+            ),
+            child: const Text(
+              'PRO',
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 10,
+                fontWeight: FontWeight.bold,
+                letterSpacing: 0.5,
+              ),
+            ),
+          ),
+        ],
+      ],
+    );
+  }
+
+  // Row 2: Category chip (matching WishCard)
+  Widget _buildCategoryChip(WishModel wish) {
+    if (wish.categories.isEmpty) {
+      return const SizedBox.shrink();
+    }
+    
+    final category = wish.categories.first; // Show only first category
+    
+    // Get a consistent color based on the category name
+    final int colorSeed = category.hashCode.abs() % 5;
+    final List<Color> categoryColors = [
+      Colors.purple.shade100,
+      Colors.blue.shade100,
+      Colors.teal.shade100,
+      Colors.amber.shade100,
+      Colors.pink.shade100,
+    ];
+    final List<Color> textColors = [
+      Colors.purple.shade700,
+      Colors.blue.shade700,
+      Colors.teal.shade700,
+      Colors.amber.shade700,
+      Colors.pink.shade700,
+    ];
+
+    return Align(
+      alignment: Alignment.centerLeft,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+        decoration: BoxDecoration(
+          color: categoryColors[colorSeed],
+          borderRadius: BorderRadius.circular(16),
+        ),
+        child: Text(
+          category,
+          style: TextStyle(
+            fontSize: 14,
+            fontWeight: FontWeight.w500,
+            color: textColors[colorSeed],
+          ),
+        ),
+      ),
+    );
+  }
+
+  // Row 3: Title
+  Widget _buildTitle(WishModel wish) {
+    return Text(
+      wish.title,
+      style: const TextStyle(
+        fontSize: 24,
+        fontWeight: FontWeight.bold,
+        height: 1.2,
+      ),
+    );
+  }
+
+  // Row 5: Location and budget row
+  Widget _buildLocationBudgetRow(WishModel wish) {
+    return Row(
+      children: [
+        // Location
+        if (wish.location.isNotEmpty) ...[
+          Icon(
+            Icons.location_on_outlined,
+            size: 16,
+            color: Colors.grey.shade500,
+          ),
+          const SizedBox(width: 4),
+          Flexible(
+            child: Text(
+              wish.location,
+              style: TextStyle(
+                fontSize: 14,
+                color: Colors.grey.shade600,
+              ),
+            ),
+          ),
+        ],
+        
+        const Spacer(),
+        
+        // Budget (if available)
+        if (wish.budget != null && wish.budget! > 0)
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+            decoration: BoxDecoration(
+              color: Colors.green.shade50,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: Colors.green.shade100),
+            ),
+            child: Text(
+              wish.formattedBudget,
+              style: TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
+                color: Colors.green.shade700,
+              ),
+            ),
+          ),
+      ],
+    );
+  }
+
+  // Image thumbnails with horizontal scroll
+  Widget _buildImageThumbnails(List<String> photoUrls) {
+    return SizedBox(
+      height: 200,
+      child: ListView.builder(
+        scrollDirection: Axis.horizontal,
+        itemCount: photoUrls.length,
+        itemBuilder: (context, index) {
+          return Padding(
+            padding: EdgeInsets.only(right: index < photoUrls.length - 1 ? 12 : 0),
+            child: GestureDetector(
+              onTap: () => _showFullscreenImage(context, photoUrls, index),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(12),
+                child: Container(
+                  width: 200,
+                  height: 200,
+                  color: Colors.grey.shade100,
+                  child: Image.network(
+                    photoUrls[index],
+                    fit: BoxFit.cover,
+                    errorBuilder: (context, error, stackTrace) {
+                      return Container(
+                        color: Colors.grey.shade300,
+                        child: const Icon(
+                          Icons.broken_image,
+                          size: 60,
+                          color: Colors.grey,
+                        ),
+                      );
+                    },
+                    loadingBuilder: (context, child, loadingProgress) {
+                      if (loadingProgress == null) return child;
+                      return Center(
+                        child: CircularProgressIndicator(
+                          value: loadingProgress.expectedTotalBytes != null
+                              ? loadingProgress.cumulativeBytesLoaded /
+                                  loadingProgress.expectedTotalBytes!
+                              : null,
+                          strokeWidth: 3,
+                        ),
+                      );
+                    },
+                  ),
+                ),
+              ),
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+
 
   Widget _buildImageGallery(List<String> photoUrls) {
     if (photoUrls.isEmpty) {

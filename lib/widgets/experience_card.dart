@@ -1,11 +1,9 @@
 import 'package:flutter/material.dart';
-import 'dart:math';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/experience_model.dart';
 import '../models/user_model.dart';
 import '../experience_detail_screen.dart';
 import '../services/user_service.dart';
-import 'shared/card_image.dart';
 
 class ExperienceCard extends StatefulWidget {
   final ExperienceModel experience;
@@ -34,12 +32,9 @@ class _ExperienceCardState extends State<ExperienceCard>
   late AnimationController _animationController;
   late Animation<double> _scaleAnimation;
   bool _isHovered = false;
-  bool _isPressed = false;
 
   // Design tokens
-  static const Color _primaryTextColor = Color(0xFF1A1A1A);
   static const Color _secondaryTextColor = Color(0xFF666666);
-  static const Color _auxiliaryTextColor = Color(0xFF999999);
   static const Color _brandColor = Color(0xFF6B46C1); // Purple brand color
   static const Color _cardBackgroundColor = Colors.white;
   static const Color _infoAreaBackgroundColor = Color(0xFFFAFAFA);
@@ -117,15 +112,12 @@ class _ExperienceCardState extends State<ExperienceCard>
             onExit: (_) => setState(() => _isHovered = false),
             child: GestureDetector(
               onTapDown: (_) {
-                setState(() => _isPressed = true);
                 _animationController.forward();
               },
               onTapUp: (_) {
-                setState(() => _isPressed = false);
                 _animationController.reverse();
               },
               onTapCancel: () {
-                setState(() => _isPressed = false);
                 _animationController.reverse();
               },
               onTap: () {
@@ -205,23 +197,26 @@ class _ExperienceCardState extends State<ExperienceCard>
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          // User info section
+                          // Content area with improved structure
                           Padding(
                             padding: const EdgeInsets.all(16),
-                            child: _buildUserInfo(),
-                          ),
-
-                          // Subtle separator
-                          Container(
-                            height: 1,
-                            margin: const EdgeInsets.symmetric(horizontal: 16),
-                            color: Colors.grey.withOpacity(0.1),
-                          ),
-
-                          // Main content section
-                          Padding(
-                            padding: const EdgeInsets.all(16),
-                            child: _buildContentSection(),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                // Row 1: User info + date
+                                _buildUserInfoRow(),
+                                
+                                const SizedBox(height: 8),
+                                
+                                // Row 2: Category chip
+                                _buildCategoryChip(),
+                                
+                                const SizedBox(height: 8),
+                                
+                                // Row 3: Title + Row 4: Description + Row 5: Location/Slots
+                                _buildMainContent(),
+                              ],
+                            ),
                           ),
                         ],
                       ),
@@ -240,11 +235,59 @@ class _ExperienceCardState extends State<ExperienceCard>
   Widget _buildImageHeader() {
     return Stack(
       children: [
-        // Use the unified CardImage component
-        CardImage(
-          photoUrls: widget.experience.photoUrls,
-          height: 180,
-          progressIndicatorColor: _brandColor,
+        // Full cover image without empty spaces
+        ClipRRect(
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
+          child: Container(
+            height: 180,
+            width: double.infinity,
+            child: widget.experience.photoUrls.isNotEmpty
+                ? Image.network(
+                    widget.experience.photoUrls.first,
+                    height: 180,
+                    width: double.infinity,
+                    fit: BoxFit.cover, // This ensures full coverage with cropping
+                    errorBuilder: (context, error, stackTrace) {
+                      return Container(
+                        height: 180,
+                        width: double.infinity,
+                        color: Colors.grey.shade300,
+                        child: const Icon(
+                          Icons.broken_image,
+                          size: 60,
+                          color: Colors.grey,
+                        ),
+                      );
+                    },
+                    loadingBuilder: (context, child, loadingProgress) {
+                      if (loadingProgress == null) return child;
+                      return Container(
+                        height: 180,
+                        width: double.infinity,
+                        color: Colors.grey.shade100,
+                        child: Center(
+                          child: CircularProgressIndicator(
+                            value: loadingProgress.expectedTotalBytes != null
+                                ? loadingProgress.cumulativeBytesLoaded /
+                                    loadingProgress.expectedTotalBytes!
+                                : null,
+                            color: _brandColor,
+                          ),
+                        ),
+                      );
+                    },
+                  )
+                : Container(
+                    height: 180,
+                    width: double.infinity,
+                    color: Colors.grey.shade200,
+                    child: const Icon(
+                      Icons.explore,
+                      size: 60,
+                      color: Colors.grey,
+                    ),
+                  ),
+          ),
         ),
 
         // Favorite button
@@ -288,310 +331,268 @@ class _ExperienceCardState extends State<ExperienceCard>
     );
   }
 
-  // Host info row with improved layout
-  Widget _buildUserInfo() {
+  // Row 1: User info + date (similar to WishCard)
+  Widget _buildUserInfoRow() {
     return Row(
-      crossAxisAlignment: CrossAxisAlignment.center,
       children: [
-        // User Avatar (32px as per requirements)
+        // Small avatar
         _isLoading || _publisher == null || _publisher!.avatarUrl.isEmpty
             ? CircleAvatar(
-              radius: 16, // 32px diameter
-              backgroundColor: Colors.grey.shade200,
-              child: Icon(Icons.person, color: Colors.grey.shade500, size: 16),
-            )
+                radius: 12,
+                backgroundColor: Colors.grey.shade200,
+                child: Icon(Icons.person, color: Colors.grey.shade500, size: 12),
+              )
             : CircleAvatar(
-              radius: 16, // 32px diameter
-              backgroundImage: NetworkImage(_publisher!.avatarUrl),
-              backgroundColor: Colors.grey.shade200,
-            ),
+                radius: 12,
+                backgroundImage: NetworkImage(_publisher!.avatarUrl),
+                backgroundColor: Colors.grey.shade200,
+              ),
+        
         const SizedBox(width: 8),
-
-        // Username + badges
-        Expanded(
-          child: Row(
-            children: [
-              // Username
-              Flexible(
-                child: Text(
-                  _isLoading ||
-                          _publisher == null ||
-                          _publisher!.displayName.isEmpty
-                      ? 'Host'
-                      : _publisher!.displayName,
+        
+        // Username
+        Text(
+          _isLoading || _publisher == null || _publisher!.displayName.isEmpty
+              ? 'Host'
+              : _publisher!.displayName,
+          style: const TextStyle(
+            fontSize: 14,
+            fontWeight: FontWeight.w500,
+          ),
+        ),
+        
+        const SizedBox(width: 4),
+        
+        // Verification badge
+        if (_publisher != null)
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+            decoration: BoxDecoration(
+              color: Colors.teal.shade50,
+              borderRadius: BorderRadius.circular(3),
+              border: Border.all(color: Colors.teal.shade100),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
+                  Icons.verified,
+                  size: 10,
+                  color: Colors.teal.shade700,
+                ),
+                const SizedBox(width: 2),
+                Text(
+                  "Verified",
                   style: TextStyle(
-                    fontSize: 14,
+                    fontSize: 8,
                     fontWeight: FontWeight.w500,
-                    color: _secondaryTextColor,
-                  ),
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ),
-
-              // Verification badge
-              if (_publisher != null)
-                Container(
-                  margin: const EdgeInsets.only(left: 6),
-                  child: Icon(Icons.verified, size: 16, color: _brandColor),
-                ),
-
-              // Pro badge
-              if (_publisher != null && _isProMember)
-                Container(
-                  margin: const EdgeInsets.only(left: 8),
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 8,
-                    vertical: 2,
-                  ),
-                  decoration: BoxDecoration(
-                    gradient: const LinearGradient(
-                      colors: [Color(0xFFFFB800), Color(0xFFFF8A00)],
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                    ),
-                    borderRadius: BorderRadius.circular(4),
-                  ),
-                  child: const Text(
-                    'PRO',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 10,
-                      fontWeight: FontWeight.bold,
-                      letterSpacing: 0.5,
-                    ),
+                    color: Colors.teal.shade700,
                   ),
                 ),
-            ],
+              ],
+            ),
           ),
-        ),
-
-        // Posted date (right-aligned)
+        
+        const SizedBox(width: 6),
+        
+        // Separator
         Text(
-          _formatDate(widget.experience.createdAt),
-          style: TextStyle(fontSize: 12, color: _auxiliaryTextColor),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildContentSection() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        // Title (increased size and weight)
-        const SizedBox(height: 4),
-        Text(
-          widget.experience.title,
+          "・",
           style: TextStyle(
-            fontSize: 18,
-            fontWeight: FontWeight.w600,
-            height: 1.3,
-            color: _primaryTextColor,
-          ),
-          maxLines: 2,
-          overflow: TextOverflow.ellipsis,
-        ),
-        const SizedBox(height: 8),
-
-        // Location with icon
-        Row(
-          children: [
-            Icon(
-              Icons.location_on_outlined,
-              size: 16,
-              color: _auxiliaryTextColor,
-            ),
-            const SizedBox(width: 4),
-            Expanded(
-              child: Text(
-                widget.experience.location ?? 'Location not specified',
-                style: TextStyle(fontSize: 12, color: _auxiliaryTextColor),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 8),
-
-        // Date with icon
-        Row(
-          children: [
-            Icon(
-              Icons.calendar_today_outlined,
-              size: 16,
-              color: _auxiliaryTextColor,
-            ),
-            const SizedBox(width: 4),
-            Expanded(
-              child: Text(
-                _formatExperienceDate(widget.experience.date),
-                style: TextStyle(fontSize: 12, color: _auxiliaryTextColor),
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 8),
-
-        // Available slots as prominent pill button
-        Container(
-          margin: const EdgeInsets.symmetric(vertical: 8),
-          child: InkWell(
-            onTap: () {
-              // Handle slots tap
-            },
-            borderRadius: BorderRadius.circular(20),
-            child: AnimatedContainer(
-              duration: const Duration(milliseconds: 200),
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              decoration: BoxDecoration(
-                color: _brandColor.withOpacity(_isHovered ? 0.15 : 0.1),
-                borderRadius: BorderRadius.circular(20),
-                border: Border.all(
-                  color: _brandColor.withOpacity(0.3),
-                  width: 1,
-                ),
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(Icons.people_outline, size: 16, color: _brandColor),
-                  const SizedBox(width: 6),
-                  Text(
-                    '${widget.experience.availableSlots - widget.experience.currentParticipants} available slots',
-                    style: TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w600,
-                      color: _brandColor,
-                    ),
-                  ),
-                ],
-              ),
-            ),
+            fontSize: 14,
+            color: Colors.grey.shade500,
           ),
         ),
-
-        // Tags section with unified design
-        if (widget.experience.tags.isNotEmpty) ...[
-          const SizedBox(height: 6),
-          Wrap(
-            spacing: 6,
-            runSpacing: 6,
-            children:
-                widget.experience.tags.take(4).map((tag) {
-                  // Primary tag (first tag)
-                  final bool isPrimary =
-                      widget.experience.tags.indexOf(tag) == 0;
-
-                  return AnimatedContainer(
-                    duration: const Duration(milliseconds: 200),
-                    height: 28,
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 12,
-                      vertical: 4,
-                    ),
-                    decoration: BoxDecoration(
-                      color:
-                          isPrimary
-                              ? _brandColor
-                              : _brandColor.withOpacity(0.1),
-                      borderRadius: BorderRadius.circular(14),
-                      border:
-                          !isPrimary
-                              ? Border.all(
-                                color: _brandColor.withOpacity(0.2),
-                                width: 1,
-                              )
-                              : null,
-                    ),
-                    child: Text(
-                      tag,
-                      style: TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w500,
-                        color: isPrimary ? Colors.white : _brandColor,
-                      ),
-                    ),
-                  );
-                }).toList(),
+        
+        const SizedBox(width: 6),
+        
+        // Date/time
+        Text(
+          _formatTimeAgo(widget.experience.createdAt),
+          style: TextStyle(
+            fontSize: 14,
+            color: Colors.grey.shade500,
+          ),
+        ),
+        
+        // Pro badge if user has Pro membership
+        if (_publisher != null && _isProMember) ...[
+          const SizedBox(width: 8),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+            decoration: BoxDecoration(
+              gradient: const LinearGradient(
+                colors: [Color(0xFFFFB800), Color(0xFFFF8A00)],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+              borderRadius: BorderRadius.circular(4),
+            ),
+            child: const Text(
+              'PRO',
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 10,
+                fontWeight: FontWeight.bold,
+                letterSpacing: 0.5,
+              ),
+            ),
           ),
         ],
       ],
     );
   }
 
-  String _formatDate(DateTime? date) {
-    if (date == null) return 'Unknown';
+  // Row 2: Category chip
+  Widget _buildCategoryChip() {
+    if (widget.experience.tags.isEmpty) {
+      return const SizedBox.shrink();
+    }
+    
+    final category = widget.experience.tags.first; // Show only first tag
+    
+    // Get a consistent color based on the category name
+    final int colorSeed = category.hashCode.abs() % 5;
+    final List<Color> categoryColors = [
+      Colors.purple.shade100,
+      Colors.blue.shade100,
+      Colors.teal.shade100,
+      Colors.amber.shade100,
+      Colors.pink.shade100,
+    ];
+    final List<Color> textColors = [
+      Colors.purple.shade700,
+      Colors.blue.shade700,
+      Colors.teal.shade700,
+      Colors.amber.shade700,
+      Colors.pink.shade700,
+    ];
 
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: categoryColors[colorSeed],
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Text(
+        category,
+        style: TextStyle(
+          fontSize: 12,
+          fontWeight: FontWeight.w500,
+          color: textColors[colorSeed],
+        ),
+      ),
+    );
+  }
+
+  // Main content area with title, description, location/slots
+  Widget _buildMainContent() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // Title
+        Text(
+          widget.experience.title,
+          style: const TextStyle(
+            fontSize: 16,
+            fontWeight: FontWeight.w600,
+            height: 1.2,
+          ),
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+        ),
+        
+        const SizedBox(height: 6),
+        
+        // Description (2 lines max)
+        if (widget.experience.description.isNotEmpty)
+          Text(
+            widget.experience.description,
+            style: TextStyle(
+              fontSize: 14,
+              color: Colors.grey.shade700,
+              height: 1.3,
+            ),
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+          ),
+        
+        const SizedBox(height: 8),
+        
+        // Location and available slots row
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            // Location (left side)
+            if (widget.experience.location?.isNotEmpty == true)
+              Expanded(
+                child: Row(
+                  children: [
+                    Icon(
+                      Icons.location_on_outlined,
+                      size: 14,
+                      color: Colors.grey.shade500,
+                    ),
+                    const SizedBox(width: 4),
+                    Flexible(
+                      child: Text(
+                        widget.experience.location!,
+                        style: TextStyle(
+                          fontSize: 13,
+                          color: Colors.grey.shade600,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ],
+                ),
+              )
+            else
+              const Expanded(child: SizedBox()), // Empty space when no location
+            
+            // Available slots (always right-aligned)
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+              decoration: BoxDecoration(
+                color: _brandColor.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: _brandColor.withOpacity(0.2)),
+              ),
+              child: Text(
+                '${widget.experience.availableSlots - widget.experience.currentParticipants}/${widget.experience.availableSlots} available',
+                style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w500,
+                  color: _brandColor,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  // Helper method to format time ago
+  String _formatTimeAgo(DateTime date) {
     final now = DateTime.now();
     final difference = now.difference(date);
 
-    if (difference.inDays == 0) {
-      return 'Today';
-    } else if (difference.inDays == 1) {
-      return 'Yesterday';
+    if (difference.inMinutes < 1) {
+      return 'now';
+    } else if (difference.inMinutes < 60) {
+      return '${difference.inMinutes}m';
+    } else if (difference.inHours < 24) {
+      return '${difference.inHours}h';
     } else if (difference.inDays < 7) {
-      return '${difference.inDays}d ago';
-    } else if (difference.inDays < 30) {
-      return '${(difference.inDays / 7).floor()}w ago';
+      return '${difference.inDays}d';
     } else {
-      return '${date.month}/${date.day}';
+      return '${(difference.inDays / 7).floor()}w';
     }
   }
 
-  // Format the experience date in a readable format
-  String _formatExperienceDate(DateTime date) {
-    final now = DateTime.now();
 
-    // For events today
-    if (date.year == now.year &&
-        date.month == now.month &&
-        date.day == now.day) {
-      return 'Today at ${_formatTime(date)}';
-    }
 
-    // For events tomorrow
-    final tomorrow = now.add(const Duration(days: 1));
-    if (date.year == tomorrow.year &&
-        date.month == tomorrow.month &&
-        date.day == tomorrow.day) {
-      return 'Tomorrow at ${_formatTime(date)}';
-    }
 
-    // For events within the next 7 days
-    if (date.difference(now).inDays < 7 && date.isAfter(now)) {
-      return '${_getDayOfWeek(date)} at ${_formatTime(date)}';
-    }
-
-    // For all other events
-    return '${date.month}/${date.day}/${date.year} at ${_formatTime(date)}';
-  }
-
-  String _formatTime(DateTime date) {
-    final hour = date.hour % 12 == 0 ? 12 : date.hour % 12;
-    final minute = date.minute.toString().padLeft(2, '0');
-    final period = date.hour < 12 ? 'AM' : 'PM';
-    return '$hour:$minute $period';
-  }
-
-  String _getDayOfWeek(DateTime date) {
-    switch (date.weekday) {
-      case 1:
-        return 'Monday';
-      case 2:
-        return 'Tuesday';
-      case 3:
-        return 'Wednesday';
-      case 4:
-        return 'Thursday';
-      case 5:
-        return 'Friday';
-      case 6:
-        return 'Saturday';
-      case 7:
-        return 'Sunday';
-      default:
-        return '';
-    }
-  }
 }
