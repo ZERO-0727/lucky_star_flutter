@@ -79,61 +79,70 @@ class _WishWallScreenState extends State<WishWallScreen>
             padding: const EdgeInsets.all(16),
             child: Column(
               children: [
-                // Location filter (new) - show on both tabs
-                DropdownButtonFormField<String>(
-                  value: _selectedLocation,
-                  decoration: const InputDecoration(
-                    labelText: 'Filter by Location',
-                    border: OutlineInputBorder(),
-                    prefixIcon: Icon(Icons.location_on),
-                  ),
-                  items:
-                      _availableLocations.map((location) {
-                        return DropdownMenuItem(
-                          value: location == 'All' ? null : location,
-                          child: Text(location),
-                        );
-                      }).toList(),
-                  onChanged: (value) {
-                    setState(() {
-                      _selectedLocation = value;
-                    });
-                  },
-                ),
-
-                const SizedBox(height: 12),
-
-                // Date filter
-                DropdownButtonFormField<String>(
-                  value: _selectedDateFilter,
-                  decoration: const InputDecoration(
-                    labelText: 'Filter by Date',
-                    border: OutlineInputBorder(),
-                    prefixIcon: Icon(Icons.calendar_today),
-                  ),
-                  items: const [
-                    DropdownMenuItem(value: 'today', child: Text('Today')),
-                    DropdownMenuItem(
-                      value: 'this_week',
-                      child: Text('This Week'),
+                // Location and Date filters on same row
+                Row(
+                  children: [
+                    // Location filter - left half
+                    Expanded(
+                      child: DropdownButtonFormField<String>(
+                        value: _selectedLocation,
+                        decoration: const InputDecoration(
+                          labelText: 'Location',
+                          border: OutlineInputBorder(),
+                          prefixIcon: Icon(Icons.location_on),
+                          contentPadding: EdgeInsets.symmetric(horizontal: 8, vertical: 12),
+                        ),
+                        items: _availableLocations.map((location) {
+                          return DropdownMenuItem(
+                            value: location == 'All' ? null : location,
+                            child: Text(location),
+                          );
+                        }).toList(),
+                        onChanged: (value) {
+                          setState(() {
+                            _selectedLocation = value;
+                          });
+                        },
+                      ),
                     ),
-                    DropdownMenuItem(
-                      value: 'this_month',
-                      child: Text('This Month'),
+
+                    const SizedBox(width: 12),
+
+                    // Date filter - right half
+                    Expanded(
+                      child: DropdownButtonFormField<String>(
+                        value: _selectedDateFilter,
+                        decoration: const InputDecoration(
+                          labelText: 'Date',
+                          border: OutlineInputBorder(),
+                          prefixIcon: Icon(Icons.calendar_today),
+                          contentPadding: EdgeInsets.symmetric(horizontal: 8, vertical: 12),
+                        ),
+                        items: const [
+                          DropdownMenuItem(value: 'today', child: Text('Today')),
+                          DropdownMenuItem(
+                            value: 'this_week',
+                            child: Text('This Week'),
+                          ),
+                          DropdownMenuItem(
+                            value: 'this_month',
+                            child: Text('This Month'),
+                          ),
+                          DropdownMenuItem(value: 'all', child: Text('All Time')),
+                        ],
+                        onChanged: (value) {
+                          setState(() {
+                            _selectedDateFilter = value;
+                          });
+                        },
+                      ),
                     ),
-                    DropdownMenuItem(value: 'all', child: Text('All Time')),
                   ],
-                  onChanged: (value) {
-                    setState(() {
-                      _selectedDateFilter = value;
-                    });
-                  },
                 ),
-
-                const SizedBox(height: 12),
 
                 // Tag filter (only show on Share Experience tab)
-                if (_tabController.index == 1)
+                if (_tabController.index == 1) ...[
+                  const SizedBox(height: 12),
                   DropdownButtonFormField<String>(
                     value: _selectedTag,
                     decoration: const InputDecoration(
@@ -141,19 +150,19 @@ class _WishWallScreenState extends State<WishWallScreen>
                       border: OutlineInputBorder(),
                       prefixIcon: Icon(Icons.category),
                     ),
-                    items:
-                        _availableTags.map((tag) {
-                          return DropdownMenuItem(
-                            value: tag == 'All' ? null : tag,
-                            child: Text(tag),
-                          );
-                        }).toList(),
+                    items: _availableTags.map((tag) {
+                      return DropdownMenuItem(
+                        value: tag == 'All' ? null : tag,
+                        child: Text(tag),
+                      );
+                    }).toList(),
                     onChanged: (value) {
                       setState(() {
                         _selectedTag = value;
                       });
                     },
                   ),
+                ],
               ],
             ),
           ),

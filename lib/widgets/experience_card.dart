@@ -328,11 +328,38 @@ class _ExperienceCardState extends State<ExperienceCard>
                 ),
               ),
 
-              // Verification badge
+              // Verification badge (matching WishCard style)
               if (_publisher != null)
                 Container(
                   margin: const EdgeInsets.only(left: 6),
-                  child: Icon(Icons.verified, size: 16, color: _brandColor),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 6,
+                    vertical: 2,
+                  ),
+                  decoration: BoxDecoration(
+                    color: Colors.teal.shade50,
+                    borderRadius: BorderRadius.circular(4),
+                    border: Border.all(color: Colors.teal.shade100),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        Icons.verified,
+                        size: 14,
+                        color: Colors.teal.shade700,
+                      ),
+                      const SizedBox(width: 2),
+                      Text(
+                        "Verified",
+                        style: TextStyle(
+                          fontSize: 10,
+                          fontWeight: FontWeight.w500,
+                          color: Colors.teal.shade700,
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
 
               // Pro badge
