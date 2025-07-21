@@ -683,550 +683,629 @@ class _PostExperienceScreenState extends State<PostExperienceScreen> {
     }
   }
 
+  // 🚨 EMERGENCY FIX: Delete temporary experience document
+  Future<void> _deleteTemporaryExperience() async {
+    if (_currentExperienceId == null) return;
+
+    try {
+      print('🗑️ DELETING TEMPORARY EXPERIENCE: $_currentExperienceId');
+      
+      await _firestore.collection('experiences').doc(_currentExperienceId!).delete();
+      
+      print('✅ TEMPORARY EXPERIENCE DELETED: $_currentExperienceId');
+      _currentExperienceId = null;
+    } catch (e) {
+      print('❌ FAILED TO DELETE TEMPORARY EXPERIENCE: $e');
+      // Don't throw error here, just log it as it's cleanup
+    }
+  }
+
+  // Show confirmation dialog when user tries to go back
+  Future<bool> _showCancelConfirmationDialog() async {
+    final result = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Cancel Creating Experience?'),
+        content: const Text(
+          'Are you sure you want to cancel creating this experience? Any progress will be lost.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('No'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            style: TextButton.styleFrom(
+              foregroundColor: Colors.red,
+            ),
+            child: const Text('Yes, Cancel'),
+          ),
+        ],
+      ),
+    );
+    
+    return result ?? false;
+  }
+
+  // Handle back button press
+  Future<bool> _onWillPop() async {
+    // If user hasn't entered any meaningful content, allow back without confirmation
+    if (_titleController.text.trim().isEmpty && 
+        _descController.text.trim().isEmpty &&
+        _images.isEmpty) {
+      // Still delete the empty document
+      await _deleteTemporaryExperience();
+      return true;
+    }
+
+    // Show confirmation dialog
+    final shouldCancel = await _showCancelConfirmationDialog();
+    
+    if (shouldCancel) {
+      // Delete the temporary experience document
+      await _deleteTemporaryExperience();
+      return true; // Allow navigation
+    }
+    
+    return false; // Prevent navigation
+  }
+
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Create Experience'),
-        centerTitle: true,
-        elevation: 0,
-        backgroundColor: Colors.white,
-        foregroundColor: Colors.black,
-      ),
-      backgroundColor: Colors.grey.shade50,
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(20.0),
-        child: Form(
-          key: _formKey,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              // Document creation status
-              if (_isCreatingDoc)
-                Container(
-                  padding: const EdgeInsets.all(16),
-                  margin: const EdgeInsets.only(bottom: 24),
-                  decoration: BoxDecoration(
-                    color: Colors.blue.shade50,
-                    borderRadius: BorderRadius.circular(16),
-                    border: Border.all(color: Colors.blue.shade200),
-                  ),
-                  child: Row(
-                    children: [
-                      SizedBox(
-                        width: 20,
-                        height: 20,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2,
-                          valueColor: AlwaysStoppedAnimation<Color>(
-                            Colors.blue.shade600,
+    return PopScope(
+      canPop: false,
+      onPopInvoked: (didPop) async {
+        if (didPop) return;
+        
+        final shouldPop = await _onWillPop();
+        if (shouldPop && context.mounted) {
+          Navigator.of(context).pop();
+        }
+      },
+      child: Scaffold(
+        appBar: AppBar(
+          title: const Text('Create Experience'),
+          centerTitle: true,
+          elevation: 0,
+          backgroundColor: Colors.white,
+          foregroundColor: Colors.black,
+        ),
+        backgroundColor: Colors.grey.shade50,
+        body: SingleChildScrollView(
+          padding: const EdgeInsets.all(20.0),
+          child: Form(
+            key: _formKey,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                // Document creation status
+                if (_isCreatingDoc)
+                  Container(
+                    padding: const EdgeInsets.all(16),
+                    margin: const EdgeInsets.only(bottom: 24),
+                    decoration: BoxDecoration(
+                      color: Colors.blue.shade50,
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(color: Colors.blue.shade200),
+                    ),
+                    child: Row(
+                      children: [
+                        SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            valueColor: AlwaysStoppedAnimation<Color>(
+                              Colors.blue.shade600,
+                            ),
                           ),
                         ),
-                      ),
-                      const SizedBox(width: 16),
-                      Text(
-                        'Creating experience document...',
-                        style: TextStyle(
-                          color: Colors.blue.shade700,
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-
-              // Title Field
-              TextFormField(
-                controller: _titleController,
-                decoration: InputDecoration(
-                  labelText: 'Title',
-                  hintText: 'Give your experience a catchy title',
-                  filled: true,
-                  fillColor: Colors.white,
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(16.0),
-                    borderSide: BorderSide(color: Colors.grey.shade300),
-                  ),
-                  enabledBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(16.0),
-                    borderSide: BorderSide(color: Colors.grey.shade300),
-                  ),
-                  focusedBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(16.0),
-                    borderSide: BorderSide(
-                      color: Colors.blue.shade400,
-                      width: 2,
-                    ),
-                  ),
-                  contentPadding: const EdgeInsets.all(20),
-                ),
-                validator: (value) {
-                  if (value == null || value.isEmpty) {
-                    return 'Please enter a title';
-                  }
-                  return null;
-                },
-              ),
-              const SizedBox(height: 20),
-
-              // Description Field
-              TextFormField(
-                controller: _descController,
-                maxLines: 4,
-                decoration: InputDecoration(
-                  labelText: 'Description',
-                  hintText: 'Describe what participants will experience...',
-                  filled: true,
-                  fillColor: Colors.white,
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(16.0),
-                    borderSide: BorderSide(color: Colors.grey.shade300),
-                  ),
-                  enabledBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(16.0),
-                    borderSide: BorderSide(color: Colors.grey.shade300),
-                  ),
-                  focusedBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(16.0),
-                    borderSide: BorderSide(
-                      color: Colors.blue.shade400,
-                      width: 2,
-                    ),
-                  ),
-                  contentPadding: const EdgeInsets.all(20),
-                ),
-                validator: (value) {
-                  if (value == null || value.isEmpty) {
-                    return 'Please enter a description';
-                  }
-                  return null;
-                },
-              ),
-              const SizedBox(height: 20),
-
-              // Location Field
-              TextFormField(
-                controller: _locationController,
-                decoration: InputDecoration(
-                  labelText: 'Location',
-                  hintText: 'Where will this experience take place?',
-                  filled: true,
-                  fillColor: Colors.white,
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(16.0),
-                    borderSide: BorderSide(color: Colors.grey.shade300),
-                  ),
-                  enabledBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(16.0),
-                    borderSide: BorderSide(color: Colors.grey.shade300),
-                  ),
-                  focusedBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(16.0),
-                    borderSide: BorderSide(
-                      color: Colors.blue.shade400,
-                      width: 2,
-                    ),
-                  ),
-                  contentPadding: const EdgeInsets.all(20),
-                ),
-              ),
-              const SizedBox(height: 20),
-
-              // Available Slots Field
-              TextFormField(
-                controller: _slotsController,
-                keyboardType: TextInputType.number,
-                decoration: InputDecoration(
-                  labelText: 'Available Slots',
-                  hintText: 'How many people can join?',
-                  filled: true,
-                  fillColor: Colors.white,
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(16.0),
-                    borderSide: BorderSide(color: Colors.grey.shade300),
-                  ),
-                  enabledBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(16.0),
-                    borderSide: BorderSide(color: Colors.grey.shade300),
-                  ),
-                  focusedBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(16.0),
-                    borderSide: BorderSide(
-                      color: Colors.blue.shade400,
-                      width: 2,
-                    ),
-                  ),
-                  contentPadding: const EdgeInsets.all(20),
-                ),
-                validator: (value) {
-                  if (value == null || value.isEmpty) {
-                    return 'Please enter number of slots';
-                  }
-                  if (int.tryParse(value) == null || int.parse(value) < 1) {
-                    return 'Please enter a valid number';
-                  }
-                  return null;
-                },
-              ),
-              const SizedBox(height: 32),
-
-              // Category Selection
-              Text(
-                'Category',
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.w600,
-                  color: Colors.grey.shade800,
-                ),
-              ),
-              const SizedBox(height: 16),
-              Wrap(
-                spacing: 12.0,
-                runSpacing: 8.0,
-                children:
-                    _categories.map((category) {
-                      final isSelected = _selectedCategories[category]!;
-                      return InkWell(
-                        onTap: () {
-                          setState(() {
-                            _selectedCategories[category] = !isSelected;
-                          });
-                        },
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 20,
-                            vertical: 12,
+                        const SizedBox(width: 16),
+                        Text(
+                          'Creating experience document...',
+                          style: TextStyle(
+                            color: Colors.blue.shade700,
+                            fontWeight: FontWeight.w500,
                           ),
-                          decoration: BoxDecoration(
-                            color:
-                                isSelected
-                                    ? Colors.blue.shade500
-                                    : Colors.white,
-                            borderRadius: BorderRadius.circular(25),
-                            border: Border.all(
+                        ),
+                      ],
+                    ),
+                  ),
+
+                // Title Field
+                TextFormField(
+                  controller: _titleController,
+                  decoration: InputDecoration(
+                    labelText: 'Title',
+                    hintText: 'Give your experience a catchy title',
+                    filled: true,
+                    fillColor: Colors.white,
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(16.0),
+                      borderSide: BorderSide(color: Colors.grey.shade300),
+                    ),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(16.0),
+                      borderSide: BorderSide(color: Colors.grey.shade300),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(16.0),
+                      borderSide: BorderSide(
+                        color: Colors.blue.shade400,
+                        width: 2,
+                      ),
+                    ),
+                    contentPadding: const EdgeInsets.all(20),
+                  ),
+                  validator: (value) {
+                    if (value == null || value.isEmpty) {
+                      return 'Please enter a title';
+                    }
+                    return null;
+                  },
+                ),
+                const SizedBox(height: 20),
+
+                // Description Field
+                TextFormField(
+                  controller: _descController,
+                  maxLines: 4,
+                  decoration: InputDecoration(
+                    labelText: 'Description',
+                    hintText: 'Describe what participants will experience...',
+                    filled: true,
+                    fillColor: Colors.white,
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(16.0),
+                      borderSide: BorderSide(color: Colors.grey.shade300),
+                    ),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(16.0),
+                      borderSide: BorderSide(color: Colors.grey.shade300),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(16.0),
+                      borderSide: BorderSide(
+                        color: Colors.blue.shade400,
+                        width: 2,
+                      ),
+                    ),
+                    contentPadding: const EdgeInsets.all(20),
+                  ),
+                  validator: (value) {
+                    if (value == null || value.isEmpty) {
+                      return 'Please enter a description';
+                    }
+                    return null;
+                  },
+                ),
+                const SizedBox(height: 20),
+
+                // Location Field
+                TextFormField(
+                  controller: _locationController,
+                  decoration: InputDecoration(
+                    labelText: 'Location',
+                    hintText: 'Where will this experience take place?',
+                    filled: true,
+                    fillColor: Colors.white,
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(16.0),
+                      borderSide: BorderSide(color: Colors.grey.shade300),
+                    ),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(16.0),
+                      borderSide: BorderSide(color: Colors.grey.shade300),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(16.0),
+                      borderSide: BorderSide(
+                        color: Colors.blue.shade400,
+                        width: 2,
+                      ),
+                    ),
+                    contentPadding: const EdgeInsets.all(20),
+                  ),
+                ),
+                const SizedBox(height: 20),
+
+                // Available Slots Field
+                TextFormField(
+                  controller: _slotsController,
+                  keyboardType: TextInputType.number,
+                  decoration: InputDecoration(
+                    labelText: 'Available Slots',
+                    hintText: 'How many people can join?',
+                    filled: true,
+                    fillColor: Colors.white,
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(16.0),
+                      borderSide: BorderSide(color: Colors.grey.shade300),
+                    ),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(16.0),
+                      borderSide: BorderSide(color: Colors.grey.shade300),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(16.0),
+                      borderSide: BorderSide(
+                        color: Colors.blue.shade400,
+                        width: 2,
+                      ),
+                    ),
+                    contentPadding: const EdgeInsets.all(20),
+                  ),
+                  validator: (value) {
+                    if (value == null || value.isEmpty) {
+                      return 'Please enter number of slots';
+                    }
+                    if (int.tryParse(value) == null || int.parse(value) < 1) {
+                      return 'Please enter a valid number';
+                    }
+                    return null;
+                  },
+                ),
+                const SizedBox(height: 32),
+
+                // Category Selection
+                Text(
+                  'Category',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.grey.shade800,
+                  ),
+                ),
+                const SizedBox(height: 16),
+                Wrap(
+                  spacing: 12.0,
+                  runSpacing: 8.0,
+                  children:
+                      _categories.map((category) {
+                        final isSelected = _selectedCategories[category]!;
+                        return InkWell(
+                          onTap: () {
+                            setState(() {
+                              _selectedCategories[category] = !isSelected;
+                            });
+                          },
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 20,
+                              vertical: 12,
+                            ),
+                            decoration: BoxDecoration(
                               color:
                                   isSelected
                                       ? Colors.blue.shade500
-                                      : Colors.grey.shade300,
+                                      : Colors.white,
+                              borderRadius: BorderRadius.circular(25),
+                              border: Border.all(
+                                color:
+                                    isSelected
+                                        ? Colors.blue.shade500
+                                        : Colors.grey.shade300,
+                              ),
+                            ),
+                            child: Text(
+                              category,
+                              style: TextStyle(
+                                color:
+                                    isSelected
+                                        ? Colors.white
+                                        : Colors.grey.shade700,
+                                fontWeight: FontWeight.w500,
+                              ),
                             ),
                           ),
-                          child: Text(
-                            category,
-                            style: TextStyle(
-                              color:
-                                  isSelected
-                                      ? Colors.white
-                                      : Colors.grey.shade700,
-                              fontWeight: FontWeight.w500,
-                            ),
-                          ),
-                        ),
-                      );
-                    }).toList(),
-              ),
-              const SizedBox(height: 32),
-
-              // Photos Section (moved to bottom to match Post Wish layout)
-              Text(
-                'Photos (optional)',
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.w600,
-                  color: Colors.grey.shade800,
+                        );
+                      }).toList(),
                 ),
-              ),
-              const SizedBox(height: 16),
+                const SizedBox(height: 32),
 
-              // Photo upload area matching Post Wish design
-              InkWell(
-                onTap: _pickAndUploadImages,
-                child: Container(
-                  height: 150,
-                  width: double.infinity,
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(16),
-                    border: Border.all(
-                      color: Colors.grey.shade300,
-                      style: BorderStyle.solid,
-                    ),
+                // Photos Section (moved to bottom to match Post Wish layout)
+                Text(
+                  'Photos (optional)',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.grey.shade800,
                   ),
-                  child:
-                      _images.isEmpty
-                          ? Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Icon(
-                                Icons.add,
-                                size: 48,
-                                color: Colors.grey.shade400,
-                              ),
-                              const SizedBox(height: 8),
-                              Text(
-                                'Add Photo',
-                                style: TextStyle(
-                                  fontSize: 16,
-                                  color: Colors.grey.shade600,
-                                  fontWeight: FontWeight.w500,
-                                ),
-                              ),
-                              const SizedBox(height: 4),
-                              Text(
-                                '${_images.length}/3 photos',
-                                style: TextStyle(
-                                  fontSize: 12,
-                                  color: Colors.grey.shade500,
-                                ),
-                              ),
-                            ],
-                          )
-                          : Padding(
-                            padding: const EdgeInsets.all(12),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
+                ),
+                const SizedBox(height: 16),
+
+                // Photo upload area matching Post Wish design
+                InkWell(
+                  onTap: _pickAndUploadImages,
+                  child: Container(
+                    height: 150,
+                    width: double.infinity,
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(
+                        color: Colors.grey.shade300,
+                        style: BorderStyle.solid,
+                      ),
+                    ),
+                    child:
+                        _images.isEmpty
+                            ? Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
                               children: [
-                                Row(
-                                  mainAxisAlignment:
-                                      MainAxisAlignment.spaceBetween,
-                                  children: [
-                                    Text(
-                                      'Photos (${_images.length}/3)',
-                                      style: TextStyle(
-                                        fontSize: 14,
-                                        fontWeight: FontWeight.w500,
-                                        color: Colors.grey.shade700,
-                                      ),
-                                    ),
-                                    if (_images.length < 3)
-                                      InkWell(
-                                        onTap: _pickAndUploadImages,
-                                        child: Icon(
-                                          Icons.add_circle,
-                                          color: Colors.blue.shade500,
-                                          size: 24,
-                                        ),
-                                      ),
-                                  ],
+                                Icon(
+                                  Icons.add,
+                                  size: 48,
+                                  color: Colors.grey.shade400,
                                 ),
                                 const SizedBox(height: 8),
-                                Expanded(
-                                  child: ListView.builder(
-                                    scrollDirection: Axis.horizontal,
-                                    itemCount: _images.length,
-                                    itemBuilder: (context, index) {
-                                      final image = _images[index];
-                                      return Container(
-                                        width: 80,
-                                        height: 80,
-                                        margin: const EdgeInsets.only(right: 8),
-                                        decoration: BoxDecoration(
-                                          borderRadius: BorderRadius.circular(
-                                            8,
-                                          ),
-                                          border: Border.all(
-                                            color: _getStatusColor(
-                                              image.status,
-                                            ),
-                                            width: 2,
-                                          ),
-                                        ),
-                                        child: Stack(
-                                          children: [
-                                            ClipRRect(
-                                              borderRadius:
-                                                  BorderRadius.circular(6),
-                                              child:
-                                                  kIsWeb
-                                                      ? FutureBuilder<
-                                                        Uint8List
-                                                      >(
-                                                        future:
-                                                            image.file
-                                                                .readAsBytes(),
-                                                        builder: (
-                                                          context,
-                                                          snapshot,
-                                                        ) {
-                                                          if (snapshot
-                                                              .hasData) {
-                                                            return Image.memory(
-                                                              snapshot.data!,
-                                                              width: 80,
-                                                              height: 80,
-                                                              fit: BoxFit.cover,
-                                                            );
-                                                          }
-                                                          return const Center(
-                                                            child:
-                                                                CircularProgressIndicator(
-                                                                  strokeWidth:
-                                                                      2,
-                                                                ),
-                                                          );
-                                                        },
-                                                      )
-                                                      : Image.file(
-                                                        File(image.file.path),
-                                                        width: 80,
-                                                        height: 80,
-                                                        fit: BoxFit.cover,
-                                                      ),
-                                            ),
-                                            // Enhanced delete button for all images (except those currently uploading)
-                                            if (image.status !=
-                                                    ImageStatus.uploading &&
-                                                image.status !=
-                                                    ImageStatus.retrying)
-                                              Positioned(
-                                                top: 2,
-                                                right: 2,
-                                                child: GestureDetector(
-                                                  onTap: () {
-                                                    // Show a confirmation snackbar after removal
-                                                    _removeImage(image).then((
-                                                      _,
-                                                    ) {
-                                                      ScaffoldMessenger.of(
-                                                        context,
-                                                      ).showSnackBar(
-                                                        const SnackBar(
-                                                          content: Text(
-                                                            'Image removed successfully',
-                                                          ),
-                                                          backgroundColor:
-                                                              Colors.green,
-                                                          duration: Duration(
-                                                            seconds: 1,
-                                                          ),
-                                                        ),
-                                                      );
-                                                    });
-                                                  },
-                                                  child: Container(
-                                                    padding:
-                                                        const EdgeInsets.all(8),
-                                                    decoration: BoxDecoration(
-                                                      color: Colors.red.shade700
-                                                          .withOpacity(0.9),
-                                                      shape: BoxShape.circle,
-                                                      boxShadow: [
-                                                        BoxShadow(
-                                                          color: Colors.black
-                                                              .withOpacity(0.3),
-                                                          blurRadius: 3,
-                                                          offset: const Offset(
-                                                            0,
-                                                            1,
-                                                          ),
-                                                        ),
-                                                      ],
-                                                    ),
-                                                    child: const Icon(
-                                                      Icons.close,
-                                                      size: 18,
-                                                      color: Colors.white,
-                                                    ),
-                                                  ),
-                                                ),
-                                              ),
-                                            // Status indicator (moved to bottom left)
-                                            Positioned(
-                                              bottom: 2,
-                                              left: 2,
-                                              child: Container(
-                                                padding: const EdgeInsets.all(
-                                                  2,
-                                                ),
-                                                decoration: BoxDecoration(
-                                                  color: _getStatusColor(
-                                                    image.status,
-                                                  ),
-                                                  shape: BoxShape.circle,
-                                                ),
-                                                child: Icon(
-                                                  _getStatusIcon(image.status),
-                                                  size: 12,
-                                                  color: Colors.white,
-                                                ),
-                                              ),
-                                            ),
-                                            // Retry button for failed uploads
-                                            if (image.status ==
-                                                ImageStatus.failed)
-                                              Positioned(
-                                                bottom: 2,
-                                                right: 2,
-                                                child: InkWell(
-                                                  onTap:
-                                                      () => _retryUpload(image),
-                                                  child: Container(
-                                                    padding:
-                                                        const EdgeInsets.all(2),
-                                                    decoration:
-                                                        const BoxDecoration(
-                                                          color: Colors.red,
-                                                          shape:
-                                                              BoxShape.circle,
-                                                        ),
-                                                    child: const Icon(
-                                                      Icons.refresh,
-                                                      size: 12,
-                                                      color: Colors.white,
-                                                    ),
-                                                  ),
-                                                ),
-                                              ),
-                                          ],
-                                        ),
-                                      );
-                                    },
+                                Text(
+                                  'Add Photo',
+                                  style: TextStyle(
+                                    fontSize: 16,
+                                    color: Colors.grey.shade600,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  '${_images.length}/3 photos',
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    color: Colors.grey.shade500,
                                   ),
                                 ),
                               ],
-                            ),
-                          ),
-                ),
-              ),
-              const SizedBox(height: 40),
-
-              // Submit Button
-              SizedBox(
-                width: double.infinity,
-                height: 56,
-                child: ElevatedButton(
-                  onPressed: _isLoading ? null : _submitForm,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.blue.shade600,
-                    foregroundColor: Colors.white,
-                    elevation: 0,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(16),
-                    ),
-                    disabledBackgroundColor: Colors.grey.shade300,
-                  ),
-                  child:
-                      _isLoading
-                          ? const SizedBox(
-                            width: 24,
-                            height: 24,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2,
-                              valueColor: AlwaysStoppedAnimation<Color>(
-                                Colors.white,
+                            )
+                            : Padding(
+                              padding: const EdgeInsets.all(12),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Row(
+                                    mainAxisAlignment:
+                                        MainAxisAlignment.spaceBetween,
+                                    children: [
+                                      Text(
+                                        'Photos (${_images.length}/3)',
+                                        style: TextStyle(
+                                          fontSize: 14,
+                                          fontWeight: FontWeight.w500,
+                                          color: Colors.grey.shade700,
+                                        ),
+                                      ),
+                                      if (_images.length < 3)
+                                        InkWell(
+                                          onTap: _pickAndUploadImages,
+                                          child: Icon(
+                                            Icons.add_circle,
+                                            color: Colors.blue.shade500,
+                                            size: 24,
+                                          ),
+                                        ),
+                                    ],
+                                  ),
+                                  const SizedBox(height: 8),
+                                  Expanded(
+                                    child: ListView.builder(
+                                      scrollDirection: Axis.horizontal,
+                                      itemCount: _images.length,
+                                      itemBuilder: (context, index) {
+                                        final image = _images[index];
+                                        return Container(
+                                          width: 80,
+                                          height: 80,
+                                          margin: const EdgeInsets.only(right: 8),
+                                          decoration: BoxDecoration(
+                                            borderRadius: BorderRadius.circular(
+                                              8,
+                                            ),
+                                            border: Border.all(
+                                              color: _getStatusColor(
+                                                image.status,
+                                              ),
+                                              width: 2,
+                                            ),
+                                          ),
+                                          child: Stack(
+                                            children: [
+                                              ClipRRect(
+                                                borderRadius:
+                                                    BorderRadius.circular(6),
+                                                child:
+                                                    kIsWeb
+                                                        ? FutureBuilder<
+                                                          Uint8List
+                                                        >(
+                                                          future:
+                                                              image.file
+                                                                  .readAsBytes(),
+                                                          builder: (
+                                                            context,
+                                                            snapshot,
+                                                          ) {
+                                                            if (snapshot
+                                                                .hasData) {
+                                                              return Image.memory(
+                                                                snapshot.data!,
+                                                                width: 80,
+                                                                height: 80,
+                                                                fit: BoxFit.cover,
+                                                              );
+                                                            }
+                                                            return const Center(
+                                                              child:
+                                                                  CircularProgressIndicator(
+                                                                    strokeWidth:
+                                                                        2,
+                                                                  ),
+                                                            );
+                                                          },
+                                                        )
+                                                        : Image.file(
+                                                          File(image.file.path),
+                                                          width: 80,
+                                                          height: 80,
+                                                          fit: BoxFit.cover,
+                                                        ),
+                                              ),
+                                              // Enhanced delete button for all images (except those currently uploading)
+                                              if (image.status !=
+                                                      ImageStatus.uploading &&
+                                                  image.status !=
+                                                      ImageStatus.retrying)
+                                                Positioned(
+                                                  top: 2,
+                                                  right: 2,
+                                                  child: GestureDetector(
+                                                    onTap: () {
+                                                      // Show a confirmation snackbar after removal
+                                                      _removeImage(image).then((
+                                                        _,
+                                                      ) {
+                                                        ScaffoldMessenger.of(
+                                                          context,
+                                                        ).showSnackBar(
+                                                          const SnackBar(
+                                                            content: Text(
+                                                              'Image removed successfully',
+                                                            ),
+                                                            backgroundColor:
+                                                                Colors.green,
+                                                            duration: Duration(
+                                                              seconds: 1,
+                                                            ),
+                                                          ),
+                                                        );
+                                                      });
+                                                    },
+                                                    child: Container(
+                                                      padding:
+                                                          const EdgeInsets.all(8),
+                                                      decoration: BoxDecoration(
+                                                        color: Colors.red.shade700
+                                                            .withOpacity(0.9),
+                                                        shape: BoxShape.circle,
+                                                        boxShadow: [
+                                                          BoxShadow(
+                                                            color: Colors.black
+                                                                .withOpacity(0.3),
+                                                            blurRadius: 3,
+                                                            offset: const Offset(
+                                                              0,
+                                                              1,
+                                                            ),
+                                                          ),
+                                                        ],
+                                                      ),
+                                                      child: const Icon(
+                                                        Icons.close,
+                                                        size: 18,
+                                                        color: Colors.white,
+                                                      ),
+                                                    ),
+                                                  ),
+                                                ),
+                                              // Status indicator (moved to bottom left)
+                                              Positioned(
+                                                bottom: 2,
+                                                left: 2,
+                                                child: Container(
+                                                  padding: const EdgeInsets.all(
+                                                    2,
+                                                  ),
+                                                  decoration: BoxDecoration(
+                                                    color: _getStatusColor(
+                                                      image.status,
+                                                    ),
+                                                    shape: BoxShape.circle,
+                                                  ),
+                                                  child: Icon(
+                                                    _getStatusIcon(image.status),
+                                                    size: 12,
+                                                    color: Colors.white,
+                                                  ),
+                                                ),
+                                              ),
+                                              // Retry button for failed uploads
+                                              if (image.status ==
+                                                  ImageStatus.failed)
+                                                Positioned(
+                                                  bottom: 2,
+                                                  right: 2,
+                                                  child: InkWell(
+                                                    onTap:
+                                                        () => _retryUpload(image),
+                                                    child: Container(
+                                                      padding:
+                                                          const EdgeInsets.all(2),
+                                                      decoration:
+                                                          const BoxDecoration(
+                                                            color: Colors.red,
+                                                            shape:
+                                                                BoxShape.circle,
+                                                          ),
+                                                      child: const Icon(
+                                                        Icons.refresh,
+                                                        size: 12,
+                                                        color: Colors.white,
+                                                      ),
+                                                    ),
+                                                  ),
+                                                ),
+                                            ],
+                                          ),
+                                        );
+                                      },
+                                    ),
+                                  ),
+                                ],
                               ),
                             ),
-                          )
-                          : const Text(
-                            'Publish Experience',
-                            style: TextStyle(
-                              fontSize: 18,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
+                  ),
                 ),
-              ),
-              const SizedBox(height: 20),
-            ],
+                const SizedBox(height: 40),
+
+                // Submit Button
+                SizedBox(
+                  width: double.infinity,
+                  height: 56,
+                  child: ElevatedButton(
+                    onPressed: _isLoading ? null : _submitForm,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.blue.shade600,
+                      foregroundColor: Colors.white,
+                      elevation: 0,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                      disabledBackgroundColor: Colors.grey.shade300,
+                    ),
+                    child:
+                        _isLoading
+                            ? const SizedBox(
+                              width: 24,
+                              height: 24,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                valueColor: AlwaysStoppedAnimation<Color>(
+                                  Colors.white,
+                                ),
+                              ),
+                            )
+                            : const Text(
+                              'Publish Experience',
+                              style: TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                  ),
+                ),
+                const SizedBox(height: 20),
+              ],
+            ),
           ),
         ),
       ),
