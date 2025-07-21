@@ -184,36 +184,32 @@ class _FavoritesListScreenState extends State<FavoritesListScreen> {
       ),
       child: Material(
         color: Colors.transparent,
-        child: Padding(
-          padding: const EdgeInsets.all(20),
-          child: Row(
-            children: [
-              // Enhanced User Avatar - Opens Profile
-              GestureDetector(
-                onTap: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder:
-                          (context) => UserDetailPage(
-                            userId: user.userId,
-                            displayName: user.displayName,
-                          ),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(16),
+          onTap: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder:
+                    (context) => UserDetailPage(
+                      userId: user.userId,
+                      displayName: user.displayName,
                     ),
-                  ).then((_) {
-                    _loadFavoriteUsers();
-                  });
-                },
-                child: _buildModernUserAvatar(user),
               ),
-              const SizedBox(width: 16),
+            ).then((_) {
+              _loadFavoriteUsers();
+            });
+          },
+          child: Padding(
+            padding: const EdgeInsets.all(20),
+            child: Row(
+              children: [
+                // Enhanced User Avatar
+                _buildModernUserAvatar(user),
+                const SizedBox(width: 16),
 
-              // User Information - Opens Chat (Expanded to take available space)
-              Expanded(
-                child: GestureDetector(
-                  onTap: () async {
-                    await _openChatWithUser(user);
-                  },
+                // User Information (Expanded to take available space)
+                Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
@@ -294,13 +290,43 @@ class _FavoritesListScreenState extends State<FavoritesListScreen> {
                     ],
                   ),
                 ),
-              ),
 
-              const SizedBox(width: 12),
+                const SizedBox(width: 12),
 
-              // Modern Favorite Button
-              _buildModernFavoriteButton(user),
-            ],
+                // Modern Favorite Button (with gesture detector to prevent card tap)
+                GestureDetector(
+                  onTap: () => _toggleFavorite(user),
+                  child: Container(
+                    width: 44,
+                    height: 44,
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                        colors: [
+                          const Color(0xFF7153DF),
+                          const Color(0xFF9C7EFF),
+                        ],
+                      ),
+                      borderRadius: BorderRadius.circular(12),
+                      boxShadow: [
+                        BoxShadow(
+                          color: const Color(0xFF7153DF).withOpacity(0.3),
+                          spreadRadius: 0,
+                          blurRadius: 8,
+                          offset: const Offset(0, 2),
+                        ),
+                      ],
+                    ),
+                    child: const Icon(
+                      Icons.star_rounded,
+                      color: Colors.white,
+                      size: 22,
+                    ),
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       ),

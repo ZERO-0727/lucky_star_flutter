@@ -7,12 +7,14 @@ import 'package:path/path.dart' as path;
 import 'package:flutter/foundation.dart';
 import '../models/experience_model.dart';
 import 'web_image_service.dart';
+import 'user_service.dart';
 
 class ExperienceService {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final FirebaseStorage _storage = FirebaseStorage.instance;
   final ImagePicker _imagePicker = ImagePicker();
+  final UserService _userService = UserService();
 
   // Get current user
   User? get currentUser => _auth.currentUser;
@@ -177,18 +179,21 @@ class ExperienceService {
     }
   }
 
-  /// Get all experiences with optional filters
+  /// Get all experiences with optional filters (excludes blocked users)
   Future<List<ExperienceModel>> getExperiences({
     String? category,
     String? location,
     int limit = 20,
   }) async {
     try {
+      // Get blocked users list first
+      final blockedUsers = await _userService.getBlockedUsers();
+
       Query query = _experiencesCollection
           .where('status', isEqualTo: 'active')
           .where('isPublic', isEqualTo: true)
           .orderBy('createdAt', descending: true)
-          .limit(limit);
+          .limit(limit * 2); // Get more to account for filtering
 
       if (category != null && category.isNotEmpty) {
         query = query.where('tags', arrayContains: category);
@@ -200,9 +205,19 @@ class ExperienceService {
 
       final querySnapshot = await query.get();
 
-      return querySnapshot.docs
-          .map((doc) => ExperienceModel.fromFirestore(doc))
-          .toList();
+      final allExperiences =
+          querySnapshot.docs
+              .map((doc) => ExperienceModel.fromFirestore(doc))
+              .toList();
+
+      // Filter out experiences from blocked users
+      final filteredExperiences =
+          allExperiences
+              .where((experience) => !blockedUsers.contains(experience.userId))
+              .take(limit)
+              .toList();
+
+      return filteredExperiences;
     } catch (e) {
       print('Error getting experiences: $e');
       throw Exception('Failed to get experiences: $e');
@@ -384,13 +399,16 @@ class ExperienceService {
     }
   }
 
-  /// Search experiences by title or description
+  /// Search experiences by title or description (excludes blocked users)
   Future<List<ExperienceModel>> searchExperiences(String searchTerm) async {
     if (searchTerm.isEmpty) {
       return getExperiences();
     }
 
     try {
+      // Get blocked users list first
+      final blockedUsers = await _userService.getBlockedUsers();
+
       // Note: Firestore doesn't support full-text search natively
       // This is a basic implementation. For production, consider using Algolia or similar
       final querySnapshot =
@@ -404,16 +422,20 @@ class ExperienceService {
               .map((doc) => ExperienceModel.fromFirestore(doc))
               .where(
                 (experience) =>
-                    experience.title.toLowerCase().contains(
-                      searchTerm.toLowerCase(),
-                    ) ||
-                    experience.description.toLowerCase().contains(
-                      searchTerm.toLowerCase(),
-                    ) ||
-                    experience.tags.any(
-                      (tag) =>
-                          tag.toLowerCase().contains(searchTerm.toLowerCase()),
-                    ),
+                    // Filter out blocked users first
+                    !blockedUsers.contains(experience.userId) &&
+                    // Then apply search criteria
+                    (experience.title.toLowerCase().contains(
+                          searchTerm.toLowerCase(),
+                        ) ||
+                        experience.description.toLowerCase().contains(
+                          searchTerm.toLowerCase(),
+                        ) ||
+                        experience.tags.any(
+                          (tag) => tag.toLowerCase().contains(
+                            searchTerm.toLowerCase(),
+                          ),
+                        )),
               )
               .toList();
 

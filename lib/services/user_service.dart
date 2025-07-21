@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import '../models/user_model.dart';
 
 class UserService {
@@ -317,5 +318,137 @@ class UserService {
       print('Error removing verification badge: $e');
       rethrow;
     }
+  }
+
+  // Block a user
+  Future<void> blockUser(String blockedUserId) async {
+    try {
+      final String currentUserId = _getCurrentUserId();
+
+      // Add to current user's blocked users list
+      await _usersCollection.doc(currentUserId).update({
+        'blockedUsers': FieldValue.arrayUnion([blockedUserId]),
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
+
+      // Create a block record for administrative purposes
+      await _firestore.collection('blocks').add({
+        'blockerId': currentUserId,
+        'blockedUserId': blockedUserId,
+        'createdAt': FieldValue.serverTimestamp(),
+        'type': 'user_block',
+        'status': 'active',
+      });
+
+      print('User $blockedUserId blocked successfully');
+    } catch (e) {
+      print('Error blocking user: $e');
+      rethrow;
+    }
+  }
+
+  // Report a user
+  Future<void> reportUser({
+    required String reportedUserId,
+    required String reason,
+    String? chatId,
+    String? additionalInfo,
+  }) async {
+    try {
+      final String currentUserId = _getCurrentUserId();
+
+      // Create a report record
+      await _firestore.collection('reports').add({
+        'reporterId': currentUserId,
+        'reportedUserId': reportedUserId,
+        'reason': reason,
+        'chatId': chatId,
+        'additionalInfo': additionalInfo,
+        'status': 'pending',
+        'createdAt': FieldValue.serverTimestamp(),
+        'type': 'user_report',
+      });
+
+      print('User $reportedUserId reported successfully');
+    } catch (e) {
+      print('Error reporting user: $e');
+      rethrow;
+    }
+  }
+
+  // Get list of blocked user IDs for the current user
+  Future<List<String>> getBlockedUsers() async {
+    try {
+      final String currentUserId = _getCurrentUserId();
+      final userDoc = await _usersCollection.doc(currentUserId).get();
+
+      if (!userDoc.exists) {
+        return [];
+      }
+
+      final userData = userDoc.data() as Map<String, dynamic>?;
+      final blockedUsers = userData?['blockedUsers'] as List<dynamic>?;
+
+      return blockedUsers?.cast<String>() ?? [];
+    } catch (e) {
+      print('Error getting blocked users: $e');
+      return [];
+    }
+  }
+
+  // Check if a specific user is blocked by the current user
+  Future<bool> isUserBlocked(String userId) async {
+    try {
+      final blockedUsers = await getBlockedUsers();
+      return blockedUsers.contains(userId);
+    } catch (e) {
+      print('Error checking if user is blocked: $e');
+      return false;
+    }
+  }
+
+  // Get filtered users list excluding blocked users
+  Future<List<UserModel>> getAllUsersFiltered({int limit = 20}) async {
+    try {
+      final blockedUsers = await getBlockedUsers();
+
+      final QuerySnapshot querySnapshot =
+          await _usersCollection
+              .orderBy('createdAt', descending: true)
+              .limit(limit * 2) // Get more to filter
+              .get();
+
+      final List<UserModel> allUsers =
+          querySnapshot.docs
+              .map((doc) => UserModel.fromFirestore(doc))
+              .toList();
+
+      // Filter out blocked users and current user
+      final String currentUserId = _getCurrentUserId();
+      final filteredUsers =
+          allUsers
+              .where(
+                (user) =>
+                    !blockedUsers.contains(user.userId) &&
+                    user.userId != currentUserId,
+              )
+              .take(limit)
+              .toList();
+
+      return filteredUsers;
+    } catch (e) {
+      print('Error getting filtered users: $e');
+      rethrow;
+    }
+  }
+
+  // Helper method to get current user ID
+  String _getCurrentUserId() {
+    // Import firebase_auth in the file imports section
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) {
+      throw Exception('No authenticated user found');
+    }
+    return user.uid;
   }
 }

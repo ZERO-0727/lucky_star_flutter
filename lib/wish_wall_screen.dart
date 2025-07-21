@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'search_page.dart';
 import 'models/experience_model.dart';
 import 'models/wish_model.dart';
 import 'widgets/experience_card.dart';
 import 'widgets/wish_card.dart';
+import 'services/favorites_service.dart';
 
 class WishWallScreen extends StatefulWidget {
   final int initialTabIndex;
@@ -21,6 +23,11 @@ class _WishWallScreenState extends State<WishWallScreen>
   String? _selectedDateFilter;
   String? _selectedTag;
   String? _selectedLocation;
+  String? _currentUserId;
+
+  // Track favorite states for items in the browse views
+  Map<String, bool> _wishFavoriteStates = {};
+  Map<String, bool> _experienceFavoriteStates = {};
 
   // Available filter options
   final List<String> _availableTags = [
@@ -44,10 +51,175 @@ class _WishWallScreenState extends State<WishWallScreen>
   @override
   void initState() {
     super.initState();
+    _currentUserId = FirebaseAuth.instance.currentUser?.uid;
     _tabController = TabController(
       length: 2,
       vsync: this,
       initialIndex: widget.initialTabIndex,
+    );
+
+    // Load initial favorite states
+    if (_currentUserId != null) {
+      _loadFavoriteStates();
+    }
+  }
+
+  Future<void> _loadFavoriteStates() async {
+    if (_currentUserId == null) return;
+
+    try {
+      final favoriteWishIds = await FavoritesService.getFavoriteWishes();
+      final favoriteExperienceIds =
+          await FavoritesService.getFavoriteExperiences();
+
+      if (mounted) {
+        setState(() {
+          _wishFavoriteStates = {};
+          _experienceFavoriteStates = {};
+
+          for (final wishId in favoriteWishIds) {
+            _wishFavoriteStates[wishId] = true;
+          }
+
+          for (final experienceId in favoriteExperienceIds) {
+            _experienceFavoriteStates[experienceId] = true;
+          }
+        });
+      }
+    } catch (e) {
+      print('Error loading favorite states: $e');
+    }
+  }
+
+  Future<void> _toggleWishFavorite(String wishId) async {
+    if (_currentUserId == null) {
+      _showLoginRequiredMessage();
+      return;
+    }
+
+    try {
+      // Update local state immediately for UI feedback
+      setState(() {
+        _wishFavoriteStates[wishId] = !(_wishFavoriteStates[wishId] ?? false);
+      });
+
+      // Update Firestore in the background
+      final success = await FavoritesService.toggleWishFavorite(wishId);
+
+      if (!success && mounted) {
+        // Revert local state if Firestore update failed
+        setState(() {
+          _wishFavoriteStates[wishId] = !(_wishFavoriteStates[wishId] ?? false);
+        });
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Failed to update favorite status'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      } else if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              _wishFavoriteStates[wishId] == true
+                  ? 'Added to favorites'
+                  : 'Removed from favorites',
+            ),
+            backgroundColor: Colors.green,
+            duration: const Duration(seconds: 1),
+          ),
+        );
+      }
+    } catch (e) {
+      print('Error toggling wish favorite: $e');
+
+      // Revert local state on error
+      if (mounted) {
+        setState(() {
+          _wishFavoriteStates[wishId] = !(_wishFavoriteStates[wishId] ?? false);
+        });
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Failed to update favorite status'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
+  Future<void> _toggleExperienceFavorite(String experienceId) async {
+    if (_currentUserId == null) {
+      _showLoginRequiredMessage();
+      return;
+    }
+
+    try {
+      // Update local state immediately for UI feedback
+      setState(() {
+        _experienceFavoriteStates[experienceId] =
+            !(_experienceFavoriteStates[experienceId] ?? false);
+      });
+
+      // Update Firestore in the background
+      final success = await FavoritesService.toggleExperienceFavorite(
+        experienceId,
+      );
+
+      if (!success && mounted) {
+        // Revert local state if Firestore update failed
+        setState(() {
+          _experienceFavoriteStates[experienceId] =
+              !(_experienceFavoriteStates[experienceId] ?? false);
+        });
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Failed to update favorite status'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      } else if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              _experienceFavoriteStates[experienceId] == true
+                  ? 'Added to favorites'
+                  : 'Removed from favorites',
+            ),
+            backgroundColor: Colors.green,
+            duration: const Duration(seconds: 1),
+          ),
+        );
+      }
+    } catch (e) {
+      print('Error toggling experience favorite: $e');
+
+      // Revert local state on error
+      if (mounted) {
+        setState(() {
+          _experienceFavoriteStates[experienceId] =
+              !(_experienceFavoriteStates[experienceId] ?? false);
+        });
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Failed to update favorite status'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
+  void _showLoginRequiredMessage() {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Please log in to add favorites'),
+        backgroundColor: Colors.orange,
+      ),
     );
   }
 
@@ -69,7 +241,7 @@ class _WishWallScreenState extends State<WishWallScreen>
         ],
         bottom: TabBar(
           controller: _tabController,
-          tabs: const [Tab(text: 'Cosmic Wishes'), Tab(text: 'Unknown Realms')],
+          tabs: const [Tab(text: 'Wishes'), Tab(text: 'Experiences')],
         ),
       ),
       body: Column(
@@ -90,14 +262,18 @@ class _WishWallScreenState extends State<WishWallScreen>
                           labelText: 'Location',
                           border: OutlineInputBorder(),
                           prefixIcon: Icon(Icons.location_on),
-                          contentPadding: EdgeInsets.symmetric(horizontal: 8, vertical: 12),
+                          contentPadding: EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 12,
+                          ),
                         ),
-                        items: _availableLocations.map((location) {
-                          return DropdownMenuItem(
-                            value: location == 'All' ? null : location,
-                            child: Text(location),
-                          );
-                        }).toList(),
+                        items:
+                            _availableLocations.map((location) {
+                              return DropdownMenuItem(
+                                value: location == 'All' ? null : location,
+                                child: Text(location),
+                              );
+                            }).toList(),
                         onChanged: (value) {
                           setState(() {
                             _selectedLocation = value;
@@ -116,10 +292,16 @@ class _WishWallScreenState extends State<WishWallScreen>
                           labelText: 'Date',
                           border: OutlineInputBorder(),
                           prefixIcon: Icon(Icons.calendar_today),
-                          contentPadding: EdgeInsets.symmetric(horizontal: 8, vertical: 12),
+                          contentPadding: EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 12,
+                          ),
                         ),
                         items: const [
-                          DropdownMenuItem(value: 'today', child: Text('Today')),
+                          DropdownMenuItem(
+                            value: 'today',
+                            child: Text('Today'),
+                          ),
                           DropdownMenuItem(
                             value: 'this_week',
                             child: Text('This Week'),
@@ -128,7 +310,10 @@ class _WishWallScreenState extends State<WishWallScreen>
                             value: 'this_month',
                             child: Text('This Month'),
                           ),
-                          DropdownMenuItem(value: 'all', child: Text('All Time')),
+                          DropdownMenuItem(
+                            value: 'all',
+                            child: Text('All Time'),
+                          ),
                         ],
                         onChanged: (value) {
                           setState(() {
@@ -150,12 +335,13 @@ class _WishWallScreenState extends State<WishWallScreen>
                       border: OutlineInputBorder(),
                       prefixIcon: Icon(Icons.category),
                     ),
-                    items: _availableTags.map((tag) {
-                      return DropdownMenuItem(
-                        value: tag == 'All' ? null : tag,
-                        child: Text(tag),
-                      );
-                    }).toList(),
+                    items:
+                        _availableTags.map((tag) {
+                          return DropdownMenuItem(
+                            value: tag == 'All' ? null : tag,
+                            child: Text(tag),
+                          );
+                        }).toList(),
                     onChanged: (value) {
                       setState(() {
                         _selectedTag = value;
@@ -231,10 +417,8 @@ class _WishWallScreenState extends State<WishWallScreen>
             final wish = WishModel.fromFirestore(doc);
             return WishCard(
               wish: wish,
-              onFavoriteToggle: () {
-                // TODO: Implement favorite functionality
-                print('Favorite toggled for ${wish.wishId}');
-              },
+              onFavoriteToggle: () => _toggleWishFavorite(wish.wishId),
+              isFavorited: _wishFavoriteStates[wish.wishId] ?? false,
             );
           },
         );
@@ -289,10 +473,10 @@ class _WishWallScreenState extends State<WishWallScreen>
             final experience = ExperienceModel.fromFirestore(doc);
             return ExperienceCard(
               experience: experience,
-              onFavoriteToggle: () {
-                // TODO: Implement favorite functionality
-                print('Favorite toggled for ${experience.experienceId}');
-              },
+              onFavoriteToggle:
+                  () => _toggleExperienceFavorite(experience.experienceId),
+              isFavorited:
+                  _experienceFavoriteStates[experience.experienceId] ?? false,
             );
           },
         );

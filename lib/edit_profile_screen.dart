@@ -282,23 +282,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     }
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Edit Profile'),
-        centerTitle: true,
-        actions: [
-          if (_isLoading)
-            const Padding(
-              padding: EdgeInsets.all(16.0),
-              child: SizedBox(
-                width: 20,
-                height: 20,
-                child: CircularProgressIndicator(strokeWidth: 2),
-              ),
-            )
-          else
-            IconButton(icon: const Icon(Icons.save), onPressed: _saveProfile),
-        ],
-      ),
+      appBar: AppBar(title: const Text('Edit Profile'), centerTitle: true),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16.0),
         child: Form(
@@ -432,59 +416,26 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   }
 
   Widget _buildAvatarSection() {
-    return Stack(
-      children: [
-        Container(
-          decoration: BoxDecoration(
-            shape: BoxShape.circle,
-            border: Border.all(color: const Color(0xFF7153DF), width: 3),
-          ),
-          child: CircleAvatar(
-            radius: 60,
-            backgroundColor: Colors.grey[300],
-            backgroundImage:
-                _selectedImageBytes != null
-                    ? MemoryImage(_selectedImageBytes!)
-                    : (_currentAvatarUrl != null &&
-                        _currentAvatarUrl!.isNotEmpty)
-                    ? NetworkImage(_currentAvatarUrl!)
-                    : null,
-            child:
-                (_selectedImageBytes == null &&
-                        (_currentAvatarUrl == null ||
-                            _currentAvatarUrl!.isEmpty))
-                    ? const Icon(Icons.person, size: 60, color: Colors.grey)
-                    : null,
-          ),
-        ),
-        Positioned(
-          bottom: 0,
-          right: 0,
-          child: Container(
-            decoration: BoxDecoration(
-              color: const Color(0xFF7153DF),
-              borderRadius: BorderRadius.circular(20),
-              border: Border.all(color: Colors.white, width: 2),
-            ),
-            child: IconButton(
-              icon:
-                  _isUploading
-                      ? const SizedBox(
-                        width: 20,
-                        height: 20,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2,
-                          valueColor: AlwaysStoppedAnimation<Color>(
-                            Colors.white,
-                          ),
-                        ),
-                      )
-                      : const Icon(Icons.camera_alt, color: Colors.white),
-              onPressed: _isUploading ? null : _pickImage,
-            ),
-          ),
-        ),
-      ],
+    return Container(
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        border: Border.all(color: const Color(0xFF7153DF), width: 3),
+      ),
+      child: CircleAvatar(
+        radius: 60,
+        backgroundColor: Colors.grey[300],
+        backgroundImage:
+            _selectedImageBytes != null
+                ? MemoryImage(_selectedImageBytes!)
+                : (_currentAvatarUrl != null && _currentAvatarUrl!.isNotEmpty)
+                ? NetworkImage(_currentAvatarUrl!)
+                : null,
+        child:
+            (_selectedImageBytes == null &&
+                    (_currentAvatarUrl == null || _currentAvatarUrl!.isEmpty))
+                ? const Icon(Icons.person, size: 60, color: Colors.grey)
+                : null,
+      ),
     );
   }
 

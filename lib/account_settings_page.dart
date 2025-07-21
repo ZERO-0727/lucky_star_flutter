@@ -154,7 +154,7 @@ class _AccountSettingsPageState extends State<AccountSettingsPage> {
           children: [
             _buildSettingsItem(
               icon: Icons.account_circle,
-              title: 'Profile Picture & Account Security',
+              title: 'Account Security',
               onTap: () {
                 // Navigate to AccountManagementScreen
                 Navigator.push(
@@ -162,32 +162,6 @@ class _AccountSettingsPageState extends State<AccountSettingsPage> {
                   MaterialPageRoute(
                     builder: (context) => const AccountManagementScreen(),
                   ),
-                );
-              },
-            ),
-            Divider(color: _dividerColor),
-            _buildSettingsItem(
-              icon: Icons.person,
-              title: 'Username',
-              subtitle: 'sarahjohnson',
-              onTap: () {
-                // Navigate to username settings
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('Username settings coming soon'),
-                  ),
-                );
-              },
-            ),
-            Divider(color: _dividerColor),
-            _buildSettingsItem(
-              icon: Icons.email,
-              title: 'Email',
-              subtitle: 'sarah.johnson@example.com',
-              onTap: () {
-                // Navigate to email settings
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Email settings coming soon')),
                 );
               },
             ),
@@ -373,6 +347,7 @@ class _AccountSettingsPageState extends State<AccountSettingsPage> {
                 );
               },
             ),
+            Divider(color: _dividerColor),
             _buildSettingsItem(
               icon: Icons.feedback,
               title: 'Feedback',

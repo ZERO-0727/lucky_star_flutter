@@ -2,10 +2,16 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'models/user_model.dart';
+import 'models/experience_model.dart';
+import 'models/wish_model.dart';
 import 'services/user_service.dart';
 import 'services/chat_service.dart';
 import 'services/favorites_service.dart';
+import 'services/experience_service.dart';
+import 'services/wish_service.dart';
 import 'chat_detail_screen.dart';
+import 'experience_detail_screen.dart';
+import 'wish_detail_screen.dart';
 
 class UserDetailPage extends StatefulWidget {
   final String userId;
@@ -21,15 +27,29 @@ class UserDetailPage extends StatefulWidget {
   State<UserDetailPage> createState() => _UserDetailPageState();
 }
 
-class _UserDetailPageState extends State<UserDetailPage> {
+class _UserDetailPageState extends State<UserDetailPage>
+    with SingleTickerProviderStateMixin {
   final UserService _userService = UserService();
   final ChatService _chatService = ChatService();
+  final ExperienceService _experienceService = ExperienceService();
+  final WishService _wishService = WishService();
+
   bool _isLoading = true;
   bool _isSendingMessage = false;
   bool _isFavorited = false;
   bool _isToggling = false;
   UserModel? _user;
   String? _errorMessage;
+
+  // Content data
+  List<ExperienceModel> _userExperiences = [];
+  List<WishModel> _userWishes = [];
+  bool _isLoadingExperiences = true;
+  bool _isLoadingWishes = true;
+
+  // Tab controller
+  late TabController _tabController;
+  int _selectedTabIndex = 0;
 
   // Helper method to check if current user is viewing their own profile
   bool get _isViewingOwnProfile {
@@ -40,8 +60,70 @@ class _UserDetailPageState extends State<UserDetailPage> {
   @override
   void initState() {
     super.initState();
+    _tabController = TabController(length: 2, vsync: this);
     _loadUserData();
     _checkFavoriteStatus();
+    _loadUserContent();
+  }
+
+  @override
+  void dispose() {
+    _tabController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _loadUserContent() async {
+    await Future.wait([_loadUserExperiences(), _loadUserWishes()]);
+  }
+
+  Future<void> _loadUserExperiences() async {
+    try {
+      setState(() {
+        _isLoadingExperiences = true;
+      });
+
+      final experiences = await _experienceService.getUserExperiences(
+        widget.userId,
+      );
+
+      if (mounted) {
+        setState(() {
+          _userExperiences = experiences;
+          _isLoadingExperiences = false;
+        });
+      }
+    } catch (e) {
+      print('Error loading user experiences: $e');
+      if (mounted) {
+        setState(() {
+          _isLoadingExperiences = false;
+        });
+      }
+    }
+  }
+
+  Future<void> _loadUserWishes() async {
+    try {
+      setState(() {
+        _isLoadingWishes = true;
+      });
+
+      final wishes = await _wishService.getUserWishes(widget.userId);
+
+      if (mounted) {
+        setState(() {
+          _userWishes = wishes;
+          _isLoadingWishes = false;
+        });
+      }
+    } catch (e) {
+      print('Error loading user wishes: $e');
+      if (mounted) {
+        setState(() {
+          _isLoadingWishes = false;
+        });
+      }
+    }
   }
 
   Future<void> _checkFavoriteStatus() async {
@@ -912,85 +994,279 @@ class _UserDetailPageState extends State<UserDetailPage> {
       ),
       child: Column(
         children: [
-          // Tab Headers
-          Container(
-            decoration: BoxDecoration(
-              border: Border(bottom: BorderSide(color: Colors.grey[200]!)),
+          // Tab Bar
+          TabBar(
+            controller: _tabController,
+            labelColor: const Color(0xFF7153DF),
+            unselectedLabelColor: Colors.grey[600],
+            indicatorColor: const Color(0xFF7153DF),
+            indicatorWeight: 2,
+            labelStyle: GoogleFonts.poppins(
+              fontSize: 16,
+              fontWeight: FontWeight.w600,
             ),
-            child: Row(
+            unselectedLabelStyle: GoogleFonts.poppins(
+              fontSize: 16,
+              fontWeight: FontWeight.w600,
+            ),
+            tabs: [
+              Tab(text: 'Experiences (${_userExperiences.length})'),
+              Tab(text: 'Wishes (${_userWishes.length})'),
+            ],
+          ),
+
+          // Tab Content
+          SizedBox(
+            height: 300,
+            child: TabBarView(
+              controller: _tabController,
+              children: [_buildExperiencesTab(), _buildWishesTab()],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildExperiencesTab() {
+    if (_isLoadingExperiences) {
+      return const Center(
+        child: CircularProgressIndicator(color: Color(0xFF7153DF)),
+      );
+    }
+
+    if (_userExperiences.isEmpty) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.explore_outlined, size: 48, color: Colors.grey[400]),
+            const SizedBox(height: 12),
+            Text(
+              'No experiences yet',
+              style: GoogleFonts.poppins(fontSize: 16, color: Colors.grey[600]),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              _isViewingOwnProfile
+                  ? 'Share your first experience!'
+                  : 'This user hasn\'t shared any experiences yet',
+              style: GoogleFonts.poppins(fontSize: 12, color: Colors.grey[400]),
+              textAlign: TextAlign.center,
+            ),
+          ],
+        ),
+      );
+    }
+
+    return ListView.builder(
+      padding: const EdgeInsets.all(16),
+      itemCount: _userExperiences.length,
+      itemBuilder: (context, index) {
+        final experience = _userExperiences[index];
+        return _buildExperienceCard(experience);
+      },
+    );
+  }
+
+  Widget _buildWishesTab() {
+    if (_isLoadingWishes) {
+      return const Center(
+        child: CircularProgressIndicator(color: Color(0xFF7153DF)),
+      );
+    }
+
+    if (_userWishes.isEmpty) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.star_outline, size: 48, color: Colors.grey[400]),
+            const SizedBox(height: 12),
+            Text(
+              'No wishes yet',
+              style: GoogleFonts.poppins(fontSize: 16, color: Colors.grey[600]),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              _isViewingOwnProfile
+                  ? 'Make your first wish!'
+                  : 'This user hasn\'t made any wishes yet',
+              style: GoogleFonts.poppins(fontSize: 12, color: Colors.grey[400]),
+              textAlign: TextAlign.center,
+            ),
+          ],
+        ),
+      );
+    }
+
+    return ListView.builder(
+      padding: const EdgeInsets.all(16),
+      itemCount: _userWishes.length,
+      itemBuilder: (context, index) {
+        final wish = _userWishes[index];
+        return _buildWishCard(wish);
+      },
+    );
+  }
+
+  Widget _buildExperienceCard(ExperienceModel experience) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      decoration: BoxDecoration(
+        color: Colors.grey[50],
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.grey[200]!),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            spreadRadius: 0,
+            blurRadius: 4,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: ListTile(
+        contentPadding: const EdgeInsets.all(16),
+        leading: Container(
+          width: 48,
+          height: 48,
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [
+                const Color(0xFF7153DF).withOpacity(0.8),
+                const Color(0xFF9C7EFF).withOpacity(0.6),
+              ],
+            ),
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Icon(Icons.explore, color: Colors.white, size: 24),
+        ),
+        title: Text(
+          experience.title.isNotEmpty ? experience.title : 'Draft Experience',
+          style: GoogleFonts.poppins(
+            fontSize: 16,
+            fontWeight: FontWeight.w600,
+            color: const Color(0xFF1A1A1A),
+          ),
+        ),
+        subtitle: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const SizedBox(height: 6),
+            Text(
+              experience.description.isNotEmpty
+                  ? experience.description
+                  : 'This experience is being created...',
+              style: GoogleFonts.poppins(fontSize: 13, color: Colors.grey[700]),
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+            ),
+            const SizedBox(height: 8),
+            Row(
               children: [
+                Icon(Icons.location_on, size: 14, color: Colors.grey[500]),
+                const SizedBox(width: 4),
                 Expanded(
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(vertical: 16),
-                    decoration: const BoxDecoration(
-                      border: Border(
-                        bottom: BorderSide(color: Color(0xFF7153DF), width: 2),
-                      ),
+                  child: Text(
+                    experience.location.isNotEmpty
+                        ? experience.location
+                        : 'TBD',
+                    style: GoogleFonts.poppins(
+                      fontSize: 12,
+                      color: Colors.grey[500],
                     ),
-                    child: Text(
-                      'Experiences',
-                      textAlign: TextAlign.center,
-                      style: GoogleFonts.poppins(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w600,
-                        color: const Color(0xFF7153DF),
-                      ),
-                    ),
-                  ),
-                ),
-                Expanded(
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(vertical: 16),
-                    child: Text(
-                      'Wishes',
-                      textAlign: TextAlign.center,
-                      style: GoogleFonts.poppins(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w600,
-                        color: Colors.grey[600],
-                      ),
-                    ),
+                    overflow: TextOverflow.ellipsis,
                   ),
                 ),
               ],
             ),
-          ),
-
-          // Tab Content (Placeholder)
-          Container(
-            height: 200,
-            padding: const EdgeInsets.all(20),
-            child: Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(
-                    Icons.explore_outlined,
-                    size: 48,
-                    color: Colors.grey[400],
-                  ),
-                  const SizedBox(height: 12),
-                  Text(
-                    'Content coming soon',
-                    style: GoogleFonts.poppins(
-                      fontSize: 16,
-                      color: Colors.grey[600],
+          ],
+        ),
+        trailing: Icon(Icons.chevron_right, color: Colors.grey[400]),
+        onTap: () {
+          // Only navigate if experience has a valid ID
+          if (experience.experienceId.isNotEmpty) {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder:
+                    (context) => ExperienceDetailScreen(
+                      experienceId: experience.experienceId,
+                      experience: experience,
                     ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    'User experiences and wishes will appear here',
-                    style: GoogleFonts.poppins(
-                      fontSize: 12,
-                      color: Colors.grey[400],
-                    ),
-                    textAlign: TextAlign.center,
-                  ),
-                ],
               ),
+            );
+          } else {
+            // Show message for draft experiences
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('This experience is still being created'),
+                backgroundColor: Colors.orange,
+              ),
+            );
+          }
+        },
+      ),
+    );
+  }
+
+  Widget _buildWishCard(WishModel wish) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      decoration: BoxDecoration(
+        color: Colors.grey[50],
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: Colors.grey[200]!),
+      ),
+      child: ListTile(
+        contentPadding: const EdgeInsets.all(12),
+        leading: CircleAvatar(
+          backgroundColor: Colors.orange.withOpacity(0.1),
+          child: Icon(Icons.star, color: Colors.orange[700]),
+        ),
+        title: Text(
+          wish.title,
+          style: GoogleFonts.poppins(fontSize: 14, fontWeight: FontWeight.w600),
+        ),
+        subtitle: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const SizedBox(height: 4),
+            Text(
+              wish.description,
+              style: GoogleFonts.poppins(fontSize: 12),
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
             ),
-          ),
-        ],
+            const SizedBox(height: 4),
+            Row(
+              children: [
+                Icon(Icons.location_on, size: 12, color: Colors.grey[600]),
+                const SizedBox(width: 4),
+                Text(
+                  wish.location,
+                  style: GoogleFonts.poppins(
+                    fontSize: 11,
+                    color: Colors.grey[600],
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+        onTap: () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder:
+                  (context) =>
+                      WishDetailScreen(wishId: wish.wishId, wish: wish),
+            ),
+          );
+        },
       ),
     );
   }
@@ -1099,15 +1375,13 @@ class _UserDetailPageState extends State<UserDetailPage> {
         throw Exception('You cannot send messages to yourself');
       }
 
-      // Create or get existing conversation
+      // Create or get existing conversation (without sending any automatic message)
       final conversationId = await _chatService.createConversation(
         otherUserId: widget.userId,
-        // Optional initial message
-        initialMessage: 'Hello! I saw your profile and wanted to connect.',
       );
 
       if (mounted) {
-        // Navigate to chat detail screen
+        // Navigate to chat detail screen (user will manually type and send messages)
         Navigator.push(
           context,
           MaterialPageRoute(
@@ -1116,17 +1390,7 @@ class _UserDetailPageState extends State<UserDetailPage> {
                   chatId: conversationId,
                   userName: _user!.displayName,
                   userAvatar: _user!.avatarUrl,
-                  initialMessage:
-                      'Hello! I saw your profile and wanted to connect.',
                 ),
-          ),
-        );
-
-        // Show success message
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Chat created successfully'),
-            backgroundColor: Colors.green,
           ),
         );
       }
@@ -1137,7 +1401,7 @@ class _UserDetailPageState extends State<UserDetailPage> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Error creating chat: $e'),
+            content: Text('Error opening chat: $e'),
             backgroundColor: Colors.red,
           ),
         );
@@ -1157,6 +1421,15 @@ class _UserDetailPageState extends State<UserDetailPage> {
       return const SizedBox.shrink();
     }
 
+    // Check if user has exactly one experience for the "Join This Experience" button
+    final hasExactlyOneExperience = _userExperiences.length == 1;
+    final singleExperience =
+        hasExactlyOneExperience ? _userExperiences.first : null;
+    final canJoinExperience =
+        hasExactlyOneExperience &&
+        singleExperience != null &&
+        singleExperience.experienceId.isNotEmpty;
+
     return Positioned(
       bottom: 0,
       left: 0,
@@ -1175,29 +1448,25 @@ class _UserDetailPageState extends State<UserDetailPage> {
         ),
         child: Row(
           children: [
-            Expanded(
-              child: ElevatedButton.icon(
-                onPressed: () {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('Request sent to join experience'),
-                      backgroundColor: Colors.green,
+            // Only show "Join This Experience" button if user has exactly one experience
+            if (canJoinExperience) ...[
+              Expanded(
+                child: ElevatedButton.icon(
+                  onPressed: () => _joinUserExperience(singleExperience!),
+                  icon: const Icon(Icons.group_add),
+                  label: Text('Join "${singleExperience!.title}"'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF7153DF),
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
                     ),
-                  );
-                },
-                icon: const Icon(Icons.group_add),
-                label: const Text('Join This Experience'),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF7153DF),
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(vertical: 16),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
                   ),
                 ),
               ),
-            ),
-            const SizedBox(width: 16),
+              const SizedBox(width: 16),
+            ],
             Expanded(
               child: OutlinedButton.icon(
                 onPressed: _isSendingMessage ? null : _sendMessage,
@@ -1231,6 +1500,62 @@ class _UserDetailPageState extends State<UserDetailPage> {
         ),
       ),
     );
+  }
+
+  Future<void> _joinUserExperience(ExperienceModel experience) async {
+    try {
+      // Show loading indicator
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder:
+            (context) => const Center(
+              child: CircularProgressIndicator(color: Color(0xFF7153DF)),
+            ),
+      );
+
+      // Simulate joining the experience (replace with actual API call)
+      await Future.delayed(const Duration(seconds: 1));
+
+      // Close loading dialog
+      if (mounted) Navigator.of(context).pop();
+
+      // Show success message and navigate to experience detail
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Successfully joined "${experience.title}"!'),
+            backgroundColor: Colors.green,
+            duration: const Duration(seconds: 3),
+          ),
+        );
+
+        // Navigate to experience detail page
+        Navigator.pushNamed(
+          context,
+          '/experience-detail',
+          arguments: {
+            'experienceId': experience.experienceId,
+            'experience': experience,
+          },
+        );
+      }
+    } catch (e) {
+      // Close loading dialog if still open
+      if (mounted && Navigator.canPop(context)) {
+        Navigator.of(context).pop();
+      }
+
+      print('Error joining experience: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to join experience: ${e.toString()}'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
   }
 
   /// Print detailed error information to terminal for debugging

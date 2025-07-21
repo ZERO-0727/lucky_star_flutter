@@ -322,19 +322,268 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
       ),
       actions: [
         IconButton(
-          icon: const Icon(Icons.phone, color: Colors.black),
-          onPressed: () {
-            // TODO: Implement call functionality
-          },
-        ),
-        IconButton(
           icon: const Icon(Icons.more_vert, color: Colors.black),
-          onPressed: () {
-            // TODO: Implement more options
-          },
+          onPressed: _showOptionsMenu,
         ),
       ],
     );
+  }
+
+  void _showOptionsMenu() {
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (BuildContext context) {
+        return Container(
+          padding: const EdgeInsets.all(20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              ListTile(
+                leading: const Icon(Icons.block, color: Colors.red),
+                title: const Text('Block User'),
+                onTap: () {
+                  Navigator.pop(context);
+                  _showBlockUserConfirmation();
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.report, color: Colors.orange),
+                title: const Text('Report User'),
+                onTap: () {
+                  Navigator.pop(context);
+                  _showReportUserConfirmation();
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.delete_outline, color: Colors.blue),
+                title: const Text('Clear Chat History'),
+                onTap: () {
+                  Navigator.pop(context);
+                  _showClearChatConfirmation();
+                },
+              ),
+              const SizedBox(height: 20),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  void _showBlockUserConfirmation() {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('Block User'),
+          content: Text(
+            'Are you sure you want to block ${widget.userName}? You won\'t receive messages from them anymore.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Cancel'),
+            ),
+            TextButton(
+              onPressed: () {
+                Navigator.pop(context);
+                _blockUser();
+              },
+              style: TextButton.styleFrom(foregroundColor: Colors.red),
+              child: const Text('Block'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  void _showReportUserConfirmation() {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('Report User'),
+          content: Text(
+            'Are you sure you want to report ${widget.userName}? This will help us maintain a safe community.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Cancel'),
+            ),
+            TextButton(
+              onPressed: () {
+                Navigator.pop(context);
+                _reportUser();
+              },
+              style: TextButton.styleFrom(foregroundColor: Colors.orange),
+              child: const Text('Report'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  void _showClearChatConfirmation() {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('Clear Chat History'),
+          content: const Text(
+            'Are you sure you want to clear all messages in this chat? This action cannot be undone.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Cancel'),
+            ),
+            TextButton(
+              onPressed: () {
+                Navigator.pop(context);
+                _clearChatHistory();
+              },
+              style: TextButton.styleFrom(foregroundColor: Colors.blue),
+              child: const Text('Clear'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  Future<void> _blockUser() async {
+    try {
+      // Show loading
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) => const Center(child: CircularProgressIndicator()),
+      );
+
+      if (_otherUser != null) {
+        // Block the user using UserService
+        await _userService.blockUser(_otherUser!.userId);
+
+        // Close loading dialog
+        if (mounted) Navigator.of(context).pop();
+
+        // Show success message and go back
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('${widget.userName} has been blocked'),
+              backgroundColor: Colors.red,
+            ),
+          );
+          Navigator.of(context).pop();
+        }
+      }
+    } catch (e) {
+      // Close loading dialog
+      if (mounted) Navigator.of(context).pop();
+
+      // Show error message
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error blocking user: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
+  Future<void> _reportUser() async {
+    try {
+      // Show loading
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) => const Center(child: CircularProgressIndicator()),
+      );
+
+      if (_otherUser != null) {
+        // Report the user using UserService
+        await _userService.reportUser(
+          reportedUserId: _otherUser!.userId,
+          reason: 'Inappropriate behavior in chat',
+          chatId: widget.chatId,
+        );
+
+        // Close loading dialog
+        if (mounted) Navigator.of(context).pop();
+
+        // Show success message
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('${widget.userName} has been reported'),
+              backgroundColor: Colors.orange,
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      // Close loading dialog
+      if (mounted) Navigator.of(context).pop();
+
+      // Show error message
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error reporting user: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
+  Future<void> _clearChatHistory() async {
+    try {
+      // Show loading
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) => const Center(child: CircularProgressIndicator()),
+      );
+
+      // Clear chat history using ChatService
+      await _chatService.clearChatHistory(widget.chatId);
+
+      // Close loading dialog
+      if (mounted) Navigator.of(context).pop();
+
+      // Show success message
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Chat history cleared'),
+            backgroundColor: Colors.blue,
+          ),
+        );
+      }
+    } catch (e) {
+      // Close loading dialog
+      if (mounted) Navigator.of(context).pop();
+
+      // Show error message
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error clearing chat history: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
   }
 
   Widget _buildPreviewCard() {

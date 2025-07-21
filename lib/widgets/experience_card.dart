@@ -57,6 +57,17 @@ class _ExperienceCardState extends State<ExperienceCard>
   }
 
   @override
+  void didUpdateWidget(ExperienceCard oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    // Update local state when parent state changes
+    if (oldWidget.isFavorited != widget.isFavorited) {
+      setState(() {
+        _isFavorited = widget.isFavorited;
+      });
+    }
+  }
+
+  @override
   void dispose() {
     _animationController.dispose();
     super.dispose();
@@ -205,14 +216,14 @@ class _ExperienceCardState extends State<ExperienceCard>
                               children: [
                                 // Row 1: User info + date
                                 _buildUserInfoRow(),
-                                
+
                                 const SizedBox(height: 8),
-                                
+
                                 // Row 2: Category chip
                                 _buildCategoryChip(),
-                                
+
                                 const SizedBox(height: 8),
-                                
+
                                 // Row 3: Title + Row 4: Description + Row 5: Location/Slots
                                 _buildMainContent(),
                               ],
@@ -241,52 +252,56 @@ class _ExperienceCardState extends State<ExperienceCard>
           child: Container(
             height: 180,
             width: double.infinity,
-            child: widget.experience.photoUrls.isNotEmpty
-                ? Image.network(
-                    widget.experience.photoUrls.first,
-                    height: 180,
-                    width: double.infinity,
-                    fit: BoxFit.cover, // This ensures full coverage with cropping
-                    errorBuilder: (context, error, stackTrace) {
-                      return Container(
-                        height: 180,
-                        width: double.infinity,
-                        color: Colors.grey.shade300,
-                        child: const Icon(
-                          Icons.broken_image,
-                          size: 60,
-                          color: Colors.grey,
-                        ),
-                      );
-                    },
-                    loadingBuilder: (context, child, loadingProgress) {
-                      if (loadingProgress == null) return child;
-                      return Container(
-                        height: 180,
-                        width: double.infinity,
-                        color: Colors.grey.shade100,
-                        child: Center(
-                          child: CircularProgressIndicator(
-                            value: loadingProgress.expectedTotalBytes != null
-                                ? loadingProgress.cumulativeBytesLoaded /
-                                    loadingProgress.expectedTotalBytes!
-                                : null,
-                            color: _brandColor,
+            child:
+                widget.experience.photoUrls.isNotEmpty
+                    ? Image.network(
+                      widget.experience.photoUrls.first,
+                      height: 180,
+                      width: double.infinity,
+                      fit:
+                          BoxFit
+                              .cover, // This ensures full coverage with cropping
+                      errorBuilder: (context, error, stackTrace) {
+                        return Container(
+                          height: 180,
+                          width: double.infinity,
+                          color: Colors.grey.shade300,
+                          child: const Icon(
+                            Icons.broken_image,
+                            size: 60,
+                            color: Colors.grey,
                           ),
-                        ),
-                      );
-                    },
-                  )
-                : Container(
-                    height: 180,
-                    width: double.infinity,
-                    color: Colors.grey.shade200,
-                    child: const Icon(
-                      Icons.explore,
-                      size: 60,
-                      color: Colors.grey,
+                        );
+                      },
+                      loadingBuilder: (context, child, loadingProgress) {
+                        if (loadingProgress == null) return child;
+                        return Container(
+                          height: 180,
+                          width: double.infinity,
+                          color: Colors.grey.shade100,
+                          child: Center(
+                            child: CircularProgressIndicator(
+                              value:
+                                  loadingProgress.expectedTotalBytes != null
+                                      ? loadingProgress.cumulativeBytesLoaded /
+                                          loadingProgress.expectedTotalBytes!
+                                      : null,
+                              color: _brandColor,
+                            ),
+                          ),
+                        );
+                      },
+                    )
+                    : Container(
+                      height: 180,
+                      width: double.infinity,
+                      color: Colors.grey.shade200,
+                      child: const Icon(
+                        Icons.explore,
+                        size: 60,
+                        color: Colors.grey,
+                      ),
                     ),
-                  ),
           ),
         ),
 
@@ -298,9 +313,7 @@ class _ExperienceCardState extends State<ExperienceCard>
             color: Colors.transparent,
             child: InkWell(
               onTap: () {
-                setState(() {
-                  _isFavorited = !_isFavorited;
-                });
+                // Don't update local state here - let parent handle it
                 widget.onFavoriteToggle?.call();
               },
               customBorder: const CircleBorder(),
@@ -319,8 +332,9 @@ class _ExperienceCardState extends State<ExperienceCard>
                   ],
                 ),
                 child: Icon(
-                  _isFavorited ? Icons.star : Icons.star_border,
-                  color: _isFavorited ? Colors.amber : _secondaryTextColor,
+                  widget.isFavorited ? Icons.star : Icons.star_border,
+                  color:
+                      widget.isFavorited ? Colors.amber : _secondaryTextColor,
                   size: 20,
                 ),
               ),
@@ -338,31 +352,28 @@ class _ExperienceCardState extends State<ExperienceCard>
         // Small avatar
         _isLoading || _publisher == null || _publisher!.avatarUrl.isEmpty
             ? CircleAvatar(
-                radius: 12,
-                backgroundColor: Colors.grey.shade200,
-                child: Icon(Icons.person, color: Colors.grey.shade500, size: 12),
-              )
+              radius: 12,
+              backgroundColor: Colors.grey.shade200,
+              child: Icon(Icons.person, color: Colors.grey.shade500, size: 12),
+            )
             : CircleAvatar(
-                radius: 12,
-                backgroundImage: NetworkImage(_publisher!.avatarUrl),
-                backgroundColor: Colors.grey.shade200,
-              ),
-        
+              radius: 12,
+              backgroundImage: NetworkImage(_publisher!.avatarUrl),
+              backgroundColor: Colors.grey.shade200,
+            ),
+
         const SizedBox(width: 8),
-        
+
         // Username
         Text(
           _isLoading || _publisher == null || _publisher!.displayName.isEmpty
               ? 'Host'
               : _publisher!.displayName,
-          style: const TextStyle(
-            fontSize: 14,
-            fontWeight: FontWeight.w500,
-          ),
+          style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
         ),
-        
+
         const SizedBox(width: 4),
-        
+
         // Verification badge
         if (_publisher != null)
           Container(
@@ -375,11 +386,7 @@ class _ExperienceCardState extends State<ExperienceCard>
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Icon(
-                  Icons.verified,
-                  size: 10,
-                  color: Colors.teal.shade700,
-                ),
+                Icon(Icons.verified, size: 10, color: Colors.teal.shade700),
                 const SizedBox(width: 2),
                 Text(
                   "Verified",
@@ -392,29 +399,20 @@ class _ExperienceCardState extends State<ExperienceCard>
               ],
             ),
           ),
-        
+
         const SizedBox(width: 6),
-        
+
         // Separator
-        Text(
-          "・",
-          style: TextStyle(
-            fontSize: 14,
-            color: Colors.grey.shade500,
-          ),
-        ),
-        
+        Text("・", style: TextStyle(fontSize: 14, color: Colors.grey.shade500)),
+
         const SizedBox(width: 6),
-        
+
         // Date/time
         Text(
           _formatTimeAgo(widget.experience.createdAt),
-          style: TextStyle(
-            fontSize: 14,
-            color: Colors.grey.shade500,
-          ),
+          style: TextStyle(fontSize: 14, color: Colors.grey.shade500),
         ),
-        
+
         // Pro badge if user has Pro membership
         if (_publisher != null && _isProMember) ...[
           const SizedBox(width: 8),
@@ -448,9 +446,9 @@ class _ExperienceCardState extends State<ExperienceCard>
     if (widget.experience.tags.isEmpty) {
       return const SizedBox.shrink();
     }
-    
+
     final category = widget.experience.tags.first; // Show only first tag
-    
+
     // Get a consistent color based on the category name
     final int colorSeed = category.hashCode.abs() % 5;
     final List<Color> categoryColors = [
@@ -501,9 +499,9 @@ class _ExperienceCardState extends State<ExperienceCard>
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
         ),
-        
+
         const SizedBox(height: 6),
-        
+
         // Description (2 lines max)
         if (widget.experience.description.isNotEmpty)
           Text(
@@ -516,9 +514,9 @@ class _ExperienceCardState extends State<ExperienceCard>
             maxLines: 2,
             overflow: TextOverflow.ellipsis,
           ),
-        
+
         const SizedBox(height: 8),
-        
+
         // Location and available slots row
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -550,7 +548,6 @@ class _ExperienceCardState extends State<ExperienceCard>
               )
             else
               const Expanded(child: SizedBox()), // Empty space when no location
-            
             // Available slots (always right-aligned)
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
@@ -591,8 +588,4 @@ class _ExperienceCardState extends State<ExperienceCard>
       return '${(difference.inDays / 7).floor()}w';
     }
   }
-
-
-
-
 }

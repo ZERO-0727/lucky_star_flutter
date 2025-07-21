@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'my_wishes_page.dart';
 import 'my_published_experiences_page.dart';
 import 'trust_reputation_page.dart';
@@ -15,6 +16,8 @@ import 'models/user_model.dart';
 import 'models/wish_model.dart';
 import 'models/experience_model.dart';
 import 'chat_detail_screen.dart';
+import 'wish_detail_screen.dart';
+import 'experience_detail_screen.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
@@ -59,23 +62,37 @@ class _HomeScreenState extends State<HomeScreen> {
   bool _isLoadingFavorites = true;
   bool _isLoadingWishes = true;
   bool _isLoadingExperiences = true;
+  UserModel? _currentUser;
+  String? _currentUserAvatarUrl;
   final UserService _userService = UserService();
   final WishService _wishService = WishService();
   final ExperienceService _experienceService = ExperienceService();
   final ChatService _chatService = ChatService();
 
-  // Featured content
-  List<WishModel> _featuredWishes = [];
-  List<ExperienceModel> _featuredExperiences = [];
-  bool _isLoadingFeatured = true;
-
   @override
   void initState() {
     super.initState();
+    _loadCurrentUser();
     _loadFavoriteUsers();
     _loadFavoriteWishes();
     _loadFavoriteExperiences();
-    _loadFeaturedContent();
+  }
+
+  Future<void> _loadCurrentUser() async {
+    try {
+      final user = FirebaseAuth.instance.currentUser;
+      if (user != null) {
+        final userData = await _userService.getUserById(user.uid);
+        if (userData != null && mounted) {
+          setState(() {
+            _currentUser = userData;
+            _currentUserAvatarUrl = userData.avatarUrl;
+          });
+        }
+      }
+    } catch (e) {
+      print('Error loading current user: $e');
+    }
   }
 
   Future<void> _loadFavoriteUsers() async {
@@ -198,75 +215,98 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
-  Future<void> _loadFeaturedContent() async {
-    try {
-      setState(() {
-        _isLoadingFeatured = true;
-      });
-
-      // Load top 3 popular wishes by favorites count
-      final popularWishesData = await FavoritesService.getPopularWishes(
-        limit: 3,
-        minFavorites: 3,
-        maxDaysOld: 30,
-      );
-
-      // Load top 3 popular experiences by favorites count
-      final popularExperiencesData =
-          await FavoritesService.getPopularExperiences(
-            limit: 3,
-            minFavorites: 3,
-            maxDaysOld: 30,
-          );
-
-      // Convert to model objects
-      final List<WishModel> featuredWishes = [];
-      for (final wishData in popularWishesData) {
-        try {
-          // Create a document snapshot-like object
-          final fakeDoc = _FakeDocumentSnapshot(wishData['id'], wishData);
-          final wish = WishModel.fromFirestore(fakeDoc);
-          featuredWishes.add(wish);
-        } catch (e) {
-          print('Error converting wish data: $e');
-        }
-      }
-
-      final List<ExperienceModel> featuredExperiences = [];
-      for (final expData in popularExperiencesData) {
-        try {
-          // Create a document snapshot-like object
-          final fakeDoc = _FakeDocumentSnapshot(expData['id'], expData);
-          final experience = ExperienceModel.fromFirestore(fakeDoc);
-          featuredExperiences.add(experience);
-        } catch (e) {
-          print('Error converting experience data: $e');
-        }
-      }
-
-      if (mounted) {
-        setState(() {
-          _featuredWishes = featuredWishes;
-          _featuredExperiences = featuredExperiences;
-          _isLoadingFeatured = false;
-        });
-      }
-    } catch (e) {
-      print('Error loading featured content: $e');
-      if (mounted) {
-        setState(() {
-          _isLoadingFeatured = false;
-        });
-      }
-    }
-  }
-
   void _onFavoriteChanged() {
     // Reload favorites when a user is added/removed from favorites
     _loadFavoriteUsers();
     _loadFavoriteWishes();
     _loadFavoriteExperiences();
-    _loadFeaturedContent(); // Also reload featured content
+  }
+
+  void _refreshHomeData() {
+    // Force refresh all data when returning from other pages
+    _loadFavoriteUsers();
+    _loadFavoriteWishes();
+    _loadFavoriteExperiences();
+  }
+
+  // Unfavorite wish from homepage - immediate removal
+  Future<void> _unfavoriteWishFromHomepage(String wishId) async {
+    try {
+      // Update Firestore first
+      await FavoritesService.removeWishFromFavorites(wishId);
+
+      // Remove from local list immediately for instant feedback
+      setState(() {
+        _favoriteWishes.removeWhere((wish) => wish.wishId == wishId);
+      });
+
+      print('Wish $wishId removed from favorites');
+
+      // Show brief confirmation
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Wish removed from favorites'),
+            backgroundColor: Colors.green,
+            duration: Duration(seconds: 1),
+          ),
+        );
+      }
+    } catch (e) {
+      print('Error removing wish from favorites: $e');
+
+      // Show error message
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to remove from favorites'),
+            backgroundColor: Colors.red,
+            duration: Duration(seconds: 2),
+          ),
+        );
+      }
+    }
+  }
+
+  // Unfavorite experience from homepage - immediate removal
+  Future<void> _unfavoriteExperienceFromHomepage(String experienceId) async {
+    try {
+      // Update Firestore first
+      await FavoritesService.removeExperienceFromFavorites(experienceId);
+
+      // Remove from local list immediately for instant feedback
+      setState(() {
+        _favoriteExperiences.removeWhere(
+          (experience) => experience.experienceId == experienceId,
+        );
+      });
+
+      print('Experience $experienceId removed from favorites');
+
+      // Show brief confirmation
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Experience removed from favorites'),
+            backgroundColor: Colors.green,
+            duration: Duration(seconds: 1),
+          ),
+        );
+      }
+    } catch (e) {
+      print('Error removing experience from favorites: $e');
+
+      // Show error message
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to remove from favorites'),
+            backgroundColor: Colors.red,
+            duration: Duration(seconds: 2),
+          ),
+        );
+      }
+    }
   }
 
   @override
@@ -285,17 +325,23 @@ class _HomeScreenState extends State<HomeScreen> {
         elevation: 0,
         actions: [
           IconButton(
-            icon: const Icon(Icons.notifications, color: Colors.white),
-            onPressed: () {
-              // TODO: Implement notifications functionality
-            },
-          ),
-          IconButton(
-            icon: const CircleAvatar(
-              radius: 16,
-              backgroundColor: Colors.white,
-              child: Icon(Icons.person, color: Color(0xFF7153DF), size: 20),
-            ),
+            icon:
+                _currentUserAvatarUrl != null &&
+                        _currentUserAvatarUrl!.isNotEmpty
+                    ? CircleAvatar(
+                      radius: 16,
+                      backgroundColor: Colors.white,
+                      backgroundImage: NetworkImage(_currentUserAvatarUrl!),
+                    )
+                    : const CircleAvatar(
+                      radius: 16,
+                      backgroundColor: Colors.white,
+                      child: Icon(
+                        Icons.person,
+                        color: Color(0xFF7153DF),
+                        size: 20,
+                      ),
+                    ),
             onPressed: () {
               Navigator.pushNamed(context, '/my-page');
             },
@@ -333,14 +379,6 @@ class _HomeScreenState extends State<HomeScreen> {
                 _buildLuckyStarAvatars(),
                 const SizedBox(height: 20),
 
-                // Wishes Wall Preview
-                _buildWishesWallPreview(),
-                const SizedBox(height: 20),
-
-                // Discover Experiences
-                _buildDiscoverExperiences(),
-                const SizedBox(height: 20),
-
                 // My Wishes tabbed view
                 _buildMyWishes(),
                 const SizedBox(height: 20),
@@ -351,10 +389,6 @@ class _HomeScreenState extends State<HomeScreen> {
 
                 // Trust & Reputation
                 _buildTrustReputation(),
-                const SizedBox(height: 20),
-
-                // Calendar preview
-                _buildCalendarPreview(),
               ],
             ),
           ),
@@ -650,252 +684,6 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  Widget _buildDiscoverExperiences() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Text(
-              'Featured Experiences',
-              style: GoogleFonts.poppins(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            TextButton(
-              onPressed: () {
-                Navigator.pushNamed(context, '/share-experiences');
-              },
-              child: Text(
-                'See All',
-                style: GoogleFonts.poppins(
-                  fontSize: 14,
-                  color: const Color(0xFF7153DF),
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 12),
-        SizedBox(
-          height: 250,
-          child:
-              _isLoadingFeatured
-                  ? const Center(
-                    child: CircularProgressIndicator(color: Color(0xFF7153DF)),
-                  )
-                  : _featuredExperiences.isEmpty
-                  ? Center(
-                    child: Text(
-                      'No popular experiences found.\nMaybe try reducing the minimum favorites requirement?',
-                      textAlign: TextAlign.center,
-                      style: GoogleFonts.poppins(
-                        fontSize: 14,
-                        color: Colors.grey[600],
-                      ),
-                    ),
-                  )
-                  : ListView.builder(
-                    scrollDirection: Axis.horizontal,
-                    itemCount: _featuredExperiences.length,
-                    itemBuilder: (context, index) {
-                      final experience = _featuredExperiences[index];
-                      return _buildPopularExperienceCard(experience);
-                    },
-                  ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildPopularExperienceCard(ExperienceModel experience) {
-    return GestureDetector(
-      onTap: () {
-        Navigator.pushNamed(
-          context,
-          '/experience-detail',
-          arguments: {
-            'experienceId': experience.experienceId,
-            'experience': experience,
-          },
-        );
-      },
-      child: Container(
-        width: 280,
-        margin: const EdgeInsets.only(right: 16),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(16),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.grey.withOpacity(0.1),
-              spreadRadius: 1,
-              blurRadius: 5,
-              offset: const Offset(0, 2),
-            ),
-          ],
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Image section with Popular badge
-            Stack(
-              children: [
-                ClipRRect(
-                  borderRadius: const BorderRadius.vertical(
-                    top: Radius.circular(16),
-                  ),
-                  child:
-                      experience.photoUrls.isNotEmpty
-                          ? Image.network(
-                            experience.photoUrls.first,
-                            height: 150,
-                            width: double.infinity,
-                            fit: BoxFit.cover,
-                            errorBuilder: (context, error, stackTrace) {
-                              return Container(
-                                height: 150,
-                                width: double.infinity,
-                                color: Colors.grey.shade200,
-                                child: Column(
-                                  mainAxisAlignment: MainAxisAlignment.center,
-                                  children: [
-                                    Icon(
-                                      Icons.explore,
-                                      color: Colors.grey.shade400,
-                                      size: 40,
-                                    ),
-                                    const SizedBox(height: 8),
-                                    Text(
-                                      "Image not available",
-                                      style: TextStyle(
-                                        color: Colors.grey.shade600,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              );
-                            },
-                          )
-                          : Container(
-                            height: 150,
-                            width: double.infinity,
-                            decoration: BoxDecoration(
-                              gradient: LinearGradient(
-                                begin: Alignment.topLeft,
-                                end: Alignment.bottomRight,
-                                colors: [
-                                  Colors.blue.shade300,
-                                  Colors.purple.shade300,
-                                ],
-                              ),
-                            ),
-                            child: Center(
-                              child: Icon(
-                                Icons.explore,
-                                color: Colors.white,
-                                size: 60,
-                              ),
-                            ),
-                          ),
-                ),
-                // Popular badge
-                Positioned(
-                  top: 12,
-                  right: 12,
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 8,
-                      vertical: 4,
-                    ),
-                    decoration: BoxDecoration(
-                      color: Colors.green.shade600,
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Text(
-                      'Popular',
-                      style: GoogleFonts.poppins(
-                        fontSize: 10,
-                        fontWeight: FontWeight.w600,
-                        color: Colors.white,
-                      ),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-            Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    experience.title,
-                    style: GoogleFonts.poppins(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                    ),
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    experience.description,
-                    style: GoogleFonts.poppins(
-                      fontSize: 14,
-                      color: Colors.grey[600],
-                    ),
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  const SizedBox(height: 8),
-                  Row(
-                    children: [
-                      Icon(
-                        Icons.location_on,
-                        size: 16,
-                        color: Colors.grey[600],
-                      ),
-                      const SizedBox(width: 4),
-                      Expanded(
-                        child: Text(
-                          experience.location.isNotEmpty
-                              ? experience.location
-                              : 'Location TBD',
-                          style: GoogleFonts.poppins(
-                            fontSize: 14,
-                            color: Colors.grey[600],
-                          ),
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 4),
-                  Row(
-                    children: [
-                      Icon(Icons.people, size: 16, color: Colors.grey[600]),
-                      const SizedBox(width: 4),
-                      Text(
-                        '${experience.currentParticipants} participants',
-                        style: GoogleFonts.poppins(
-                          fontSize: 14,
-                          color: Colors.grey[600],
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
   Widget _buildExperienceCard(
     String imageUrl,
     String title,
@@ -1042,7 +830,10 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
             TextButton(
               onPressed: () {
-                Navigator.pushNamed(context, '/all-favorite-wishes');
+                Navigator.pushNamed(context, '/all-favorite-wishes').then((_) {
+                  // Refresh homepage data when returning from favorites
+                  _refreshHomeData();
+                });
               },
               child: Text(
                 'View All',
@@ -1090,14 +881,13 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget _buildFavoriteWishCard(WishModel wish) {
     return GestureDetector(
       onTap: () {
-        Navigator.pushNamed(
+        Navigator.push(
           context,
-          '/wish-detail',
-          arguments: {'wishId': wish.wishId, 'wish': wish},
-        ).then((_) {
-          // Refresh favorites when returning
-          _loadFavoriteWishes();
-        });
+          MaterialPageRoute(
+            builder:
+                (context) => WishDetailScreen(wishId: wish.wishId, wish: wish),
+          ),
+        );
       },
       child: Container(
         width: 200,
@@ -1132,6 +922,18 @@ class _HomeScreenState extends State<HomeScreen> {
                     overflow: TextOverflow.ellipsis,
                   ),
                 ),
+                // Star icon for unfavoriting - immediate removal
+                GestureDetector(
+                  onTap: () => _unfavoriteWishFromHomepage(wish.wishId),
+                  child: Container(
+                    padding: const EdgeInsets.all(4),
+                    child: Icon(
+                      Icons.star,
+                      color: Colors.amber.shade600,
+                      size: 18,
+                    ),
+                  ),
+                ),
               ],
             ),
             const SizedBox(height: 8),
@@ -1156,8 +958,6 @@ class _HomeScreenState extends State<HomeScreen> {
                     overflow: TextOverflow.ellipsis,
                   ),
                 ),
-                const SizedBox(width: 8),
-                Icon(Icons.favorite, size: 12, color: Colors.red.shade400),
               ],
             ),
           ],
@@ -1182,7 +982,12 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
             TextButton(
               onPressed: () {
-                Navigator.pushNamed(context, '/all-favorite-experiences');
+                Navigator.pushNamed(context, '/all-favorite-experiences').then((
+                  _,
+                ) {
+                  // Refresh homepage data when returning from favorites
+                  _refreshHomeData();
+                });
               },
               child: Text(
                 'View All',
@@ -1230,17 +1035,16 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget _buildFavoriteExperienceCard(ExperienceModel experience) {
     return GestureDetector(
       onTap: () {
-        Navigator.pushNamed(
+        Navigator.push(
           context,
-          '/experience-detail',
-          arguments: {
-            'experienceId': experience.experienceId,
-            'experience': experience,
-          },
-        ).then((_) {
-          // Refresh favorites when returning
-          _loadFavoriteExperiences();
-        });
+          MaterialPageRoute(
+            builder:
+                (context) => ExperienceDetailScreen(
+                  experienceId: experience.experienceId,
+                  experience: experience,
+                ),
+          ),
+        );
       },
       child: Container(
         width: 200,
@@ -1275,6 +1079,21 @@ class _HomeScreenState extends State<HomeScreen> {
                     overflow: TextOverflow.ellipsis,
                   ),
                 ),
+                // Star icon for unfavoriting - immediate removal
+                GestureDetector(
+                  onTap:
+                      () => _unfavoriteExperienceFromHomepage(
+                        experience.experienceId,
+                      ),
+                  child: Container(
+                    padding: const EdgeInsets.all(4),
+                    child: Icon(
+                      Icons.star,
+                      color: Colors.amber.shade600,
+                      size: 18,
+                    ),
+                  ),
+                ),
               ],
             ),
             const SizedBox(height: 8),
@@ -1301,8 +1120,6 @@ class _HomeScreenState extends State<HomeScreen> {
                     overflow: TextOverflow.ellipsis,
                   ),
                 ),
-                const SizedBox(width: 8),
-                Icon(Icons.favorite, size: 12, color: Colors.red.shade400),
               ],
             ),
           ],
@@ -1533,220 +1350,6 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
           ),
         ],
-      ),
-    );
-  }
-
-  Widget _buildWishesWallPreview() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Text(
-              'Wishes Wall',
-              style: GoogleFonts.poppins(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            TextButton(
-              onPressed: () {
-                Navigator.pushNamed(context, '/wish-wall');
-              },
-              child: Text(
-                'See All',
-                style: GoogleFonts.poppins(
-                  fontSize: 14,
-                  color: const Color(0xFF7153DF),
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 12),
-        SizedBox(
-          height: 180,
-          child:
-              _isLoadingFeatured
-                  ? const Center(
-                    child: CircularProgressIndicator(color: Color(0xFF7153DF)),
-                  )
-                  : _featuredWishes.isEmpty
-                  ? Center(
-                    child: Text(
-                      'No popular wishes found.\nMaybe try reducing the minimum favorites requirement?',
-                      textAlign: TextAlign.center,
-                      style: GoogleFonts.poppins(
-                        fontSize: 14,
-                        color: Colors.grey[600],
-                      ),
-                    ),
-                  )
-                  : ListView.builder(
-                    scrollDirection: Axis.horizontal,
-                    itemCount: _featuredWishes.length,
-                    itemBuilder: (context, index) {
-                      final wish = _featuredWishes[index];
-                      return _buildPopularWishCard(wish);
-                    },
-                  ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildPopularWishCard(WishModel wish) {
-    return GestureDetector(
-      onTap: () {
-        Navigator.pushNamed(
-          context,
-          '/wish-detail',
-          arguments: {'wishId': wish.wishId, 'wish': wish},
-        );
-      },
-      child: Container(
-        width: 250,
-        margin: const EdgeInsets.only(right: 16),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(16),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.grey.withOpacity(0.1),
-              spreadRadius: 1,
-              blurRadius: 5,
-              offset: const Offset(0, 2),
-            ),
-          ],
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Wish header with star icon and popularity badge
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: const BoxDecoration(
-                color: Color(0xFFF5F0FF),
-                borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
-              ),
-              child: Row(
-                children: [
-                  const Icon(Icons.star, color: Color(0xFFFFD700), size: 24),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      wish.title,
-                      style: GoogleFonts.poppins(
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                        color: const Color(0xFF7153DF),
-                      ),
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ),
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 8,
-                      vertical: 4,
-                    ),
-                    decoration: BoxDecoration(
-                      color: Colors.red.shade100,
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Text(
-                      'Popular',
-                      style: GoogleFonts.poppins(
-                        fontSize: 10,
-                        fontWeight: FontWeight.w600,
-                        color: Colors.red.shade600,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            // Wish content
-            Padding(
-              padding: const EdgeInsets.all(12),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    wish.description,
-                    style: GoogleFonts.poppins(
-                      fontSize: 13,
-                      color: Colors.grey[800],
-                    ),
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  const SizedBox(height: 8),
-                  Row(
-                    children: [
-                      Icon(
-                        Icons.location_on,
-                        size: 14,
-                        color: Colors.grey[600],
-                      ),
-                      const SizedBox(width: 4),
-                      Expanded(
-                        child: Text(
-                          wish.location.isNotEmpty
-                              ? wish.location
-                              : 'Location TBD',
-                          style: GoogleFonts.poppins(
-                            fontSize: 12,
-                            color: Colors.grey[600],
-                          ),
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 4),
-                  Row(
-                    children: [
-                      Icon(
-                        Icons.calendar_today,
-                        size: 14,
-                        color: Colors.grey[600],
-                      ),
-                      const SizedBox(width: 4),
-                      Text(
-                        '${wish.preferredDate.day}/${wish.preferredDate.month}/${wish.preferredDate.year}',
-                        style: GoogleFonts.poppins(
-                          fontSize: 12,
-                          color: Colors.grey[600],
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 4),
-                  Row(
-                    children: [
-                      Icon(
-                        Icons.favorite,
-                        size: 14,
-                        color: Colors.red.shade600,
-                      ),
-                      const SizedBox(width: 4),
-                      Text(
-                        '${wish.interestedCount} interested',
-                        style: GoogleFonts.poppins(
-                          fontSize: 12,
-                          color: Colors.grey[600],
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
       ),
     );
   }

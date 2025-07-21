@@ -300,65 +300,6 @@ class _AccountManagementScreenState extends State<AccountManagementScreen> {
                     ),
                     const SizedBox(height: 24),
 
-                    // Account management section
-                    Card(
-                      elevation: 2,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: Padding(
-                        padding: const EdgeInsets.all(16.0),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            const Text(
-                              'Account Management',
-                              style: TextStyle(
-                                fontSize: 18,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                            const SizedBox(height: 16),
-                            // Change password option
-                            ListTile(
-                              leading: const Icon(Icons.lock_reset),
-                              title: const Text('Change Password'),
-                              trailing: const Icon(Icons.chevron_right),
-                              contentPadding: EdgeInsets.zero,
-                              onTap: () => _changePassword(context),
-                            ),
-                            const Divider(),
-                            // Sign out option
-                            ListTile(
-                              leading: const Icon(Icons.logout),
-                              title: const Text('Sign Out'),
-                              trailing: const Icon(Icons.chevron_right),
-                              contentPadding: EdgeInsets.zero,
-                              onTap: _signOut,
-                            ),
-                            const Divider(),
-                            // Delete account option
-                            ListTile(
-                              leading: const Icon(
-                                Icons.delete_forever,
-                                color: Colors.red,
-                              ),
-                              title: const Text(
-                                'Delete Account',
-                                style: TextStyle(color: Colors.red),
-                              ),
-                              trailing: const Icon(
-                                Icons.chevron_right,
-                                color: Colors.red,
-                              ),
-                              contentPadding: EdgeInsets.zero,
-                              onTap: _showDeleteAccountConfirmation,
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 16),
                     // App information
                     const Card(
                       child: Padding(

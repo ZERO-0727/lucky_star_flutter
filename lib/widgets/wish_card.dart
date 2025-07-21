@@ -33,6 +33,17 @@ class _WishCardState extends State<WishCard> {
     _fetchPublisherData();
   }
 
+  @override
+  void didUpdateWidget(WishCard oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    // Update local state when parent state changes
+    if (oldWidget.isFavorited != widget.isFavorited) {
+      setState(() {
+        _isFavorited = widget.isFavorited;
+      });
+    }
+  }
+
   // Fetch user data for the wish publisher
   Future<void> _fetchPublisherData() async {
     setState(() {
@@ -53,8 +64,6 @@ class _WishCardState extends State<WishCard> {
     }
   }
 
-
-
   @override
   Widget build(BuildContext context) {
     return Card(
@@ -66,10 +75,11 @@ class _WishCardState extends State<WishCard> {
           Navigator.push(
             context,
             MaterialPageRoute(
-              builder: (context) => WishDetailScreen(
-                wishId: widget.wish.wishId,
-                wish: widget.wish,
-              ),
+              builder:
+                  (context) => WishDetailScreen(
+                    wishId: widget.wish.wishId,
+                    wish: widget.wish,
+                  ),
             ),
           );
         },
@@ -81,14 +91,14 @@ class _WishCardState extends State<WishCard> {
             children: [
               // Row 1: User info + date
               _buildUserInfoRow(),
-              
+
               const SizedBox(height: 8),
-              
+
               // Row 2: Category chip
               _buildCategoryChip(),
-              
+
               const SizedBox(height: 8),
-              
+
               // Row 3: Title + Row 4: Description + Row 5: Location/Budget + Optional image
               _buildMainContent(),
             ],
@@ -105,31 +115,28 @@ class _WishCardState extends State<WishCard> {
         // Small avatar
         _isLoading || _publisher == null || _publisher!.avatarUrl.isEmpty
             ? CircleAvatar(
-                radius: 12,
-                backgroundColor: Colors.grey.shade200,
-                child: Icon(Icons.person, color: Colors.grey.shade500, size: 12),
-              )
+              radius: 12,
+              backgroundColor: Colors.grey.shade200,
+              child: Icon(Icons.person, color: Colors.grey.shade500, size: 12),
+            )
             : CircleAvatar(
-                radius: 12,
-                backgroundImage: NetworkImage(_publisher!.avatarUrl),
-                backgroundColor: Colors.grey.shade200,
-              ),
-        
+              radius: 12,
+              backgroundImage: NetworkImage(_publisher!.avatarUrl),
+              backgroundColor: Colors.grey.shade200,
+            ),
+
         const SizedBox(width: 8),
-        
+
         // Username
         Text(
           _isLoading || _publisher == null || _publisher!.displayName.isEmpty
               ? 'Anonymous'
               : _publisher!.displayName,
-          style: const TextStyle(
-            fontSize: 14,
-            fontWeight: FontWeight.w500,
-          ),
+          style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
         ),
-        
+
         const SizedBox(width: 4),
-        
+
         // Verification badge
         if (_publisher != null)
           Container(
@@ -142,11 +149,7 @@ class _WishCardState extends State<WishCard> {
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Icon(
-                  Icons.verified,
-                  size: 10,
-                  color: Colors.teal.shade700,
-                ),
+                Icon(Icons.verified, size: 10, color: Colors.teal.shade700),
                 const SizedBox(width: 2),
                 Text(
                   "Verified",
@@ -159,45 +162,34 @@ class _WishCardState extends State<WishCard> {
               ],
             ),
           ),
-        
+
         const SizedBox(width: 6),
-        
+
         // Separator
-        Text(
-          "・",
-          style: TextStyle(
-            fontSize: 14,
-            color: Colors.grey.shade500,
-          ),
-        ),
-        
+        Text("・", style: TextStyle(fontSize: 14, color: Colors.grey.shade500)),
+
         const SizedBox(width: 6),
-        
+
         // Date/time
         Text(
           _formatTimeAgo(widget.wish.createdAt),
-          style: TextStyle(
-            fontSize: 14,
-            color: Colors.grey.shade500,
-          ),
+          style: TextStyle(fontSize: 14, color: Colors.grey.shade500),
         ),
-        
+
         const Spacer(),
-        
+
         // Favorite button (moved to top right)
         InkWell(
           onTap: () {
-            setState(() {
-              _isFavorited = !_isFavorited;
-            });
+            // Don't update local state here - let parent handle it
             widget.onFavoriteToggle?.call();
           },
           borderRadius: BorderRadius.circular(12),
           child: Padding(
             padding: const EdgeInsets.all(4),
             child: Icon(
-              _isFavorited ? Icons.star : Icons.star_border,
-              color: _isFavorited ? Colors.amber : Colors.grey.shade400,
+              widget.isFavorited ? Icons.star : Icons.star_border,
+              color: widget.isFavorited ? Colors.amber : Colors.grey.shade400,
               size: 20,
             ),
           ),
@@ -211,9 +203,9 @@ class _WishCardState extends State<WishCard> {
     if (widget.wish.categories.isEmpty) {
       return const SizedBox.shrink();
     }
-    
+
     final category = widget.wish.categories.first; // Show only first category
-    
+
     // Get a consistent color based on the category name
     final int colorSeed = category.hashCode.abs() % 5;
     final List<Color> categoryColors = [
@@ -251,7 +243,7 @@ class _WishCardState extends State<WishCard> {
   // Main content area with title, description, location/budget, and optional image
   Widget _buildMainContent() {
     final bool hasImages = widget.wish.photoUrls.isNotEmpty;
-    
+
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -273,9 +265,9 @@ class _WishCardState extends State<WishCard> {
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
               ),
-              
+
               const SizedBox(height: 6),
-              
+
               // Description (max 4 lines)
               if (widget.wish.description.isNotEmpty)
                 Text(
@@ -288,9 +280,9 @@ class _WishCardState extends State<WishCard> {
                   maxLines: 4,
                   overflow: TextOverflow.ellipsis,
                 ),
-              
+
               const SizedBox(height: 8),
-              
+
               // Location and budget row
               Row(
                 children: [
@@ -314,13 +306,16 @@ class _WishCardState extends State<WishCard> {
                       ),
                     ),
                   ],
-                  
+
                   const Spacer(),
-                  
+
                   // Budget (if available)
                   if (widget.wish.budget != null && widget.wish.budget! > 0)
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 6,
+                        vertical: 2,
+                      ),
                       decoration: BoxDecoration(
                         color: Colors.green.shade50,
                         borderRadius: BorderRadius.circular(8),
@@ -340,7 +335,7 @@ class _WishCardState extends State<WishCard> {
             ],
           ),
         ),
-        
+
         // Right side: optional image
         if (hasImages) ...[
           const SizedBox(width: 12),
@@ -353,7 +348,8 @@ class _WishCardState extends State<WishCard> {
                 widget.wish.photoUrls.first,
                 width: 80,
                 height: 80,
-                fit: BoxFit.cover, // This will crop the image to fill the square
+                fit:
+                    BoxFit.cover, // This will crop the image to fill the square
                 errorBuilder: (context, error, stackTrace) {
                   return Container(
                     width: 80,
@@ -374,10 +370,11 @@ class _WishCardState extends State<WishCard> {
                     color: Colors.grey.shade100,
                     child: Center(
                       child: CircularProgressIndicator(
-                        value: loadingProgress.expectedTotalBytes != null
-                            ? loadingProgress.cumulativeBytesLoaded /
-                                loadingProgress.expectedTotalBytes!
-                            : null,
+                        value:
+                            loadingProgress.expectedTotalBytes != null
+                                ? loadingProgress.cumulativeBytesLoaded /
+                                    loadingProgress.expectedTotalBytes!
+                                : null,
                         strokeWidth: 2,
                         color: Colors.blue.shade300,
                       ),

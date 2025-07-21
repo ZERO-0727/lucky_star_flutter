@@ -387,6 +387,55 @@ class ChatService {
     await _conversations.doc(conversationId).update({'active': false});
   }
 
+  /// Clear all messages in a conversation but keep the conversation
+  Future<void> clearChatHistory(String conversationId) async {
+    final currentUserId = _currentUserId;
+
+    try {
+      // Get the conversation to verify user is a participant
+      final conversationDoc = await _conversations.doc(conversationId).get();
+      if (!conversationDoc.exists) {
+        throw Exception('Conversation not found');
+      }
+
+      final conversation = ChatConversation.fromFirestore(conversationDoc);
+
+      // Ensure the current user is a participant
+      if (!conversation.participantIds.contains(currentUserId)) {
+        throw Exception('User is not a participant in this conversation');
+      }
+
+      // Delete all messages in the conversation
+      final messagesSnapshot = await _getMessagesRef(conversationId).get();
+      final batch = _firestore.batch();
+
+      for (final doc in messagesSnapshot.docs) {
+        batch.delete(doc.reference);
+      }
+
+      // Reset the conversation's last message info and unread counts
+      final resetUnreadCounts = <String, int>{};
+      for (final participantId in conversation.participantIds) {
+        resetUnreadCounts[participantId] = 0;
+      }
+
+      // Update the conversation
+      batch.update(_conversations.doc(conversationId), {
+        'lastMessageText': '',
+        'lastMessageTime': FieldValue.serverTimestamp(),
+        'unreadCounts': resetUnreadCounts,
+      });
+
+      // Commit the batch operation
+      await batch.commit();
+
+      print('Chat history cleared for conversation: $conversationId');
+    } catch (e) {
+      print('Error clearing chat history: $e');
+      rethrow;
+    }
+  }
+
   /// Delete a conversation and all its messages
   Future<void> deleteConversation(String conversationId) async {
     // Delete all messages in the conversation

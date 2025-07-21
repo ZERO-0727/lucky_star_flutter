@@ -7,6 +7,7 @@ import 'package:path/path.dart' as path;
 import 'package:flutter/foundation.dart';
 import '../models/wish_model.dart';
 import 'web_image_service.dart';
+import 'user_service.dart';
 
 class WishService {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
@@ -15,6 +16,7 @@ class WishService {
     bucket: 'gs://luckystar-flutter-12d06.firebasestorage.app',
   );
   final ImagePicker _imagePicker = ImagePicker();
+  final UserService _userService = UserService();
 
   // Get current user
   User? get currentUser => _auth.currentUser;
@@ -178,7 +180,7 @@ class WishService {
     }
   }
 
-  /// Get all wishes with optional filters
+  /// Get all wishes with optional filters (excludes blocked users)
   Future<List<WishModel>> getWishes({
     String? category,
     String? location,
@@ -187,10 +189,13 @@ class WishService {
     int limit = 20,
   }) async {
     try {
+      // Get blocked users list first
+      final blockedUsers = await _userService.getBlockedUsers();
+
       Query query = _wishesCollection
           .where('status', isEqualTo: 'Open')
           .orderBy('createdAt', descending: true)
-          .limit(limit);
+          .limit(limit * 2); // Get more to account for filtering
 
       if (category != null && category.isNotEmpty) {
         query = query.where('categories', arrayContains: category);
@@ -202,15 +207,21 @@ class WishService {
 
       final querySnapshot = await query.get();
 
-      List<WishModel> wishes =
+      List<WishModel> allWishes =
           querySnapshot.docs
               .map((doc) => WishModel.fromFirestore(doc))
               .toList();
 
+      // Filter out wishes from blocked users
+      allWishes =
+          allWishes
+              .where((wish) => !blockedUsers.contains(wish.userId))
+              .toList();
+
       // Filter by budget range if specified
       if (minBudget != null || maxBudget != null) {
-        wishes =
-            wishes.where((wish) {
+        allWishes =
+            allWishes.where((wish) {
               if (wish.budget == null)
                 return true; // Include flexible budget wishes
               if (minBudget != null && wish.budget! < minBudget) return false;
@@ -219,7 +230,10 @@ class WishService {
             }).toList();
       }
 
-      return wishes;
+      // Apply limit after all filtering
+      final filteredWishes = allWishes.take(limit).toList();
+
+      return filteredWishes;
     } catch (e) {
       print('Error getting wishes: $e');
       throw Exception('Failed to get wishes: $e');
@@ -407,13 +421,16 @@ class WishService {
     }
   }
 
-  /// Search wishes by title or description
+  /// Search wishes by title or description (excludes blocked users)
   Future<List<WishModel>> searchWishes(String searchTerm) async {
     if (searchTerm.isEmpty) {
       return getWishes();
     }
 
     try {
+      // Get blocked users list first
+      final blockedUsers = await _userService.getBlockedUsers();
+
       // Note: Firestore doesn't support full-text search natively
       // This is a basic implementation. For production, consider using Algolia or similar
       final querySnapshot =
@@ -424,17 +441,20 @@ class WishService {
               .map((doc) => WishModel.fromFirestore(doc))
               .where(
                 (wish) =>
-                    wish.title.toLowerCase().contains(
-                      searchTerm.toLowerCase(),
-                    ) ||
-                    wish.description.toLowerCase().contains(
-                      searchTerm.toLowerCase(),
-                    ) ||
-                    wish.categories.any(
-                      (category) => category.toLowerCase().contains(
-                        searchTerm.toLowerCase(),
-                      ),
-                    ),
+                    // Filter out blocked users first
+                    !blockedUsers.contains(wish.userId) &&
+                    // Then apply search criteria
+                    (wish.title.toLowerCase().contains(
+                          searchTerm.toLowerCase(),
+                        ) ||
+                        wish.description.toLowerCase().contains(
+                          searchTerm.toLowerCase(),
+                        ) ||
+                        wish.categories.any(
+                          (category) => category.toLowerCase().contains(
+                            searchTerm.toLowerCase(),
+                          ),
+                        )),
               )
               .toList();
 
