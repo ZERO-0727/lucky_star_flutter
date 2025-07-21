@@ -58,7 +58,6 @@ class _PostWishScreenState extends State<PostWishScreen> {
   final TextEditingController _titleController = TextEditingController();
   final TextEditingController _descController = TextEditingController();
   final TextEditingController _locationController = TextEditingController();
-  final TextEditingController _budgetController = TextEditingController();
 
   final WishService _wishService = WishService();
   bool _isLoading = false;
@@ -651,12 +650,6 @@ class _PostWishScreenState extends State<PostWishScreen> {
         await _createEmptyWish();
       }
 
-      // Parse budget if provided
-      double? budget;
-      if (_budgetController.text.trim().isNotEmpty) {
-        budget = double.tryParse(_budgetController.text.trim());
-      }
-
       // Final form submit - just update the metadata (no date/time needed)
       Map<String, dynamic> updateData = {
         'title': _titleController.text.trim(),
@@ -669,11 +662,6 @@ class _PostWishScreenState extends State<PostWishScreen> {
         'updatedAt': FieldValue.serverTimestamp(),
         'status': 'Open', // Mark as active when user submits
       };
-
-      // Add budget if provided
-      if (budget != null) {
-        updateData['budget'] = budget;
-      }
 
       await _firestore
           .collection('wishes')
@@ -882,63 +870,33 @@ class _PostWishScreenState extends State<PostWishScreen> {
                 ),
                 const SizedBox(height: 20),
 
-                // Location Field
-                TextFormField(
-                  controller: _locationController,
-                  decoration: InputDecoration(
-                    labelText: 'Preferred Location',
-                    hintText: 'Where would you like this experience?',
-                    filled: true,
-                    fillColor: Colors.white,
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(16.0),
-                      borderSide: BorderSide(color: Colors.grey.shade300),
-                    ),
-                    enabledBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(16.0),
-                      borderSide: BorderSide(color: Colors.grey.shade300),
-                    ),
-                    focusedBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(16.0),
-                      borderSide: BorderSide(
-                        color: Colors.blue.shade400,
-                        width: 2,
-                      ),
-                    ),
-                    contentPadding: const EdgeInsets.all(20),
+              // Location Field
+              TextFormField(
+                controller: _locationController,
+                decoration: InputDecoration(
+                  labelText: 'Preferred Location',
+                  hintText: 'Where would you like this experience?',
+                  filled: true,
+                  fillColor: Colors.white,
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(16.0),
+                    borderSide: BorderSide(color: Colors.grey.shade300),
                   ),
-                ),
-                const SizedBox(height: 20),
-
-                // Budget Field
-                TextFormField(
-                  controller: _budgetController,
-                  keyboardType: TextInputType.number,
-                  decoration: InputDecoration(
-                    labelText: 'Budget (optional)',
-                    hintText: 'What\'s your budget for this experience?',
-                    prefixText: '\$',
-                    filled: true,
-                    fillColor: Colors.white,
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(16.0),
-                      borderSide: BorderSide(color: Colors.grey.shade300),
-                    ),
-                    enabledBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(16.0),
-                      borderSide: BorderSide(color: Colors.grey.shade300),
-                    ),
-                    focusedBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(16.0),
-                      borderSide: BorderSide(
-                        color: Colors.blue.shade400,
-                        width: 2,
-                      ),
-                    ),
-                    contentPadding: const EdgeInsets.all(20),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(16.0),
+                    borderSide: BorderSide(color: Colors.grey.shade300),
                   ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(16.0),
+                    borderSide: BorderSide(
+                      color: Colors.blue.shade400,
+                      width: 2,
+                    ),
+                  ),
+                  contentPadding: const EdgeInsets.all(20),
                 ),
-                const SizedBox(height: 32),
+              ),
+              const SizedBox(height: 24),
 
                 // Category Selection
                 Text(

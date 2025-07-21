@@ -404,12 +404,74 @@ class _WishDetailScreenState extends State<WishDetailScreen> {
   }
 
   // Implementation for "Contact Wisher" button
-  void _contactWisher() {
-    if (_wish == null) return;
+  void _contactWisher() async {
+    if (_wish == null || _currentUserId == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Please log in to contact the wisher'),
+          backgroundColor: Colors.orange,
+        ),
+      );
+      return;
+    }
 
-    final initialMessage =
-        'Hello! I noticed your wish and I\'d like to connect.';
-    _createChatWithWisher(_wish!, initialMessage, true);
+    setState(() {
+      _isProcessingAction = true;
+    });
+
+    try {
+      // Create or get the conversation (without sending automatic message)
+      final conversationId = await _chatService.createConversation(
+        otherUserId: _wish!.userId,
+        wishId: _wish!.wishId,
+      );
+
+      // Get the wisher details
+      String wisherName = 'Wisher';
+      String? wisherAvatar;
+
+      if (_publisher != null) {
+        wisherName =
+            _publisher!.displayName.isNotEmpty
+                ? _publisher!.displayName
+                : 'Wisher';
+        wisherAvatar = _publisher!.avatarUrl;
+      }
+
+      if (mounted) {
+        // Navigate to chat detail screen
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder:
+                (context) => ChatDetailScreen(
+                  chatId: conversationId,
+                  userName: wisherName,
+                  userAvatar: wisherAvatar,
+                  wish: _wish,
+                ),
+          ),
+        );
+      }
+    } catch (e, stackTrace) {
+      // Print detailed error information to terminal
+      _printDetailedError('Contact Wisher', e, stackTrace);
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to start chat: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isProcessingAction = false;
+        });
+      }
+    }
   }
 
   bool _isCurrentUserAuthor() {
@@ -560,25 +622,26 @@ class _WishDetailScreenState extends State<WishDetailScreen> {
             PopupMenuButton<String>(
               icon: const Icon(Icons.more_vert),
               onSelected: _handleMenuAction,
-              itemBuilder: (context) => [
-                const PopupMenuItem(
-                  value: 'share',
-                  child: ListTile(
-                    leading: Icon(Icons.share),
-                    title: Text('Share this post'),
-                  ),
-                ),
-                const PopupMenuItem(
-                  value: 'delete',
-                  child: ListTile(
-                    leading: Icon(Icons.delete, color: Colors.red),
-                    title: Text(
-                      'Delete this post',
-                      style: TextStyle(color: Colors.red),
+              itemBuilder:
+                  (context) => [
+                    const PopupMenuItem(
+                      value: 'share',
+                      child: ListTile(
+                        leading: Icon(Icons.share),
+                        title: Text('Share this post'),
+                      ),
                     ),
-                  ),
-                ),
-              ],
+                    const PopupMenuItem(
+                      value: 'delete',
+                      child: ListTile(
+                        leading: Icon(Icons.delete, color: Colors.red),
+                        title: Text(
+                          'Delete this post',
+                          style: TextStyle(color: Colors.red),
+                        ),
+                      ),
+                    ),
+                  ],
             ),
         ],
       ),
@@ -589,44 +652,42 @@ class _WishDetailScreenState extends State<WishDetailScreen> {
           children: [
             // Row 1: User info + date (matching WishCard)
             _buildUserInfoRow(wish),
-            
+
             const SizedBox(height: 12),
-            
+
             // Row 2: Category chip (matching WishCard)
             _buildCategoryChip(wish),
-            
+
             const SizedBox(height: 12),
-            
+
             // Row 3: Title (matching WishCard but allowing more text)
             _buildTitle(wish),
-            
+
             const SizedBox(height: 12),
-            
+
             // Row 4: Description (full description for detail page)
             _buildDescription(wish),
-            
+
             const SizedBox(height: 12),
-            
+
             // Row 5: Location and budget
             _buildLocationBudgetRow(wish),
-            
+
             const SizedBox(height: 16),
-            
-                         // Image thumbnails with horizontal scroll
-             if (wish.photoUrls.isNotEmpty) ...[
-               _buildImageThumbnails(wish.photoUrls),
-               const SizedBox(height: 24),
-             ],
-             
-             // Action buttons (if not current user's post)
-             if (!_isCurrentUserAuthor()) _buildActionButtons(wish),
+
+            // Image thumbnails with horizontal scroll
+            if (wish.photoUrls.isNotEmpty) ...[
+              _buildImageThumbnails(wish.photoUrls),
+              const SizedBox(height: 24),
+            ],
+
+            // Action buttons (if not current user's post)
+            if (!_isCurrentUserAuthor()) _buildActionButtons(wish),
           ],
         ),
       ),
     );
   }
-
-
 
   Widget _buildDescription(WishModel wish) {
     return Text(
@@ -634,8 +695,6 @@ class _WishDetailScreenState extends State<WishDetailScreen> {
       style: const TextStyle(fontSize: 16, height: 1.5),
     );
   }
-
-
 
   Widget _buildActionButtons(WishModel wish) {
     return Column(
@@ -693,42 +752,49 @@ class _WishDetailScreenState extends State<WishDetailScreen> {
               Navigator.push(
                 context,
                 MaterialPageRoute(
-                  builder: (context) => UserDetailPage(
-                    userId: _publisher!.userId,
-                    displayName: _publisher!.displayName,
-                  ),
+                  builder:
+                      (context) => UserDetailPage(
+                        userId: _publisher!.userId,
+                        displayName: _publisher!.displayName,
+                      ),
                 ),
               );
             }
           },
-          child: _isLoadingPublisher || _publisher == null || _publisher!.avatarUrl.isEmpty
-              ? CircleAvatar(
-                  radius: 14,
-                  backgroundColor: Colors.grey.shade200,
-                  child: Icon(Icons.person, color: Colors.grey.shade500, size: 14),
-                )
-              : CircleAvatar(
-                  radius: 14,
-                  backgroundImage: NetworkImage(_publisher!.avatarUrl),
-                  backgroundColor: Colors.grey.shade200,
-                ),
+          child:
+              _isLoadingPublisher ||
+                      _publisher == null ||
+                      _publisher!.avatarUrl.isEmpty
+                  ? CircleAvatar(
+                    radius: 14,
+                    backgroundColor: Colors.grey.shade200,
+                    child: Icon(
+                      Icons.person,
+                      color: Colors.grey.shade500,
+                      size: 14,
+                    ),
+                  )
+                  : CircleAvatar(
+                    radius: 14,
+                    backgroundImage: NetworkImage(_publisher!.avatarUrl),
+                    backgroundColor: Colors.grey.shade200,
+                  ),
         ),
-        
+
         const SizedBox(width: 10),
-        
+
         // Username
         Text(
-          _isLoadingPublisher || _publisher == null || _publisher!.displayName.isEmpty
+          _isLoadingPublisher ||
+                  _publisher == null ||
+                  _publisher!.displayName.isEmpty
               ? 'Anonymous'
               : _publisher!.displayName,
-          style: const TextStyle(
-            fontSize: 16,
-            fontWeight: FontWeight.w600,
-          ),
+          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
         ),
-        
+
         const SizedBox(width: 6),
-        
+
         // Verification badge
         if (_publisher != null)
           Container(
@@ -741,11 +807,7 @@ class _WishDetailScreenState extends State<WishDetailScreen> {
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Icon(
-                  Icons.verified,
-                  size: 12,
-                  color: Colors.teal.shade700,
-                ),
+                Icon(Icons.verified, size: 12, color: Colors.teal.shade700),
                 const SizedBox(width: 2),
                 Text(
                   "Verified",
@@ -758,29 +820,20 @@ class _WishDetailScreenState extends State<WishDetailScreen> {
               ],
             ),
           ),
-        
+
         const SizedBox(width: 8),
-        
+
         // Separator
-        Text(
-          "・",
-          style: TextStyle(
-            fontSize: 16,
-            color: Colors.grey.shade500,
-          ),
-        ),
-        
+        Text("・", style: TextStyle(fontSize: 16, color: Colors.grey.shade500)),
+
         const SizedBox(width: 8),
-        
+
         // Date/time
         Text(
           _formatTimeAgo(wish.createdAt),
-          style: TextStyle(
-            fontSize: 16,
-            color: Colors.grey.shade500,
-          ),
+          style: TextStyle(fontSize: 16, color: Colors.grey.shade500),
         ),
-        
+
         // Pro badge if user has Pro membership
         if (_publisher != null && _isProMember) ...[
           const SizedBox(width: 8),
@@ -814,9 +867,9 @@ class _WishDetailScreenState extends State<WishDetailScreen> {
     if (wish.categories.isEmpty) {
       return const SizedBox.shrink();
     }
-    
+
     final category = wish.categories.first; // Show only first category
-    
+
     // Get a consistent color based on the category name
     final int colorSeed = category.hashCode.abs() % 5;
     final List<Color> categoryColors = [
@@ -881,16 +934,13 @@ class _WishDetailScreenState extends State<WishDetailScreen> {
           Flexible(
             child: Text(
               wish.location,
-              style: TextStyle(
-                fontSize: 14,
-                color: Colors.grey.shade600,
-              ),
+              style: TextStyle(fontSize: 14, color: Colors.grey.shade600),
             ),
           ),
         ],
-        
+
         const Spacer(),
-        
+
         // Budget (if available)
         if (wish.budget != null && wish.budget! > 0)
           Container(
@@ -922,7 +972,9 @@ class _WishDetailScreenState extends State<WishDetailScreen> {
         itemCount: photoUrls.length,
         itemBuilder: (context, index) {
           return Padding(
-            padding: EdgeInsets.only(right: index < photoUrls.length - 1 ? 12 : 0),
+            padding: EdgeInsets.only(
+              right: index < photoUrls.length - 1 ? 12 : 0,
+            ),
             child: GestureDetector(
               onTap: () => _showFullscreenImage(context, photoUrls, index),
               child: ClipRRect(
@@ -948,10 +1000,11 @@ class _WishDetailScreenState extends State<WishDetailScreen> {
                       if (loadingProgress == null) return child;
                       return Center(
                         child: CircularProgressIndicator(
-                          value: loadingProgress.expectedTotalBytes != null
-                              ? loadingProgress.cumulativeBytesLoaded /
-                                  loadingProgress.expectedTotalBytes!
-                              : null,
+                          value:
+                              loadingProgress.expectedTotalBytes != null
+                                  ? loadingProgress.cumulativeBytesLoaded /
+                                      loadingProgress.expectedTotalBytes!
+                                  : null,
                           strokeWidth: 3,
                         ),
                       );
@@ -965,8 +1018,6 @@ class _WishDetailScreenState extends State<WishDetailScreen> {
       ),
     );
   }
-
-
 
   Widget _buildImageGallery(List<String> photoUrls) {
     if (photoUrls.isEmpty) {

@@ -48,6 +48,15 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   ];
   String? _selectedExchangeStatus;
 
+  // Location options (consistent with browse pages, without 'All')
+  final List<String> _availableLocations = [
+    'Canada',
+    'United States',
+    'Australia',
+    'Japan',
+  ];
+  String? _selectedLocation;
+
   @override
   void initState() {
     super.initState();
@@ -82,6 +91,11 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                 userData.status.isNotEmpty
                     ? userData.status
                     : 'Open to Exchange';
+            _selectedLocation =
+                userData.location.isNotEmpty &&
+                        _availableLocations.contains(userData.location)
+                    ? userData.location
+                    : null;
             _currentAvatarUrl = userData.avatarUrl;
             _isInitialLoading = false;
           });
@@ -231,7 +245,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       final updatedUser = _currentUser!.copyWith(
         displayName: _displayNameController.text.trim(),
         bio: _bioController.text.trim(),
-        location: _locationController.text.trim(),
+        location: _selectedLocation ?? '',
         gender: _selectedGender ?? '',
         status: _selectedExchangeStatus ?? 'Open to Exchange',
         avatarUrl: avatarUrl ?? '',
@@ -366,16 +380,30 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
               // Contact Information Section
               _buildSectionHeader('Contact Information'),
               const SizedBox(height: 16),
-              TextFormField(
-                controller: _locationController,
+              // Location Dropdown
+              DropdownButtonFormField<String>(
+                value: _selectedLocation,
                 decoration: _inputDecoration('Location'),
+                hint: const Text('Select Location'),
+                items:
+                    _availableLocations.map((String location) {
+                      return DropdownMenuItem<String>(
+                        value: location,
+                        child: Text(location),
+                      );
+                    }).toList(),
+                onChanged: (String? newValue) {
+                  setState(() {
+                    _selectedLocation = newValue;
+                  });
+                },
                 validator: (value) {
-                  if (value != null && value.isNotEmpty && value.length < 2) {
-                    return 'Location must be at least 2 characters';
-                  }
+                  // Location is optional, so no validation required
                   return null;
                 },
               ),
+              const SizedBox(height: 24),
+
               const SizedBox(height: 40),
 
               // Save Button
