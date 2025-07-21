@@ -1306,49 +1306,81 @@ class _UserDetailPageState extends State<UserDetailPage>
             ],
           ),
           const SizedBox(height: 12),
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: Colors.grey[100],
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(
-                  Icons.flag,
-                  color:
-                      visitedCount > 0
-                          ? const Color(0xFF7153DF)
-                          : Colors.grey[400],
-                  size: 24,
-                ),
-                const SizedBox(width: 8),
-                Text(
-                  '$visitedCount countries visited',
-                  style: GoogleFonts.poppins(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w600,
-                    color:
-                        visitedCount > 0
-                            ? const Color(0xFF7153DF)
-                            : Colors.grey[600],
-                  ),
-                ),
-              ],
-            ),
-          ),
+
+          // Show countries as chips if any exist
           if (visitedCount > 0) ...[
-            const SizedBox(height: 12),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children:
+                  _user!.visitedCountries.map((country) {
+                    return Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 6,
+                      ),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFF0F8FF),
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(
+                          color: const Color(0xFF7153DF).withOpacity(0.3),
+                        ),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(
+                            Icons.flag,
+                            size: 14,
+                            color: Color(0xFF7153DF),
+                          ),
+                          const SizedBox(width: 4),
+                          Text(
+                            country,
+                            style: GoogleFonts.poppins(
+                              fontSize: 14,
+                              color: const Color(0xFF7153DF),
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ],
+                      ),
+                    );
+                  }).toList(),
+            ),
+            const SizedBox(height: 8),
             Text(
-              'Map and detailed view coming soon',
+              '$visitedCount countries visited',
               style: GoogleFonts.poppins(
                 fontSize: 12,
-                color: Colors.grey[500],
+                color: Colors.grey[600],
                 fontStyle: FontStyle.italic,
               ),
-              textAlign: TextAlign.center,
+            ),
+          ] else ...[
+            // Show empty state
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: Colors.grey[100],
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.flag, color: Colors.grey[400], size: 24),
+                  const SizedBox(width: 8),
+                  Text(
+                    '0 countries visited',
+                    style: GoogleFonts.poppins(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.grey[600],
+                    ),
+                  ),
+                ],
+              ),
             ),
           ],
         ],

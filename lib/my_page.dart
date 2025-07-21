@@ -8,6 +8,7 @@ import 'account_settings_page.dart';
 import 'language_selection_page.dart';
 import 'interest_editing_page.dart';
 import 'edit_profile_screen.dart';
+import 'country_selection_page.dart';
 import 'services/favorites_service.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'models/experience_model.dart';
@@ -314,6 +315,10 @@ class _MyPageState extends State<MyPage> with SingleTickerProviderStateMixin {
                 _buildProfileHeader(),
                 _buildTagSection('Languages', _currentUser!.languages),
                 _buildTagSection('Interests', _currentUser!.interests),
+                _buildTagSection(
+                  'Countries Visited',
+                  _currentUser!.visitedCountries,
+                ),
                 const SizedBox(height: 30),
               ],
             ),
@@ -1102,6 +1107,26 @@ class _MyPageState extends State<MyPage> with SingleTickerProviderStateMixin {
         // Update local state and refresh user data
         setState(() {
           _currentUser = _currentUser!.copyWith(interests: result);
+        });
+        await _refreshUserData();
+      }
+    } else if (title == 'Countries Visited') {
+      // Navigate to Country Selection page
+      final result = await Navigator.push<List<String>>(
+        context,
+        MaterialPageRoute(
+          builder:
+              (context) => CountrySelectionPage(
+                selectedCountries: _currentUser!.visitedCountries,
+                currentUser: _currentUser,
+              ),
+        ),
+      );
+
+      if (result != null && mounted) {
+        // Update local state and refresh user data
+        setState(() {
+          _currentUser = _currentUser!.copyWith(visitedCountries: result);
         });
         await _refreshUserData();
       }

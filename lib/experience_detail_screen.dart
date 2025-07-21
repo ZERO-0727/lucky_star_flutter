@@ -439,7 +439,7 @@ class _ExperienceDetailScreenState extends State<ExperienceDetailScreen> {
     });
 
     try {
-      // Create or get the conversation
+      // Create or get the conversation (without sending automatic message)
       final conversationId = await _chatService.createConversation(
         otherUserId: _experience!.userId,
         experienceId: _experience!.experienceId,

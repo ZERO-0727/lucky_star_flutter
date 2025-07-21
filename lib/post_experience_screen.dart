@@ -139,11 +139,11 @@ class _PostExperienceScreenState extends State<PostExperienceScreen> {
     }
 
     try {
-      // Limit to 3 images max as requested
-      if (_images.length >= 3) {
+      // Limit to 6 images max as requested
+      if (_images.length >= 6) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('Maximum 3 images allowed'),
+            content: Text('Maximum 6 images allowed'),
             backgroundColor: Colors.orange,
           ),
         );
@@ -164,7 +164,7 @@ class _PostExperienceScreenState extends State<PostExperienceScreen> {
           }).toList();
 
       // Check if we can add all images or need to limit
-      final remaining = 3 - _images.length;
+      final remaining = 6 - _images.length;
       final imagesToAdd =
           validImages
               .take(remaining)
@@ -972,7 +972,7 @@ class _PostExperienceScreenState extends State<PostExperienceScreen> {
                               ),
                               const SizedBox(height: 4),
                               Text(
-                                '${_images.length}/3 photos',
+                                '${_images.length}/6 photos',
                                 style: TextStyle(
                                   fontSize: 12,
                                   color: Colors.grey.shade500,
@@ -990,14 +990,14 @@ class _PostExperienceScreenState extends State<PostExperienceScreen> {
                                       MainAxisAlignment.spaceBetween,
                                   children: [
                                     Text(
-                                      'Photos (${_images.length}/3)',
+                                      'Photos (${_images.length}/6)',
                                       style: TextStyle(
                                         fontSize: 14,
                                         fontWeight: FontWeight.w500,
                                         color: Colors.grey.shade700,
                                       ),
                                     ),
-                                    if (_images.length < 3)
+                                    if (_images.length < 6)
                                       InkWell(
                                         onTap: _pickAndUploadImages,
                                         child: Icon(

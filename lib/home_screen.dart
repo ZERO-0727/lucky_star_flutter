@@ -224,9 +224,16 @@ class _HomeScreenState extends State<HomeScreen> {
 
   void _refreshHomeData() {
     // Force refresh all data when returning from other pages
+    print('🔄 Homepage: Refreshing all favorite data...');
     _loadFavoriteUsers();
     _loadFavoriteWishes();
     _loadFavoriteExperiences();
+  }
+
+  // Add method to refresh on focus/resume
+  void _onHomeScreenResumed() {
+    print('🏠 Homepage: Screen resumed, refreshing data...');
+    _refreshHomeData();
   }
 
   // Unfavorite wish from homepage - immediate removal
@@ -586,11 +593,9 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
       );
 
-      // Create or find existing conversation
+      // Create or find existing conversation (without sending automatic message)
       final conversationId = await _chatService.createConversation(
         otherUserId: user.userId,
-        initialMessage:
-            "Hi! I'd like to connect with you through LuckyStar! 😊",
       );
 
       // Close loading dialog
