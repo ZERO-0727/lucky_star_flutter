@@ -186,26 +186,29 @@ class _FavoritesListScreenState extends State<FavoritesListScreen> {
         color: Colors.transparent,
         child: InkWell(
           borderRadius: BorderRadius.circular(16),
-          onTap: () {
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder:
-                    (context) => UserDetailPage(
-                      userId: user.userId,
-                      displayName: user.displayName,
-                    ),
-              ),
-            ).then((_) {
-              _loadFavoriteUsers();
-            });
-          },
+          onTap: () => _openChatWithUser(user),
           child: Padding(
             padding: const EdgeInsets.all(20),
             child: Row(
               children: [
-                // Enhanced User Avatar
-                _buildModernUserAvatar(user),
+                // Enhanced User Avatar with tap to profile
+                GestureDetector(
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder:
+                            (context) => UserDetailPage(
+                              userId: user.userId,
+                              displayName: user.displayName,
+                            ),
+                      ),
+                    ).then((_) {
+                      _loadFavoriteUsers();
+                    });
+                  },
+                  child: _buildModernUserAvatar(user),
+                ),
                 const SizedBox(width: 16),
 
                 // User Information (Expanded to take available space)

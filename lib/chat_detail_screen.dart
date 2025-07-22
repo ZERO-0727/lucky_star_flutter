@@ -5,8 +5,10 @@ import 'models/experience_model.dart';
 import 'models/wish_model.dart';
 import 'models/user_model.dart';
 import 'models/chat_model.dart' as chat_models;
+import 'models/report_model.dart';
 import 'services/chat_service.dart';
 import 'services/user_service.dart';
+import 'services/report_service.dart';
 import 'experience_detail_screen.dart';
 import 'wish_detail_screen.dart';
 import 'user_detail_page.dart';
@@ -38,11 +40,14 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
   final ScrollController _scrollController = ScrollController();
   final ChatService _chatService = ChatService();
   final UserService _userService = UserService();
+  final ReportService _reportService = ReportService();
 
   String? _currentUserId;
   UserModel? _otherUser;
   bool _isLoading = true;
   bool _isSending = false;
+  bool _isUserBlocked =
+      false; // Track if current user has blocked the other user
   String? _error;
   List<chat_models.ChatMessage> _messages = [];
   Stream<List<chat_models.ChatMessage>>? _messagesStream;
@@ -78,11 +83,18 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
       // Get other participant's user details
       final otherUser = await _chatService.getOtherParticipant(conversation);
 
+      // Check if the current user has blocked the other user
+      bool isBlocked = false;
+      if (otherUser != null) {
+        isBlocked = await _userService.isUserBlocked(otherUser.userId);
+      }
+
       if (mounted) {
         setState(() {
           _conversation = conversation;
           _messagesStream = messagesStream;
           _otherUser = otherUser;
+          _isUserBlocked = isBlocked;
           _isLoading = false;
         });
       }
@@ -95,6 +107,21 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
           _error = 'Error loading conversation: $e';
           _isLoading = false;
         });
+      }
+    }
+  }
+
+  Future<void> _checkBlockingStatus() async {
+    if (_otherUser != null) {
+      try {
+        final isBlocked = await _userService.isUserBlocked(_otherUser!.userId);
+        if (mounted) {
+          setState(() {
+            _isUserBlocked = isBlocked;
+          });
+        }
+      } catch (e) {
+        print('Error checking blocking status: $e');
       }
     }
   }
@@ -138,10 +165,28 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
       _printDetailedError('Send Message', e, stackTrace);
 
       if (mounted) {
+        String errorMessage = 'Failed to send message';
+
+        // Handle specific blocking errors
+        if (e.toString().contains('Message blocked:')) {
+          errorMessage = e.toString().replaceAll('Exception: ', '');
+        } else if (e.toString().contains('blocked')) {
+          errorMessage = 'Message blocked: Unable to send message';
+        } else {
+          errorMessage = 'Failed to send message: $e';
+        }
+
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Failed to send message: $e'),
+            content: Row(
+              children: [
+                const Icon(Icons.error_outline, color: Colors.white),
+                const SizedBox(width: 8),
+                Expanded(child: Text(errorMessage)),
+              ],
+            ),
             backgroundColor: Colors.red,
+            duration: const Duration(seconds: 4),
           ),
         );
       }
@@ -341,14 +386,28 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              ListTile(
-                leading: const Icon(Icons.block, color: Colors.red),
-                title: const Text('Block User'),
-                onTap: () {
-                  Navigator.pop(context);
-                  _showBlockUserConfirmation();
-                },
-              ),
+              // Show Block or Unblock option based on current blocking status
+              if (_isUserBlocked)
+                ListTile(
+                  leading: const Icon(
+                    Icons.block_outlined,
+                    color: Colors.green,
+                  ),
+                  title: const Text('Unblock User'),
+                  onTap: () {
+                    Navigator.pop(context);
+                    _showUnblockUserConfirmation();
+                  },
+                )
+              else
+                ListTile(
+                  leading: const Icon(Icons.block, color: Colors.red),
+                  title: const Text('Block User'),
+                  onTap: () {
+                    Navigator.pop(context);
+                    _showBlockUserConfirmation();
+                  },
+                ),
               ListTile(
                 leading: const Icon(Icons.report, color: Colors.orange),
                 title: const Text('Report User'),
@@ -394,6 +453,34 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
               },
               style: TextButton.styleFrom(foregroundColor: Colors.red),
               child: const Text('Block'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  void _showUnblockUserConfirmation() {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('Unblock User'),
+          content: Text(
+            'Are you sure you want to unblock ${widget.userName}? You will be able to receive messages from them again.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Cancel'),
+            ),
+            TextButton(
+              onPressed: () {
+                Navigator.pop(context);
+                _unblockUser();
+              },
+              style: TextButton.styleFrom(foregroundColor: Colors.green),
+              child: const Text('Unblock'),
             ),
           ],
         );
@@ -470,10 +557,15 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
         // Block the user using UserService
         await _userService.blockUser(_otherUser!.userId);
 
+        // Update the blocking status
+        setState(() {
+          _isUserBlocked = true;
+        });
+
         // Close loading dialog
         if (mounted) Navigator.of(context).pop();
 
-        // Show success message and go back
+        // Show success message
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
@@ -481,7 +573,6 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
               backgroundColor: Colors.red,
             ),
           );
-          Navigator.of(context).pop();
         }
       }
     } catch (e) {
@@ -500,7 +591,7 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
     }
   }
 
-  Future<void> _reportUser() async {
+  Future<void> _unblockUser() async {
     try {
       // Show loading
       showDialog(
@@ -510,12 +601,13 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
       );
 
       if (_otherUser != null) {
-        // Report the user using UserService
-        await _userService.reportUser(
-          reportedUserId: _otherUser!.userId,
-          reason: 'Inappropriate behavior in chat',
-          chatId: widget.chatId,
-        );
+        // Unblock the user using UserService
+        await _userService.unblockUser(_otherUser!.userId);
+
+        // Update the blocking status
+        setState(() {
+          _isUserBlocked = false;
+        });
 
         // Close loading dialog
         if (mounted) Navigator.of(context).pop();
@@ -524,8 +616,8 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text('${widget.userName} has been reported'),
-              backgroundColor: Colors.orange,
+              content: Text('${widget.userName} has been unblocked'),
+              backgroundColor: Colors.green,
             ),
           );
         }
@@ -538,8 +630,206 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Error reporting user: $e'),
+            content: Text('Error unblocking user: $e'),
             backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
+  Future<void> _reportUser() async {
+    if (_otherUser == null) return;
+
+    ReportReason? selectedReason;
+    String? customDescription;
+    final List<ReportReason> reasons = ReportReason.values;
+
+    await showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return StatefulBuilder(
+          builder: (context, setState) {
+            return AlertDialog(
+              title: Text('Report ${widget.userName}'),
+              content: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Why are you reporting this user?',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    ...reasons.map((reason) {
+                      return RadioListTile<ReportReason>(
+                        title: Text(_getReasonDisplayText(reason)),
+                        subtitle:
+                            _getReasonDescription(reason) != null
+                                ? Text(
+                                  _getReasonDescription(reason)!,
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    color: Colors.grey.shade600,
+                                  ),
+                                )
+                                : null,
+                        value: reason,
+                        groupValue: selectedReason,
+                        onChanged: (ReportReason? value) {
+                          setState(() {
+                            selectedReason = value;
+                          });
+                        },
+                        contentPadding: EdgeInsets.zero,
+                        dense: true,
+                      );
+                    }).toList(),
+                    const SizedBox(height: 16),
+                    TextField(
+                      decoration: const InputDecoration(
+                        labelText: 'Additional details (optional)',
+                        hintText: 'Please provide more information...',
+                        border: OutlineInputBorder(),
+                      ),
+                      maxLines: 3,
+                      onChanged: (value) {
+                        customDescription =
+                            value.trim().isEmpty ? null : value.trim();
+                      },
+                    ),
+                  ],
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: const Text('Cancel'),
+                ),
+                TextButton(
+                  onPressed:
+                      selectedReason != null
+                          ? () {
+                            Navigator.pop(context);
+                            _submitReport(selectedReason!, customDescription);
+                          }
+                          : null,
+                  style: TextButton.styleFrom(
+                    foregroundColor:
+                        selectedReason != null ? Colors.orange : Colors.grey,
+                  ),
+                  child: const Text('Submit Report'),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+  }
+
+  String _getReasonDisplayText(ReportReason reason) {
+    switch (reason) {
+      case ReportReason.harassment:
+        return 'Harassment or Bullying';
+      case ReportReason.spam:
+        return 'Spam or Unwanted Messages';
+      case ReportReason.inappropriateContent:
+        return 'Inappropriate Content';
+      case ReportReason.fakeAccount:
+        return 'Fake Account';
+      case ReportReason.impersonation:
+        return 'Impersonation';
+      case ReportReason.selfHarm:
+        return 'Self-Harm or Suicide';
+      case ReportReason.violence:
+        return 'Violence or Dangerous Organizations';
+      case ReportReason.other:
+        return 'Something Else';
+    }
+  }
+
+  String? _getReasonDescription(ReportReason reason) {
+    switch (reason) {
+      case ReportReason.harassment:
+        return 'Abusive or threatening messages';
+      case ReportReason.spam:
+        return 'Repeated unwanted messages or links';
+      case ReportReason.inappropriateContent:
+        return 'Sexual, violent, or offensive content';
+      case ReportReason.fakeAccount:
+        return 'This account appears to be fake';
+      case ReportReason.impersonation:
+        return 'Pretending to be someone else';
+      case ReportReason.selfHarm:
+        return 'Content promoting self-harm';
+      case ReportReason.violence:
+        return 'Threats or promotion of violence';
+      case ReportReason.other:
+        return 'Please provide details above';
+    }
+  }
+
+  Future<void> _submitReport(ReportReason reason, String? description) async {
+    try {
+      // Show loading
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) => const Center(child: CircularProgressIndicator()),
+      );
+
+      if (_otherUser != null) {
+        // Report the user using comprehensive ReportService
+        final reportId = await _reportService.reportUser(
+          reportedUserId: _otherUser!.userId,
+          reason: reason,
+          category: 'chat_behavior',
+          description: description ?? 'Reported from chat conversation',
+          chatId: widget.chatId,
+        );
+
+        // Close loading dialog
+        if (mounted) Navigator.of(context).pop();
+
+        // Show success message with report ID
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                '${widget.userName} has been reported successfully.\nReport ID: ${reportId.substring(0, 8)}...',
+              ),
+              backgroundColor: Colors.orange,
+              duration: const Duration(seconds: 4),
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      // Close loading dialog
+      if (mounted) Navigator.of(context).pop();
+
+      // Show error message
+      if (mounted) {
+        String errorMessage = 'Error reporting user: $e';
+
+        // Handle specific error cases
+        if (e.toString().contains('already reported')) {
+          errorMessage =
+              'You have already reported this user recently for the same reason.';
+        } else if (e.toString().contains('Cannot report yourself')) {
+          errorMessage = 'You cannot report yourself.';
+        }
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(errorMessage),
+            backgroundColor: Colors.red,
+            duration: const Duration(seconds: 4),
           ),
         );
       }
@@ -1028,7 +1318,7 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
     dynamic error,
     StackTrace? stackTrace,
   ) {
-    print('\n' + '=' * 80);
+    print('\n${'=' * 80}');
     print('🚨 CHAT DETAIL SCREEN ERROR DETAILS');
     print('=' * 80);
     print('Action Type: $actionType');

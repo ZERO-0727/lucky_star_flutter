@@ -196,6 +196,25 @@ class ChatService {
       throw Exception('User is not a participant in this conversation');
     }
 
+    // Check if the current user is blocked by any other participant
+    final otherParticipants =
+        conversation.participantIds.where((id) => id != currentUserId).toList();
+
+    for (final otherUserId in otherParticipants) {
+      // Get the other user's profile to check if they have blocked the sender
+      final otherUser = await _userService.getUserById(otherUserId);
+      if (otherUser != null && otherUser.blockedUsers.contains(currentUserId)) {
+        throw Exception('Message blocked: You have been blocked by this user');
+      }
+
+      // Also check if the sender has blocked the recipient (shouldn't happen in UI, but safety check)
+      final currentUser = await _userService.getUserById(currentUserId);
+      if (currentUser != null &&
+          currentUser.blockedUsers.contains(otherUserId)) {
+        throw Exception('Message blocked: You have blocked this user');
+      }
+    }
+
     // Create the message document
     final messageRef = _getMessagesRef(conversationId).doc();
     final messageId = messageRef.id;

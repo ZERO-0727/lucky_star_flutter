@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'models/user_model.dart';
 import 'models/experience_model.dart';
 import 'models/wish_model.dart';
@@ -16,11 +17,13 @@ import 'wish_detail_screen.dart';
 class UserDetailPage extends StatefulWidget {
   final String userId;
   final String displayName;
+  final String? entryPath; // Track where user came from
 
   const UserDetailPage({
     super.key,
     required this.userId,
     required this.displayName,
+    this.entryPath,
   });
 
   @override
@@ -1453,89 +1456,115 @@ class _UserDetailPageState extends State<UserDetailPage>
       return const SizedBox.shrink();
     }
 
-    // Check if user has exactly one experience for the "Join This Experience" button
-    final hasExactlyOneExperience = _userExperiences.length == 1;
-    final singleExperience =
-        hasExactlyOneExperience ? _userExperiences.first : null;
-    final canJoinExperience =
-        hasExactlyOneExperience &&
-        singleExperience != null &&
-        singleExperience.experienceId.isNotEmpty;
+    return FutureBuilder<bool>(
+      future: _hasJoinButtonBeenUsed(widget.userId),
+      builder: (context, snapshot) {
+        final hasBeenUsed = snapshot.data ?? false;
 
-    return Positioned(
-      bottom: 0,
-      left: 0,
-      right: 0,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.1),
-              blurRadius: 10,
-              offset: const Offset(0, -5),
+        // Check if user has exactly one experience for the "Join This Experience" button
+        final hasExactlyOneExperience = _userExperiences.length == 1;
+        final singleExperience =
+            hasExactlyOneExperience ? _userExperiences.first : null;
+
+        // Show button only if:
+        // 1. Entry path is from "User Plaza"
+        // 2. User has exactly one experience
+        // 3. Experience has valid ID
+        // 4. Button hasn't been used before
+        final shouldShowJoinButton =
+            widget.entryPath == 'user_plaza' &&
+            hasExactlyOneExperience &&
+            singleExperience != null &&
+            singleExperience.experienceId.isNotEmpty &&
+            !hasBeenUsed;
+
+        return Positioned(
+          bottom: 0,
+          left: 0,
+          right: 0,
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.1),
+                  blurRadius: 10,
+                  offset: const Offset(0, -5),
+                ),
+              ],
             ),
-          ],
-        ),
-        child: Row(
-          children: [
-            // Only show "Join This Experience" button if user has exactly one experience
-            if (canJoinExperience) ...[
-              Expanded(
-                child: ElevatedButton.icon(
-                  onPressed: () => _joinUserExperience(singleExperience!),
-                  icon: const Icon(Icons.group_add),
-                  label: Text('Join "${singleExperience!.title}"'),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF7153DF),
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(vertical: 16),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
+            child: Row(
+              children: [
+                // Show "Join This Experience" button based on conditions
+                if (shouldShowJoinButton) ...[
+                  Expanded(
+                    child: ElevatedButton.icon(
+                      onPressed: () => _joinUserExperience(singleExperience!),
+                      icon: const Icon(Icons.group_add),
+                      label: Text('Join "${singleExperience!.title}"'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFF7153DF),
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 16),
+                ],
+                // Always show "Send Message" button
+                Expanded(
+                  child: OutlinedButton.icon(
+                    onPressed: _isSendingMessage ? null : _sendMessage,
+                    icon:
+                        _isSendingMessage
+                            ? SizedBox(
+                              width: 16,
+                              height: 16,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                valueColor: AlwaysStoppedAnimation<Color>(
+                                  const Color(0xFF7153DF),
+                                ),
+                              ),
+                            )
+                            : const Icon(Icons.message),
+                    label: Text(
+                      _isSendingMessage ? 'Connecting...' : 'Send Message',
+                    ),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: const Color(0xFF7153DF),
+                      side: const BorderSide(color: Color(0xFF7153DF)),
+                      padding: const EdgeInsets.symmetric(vertical: 16),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
                     ),
                   ),
                 ),
-              ),
-              const SizedBox(width: 16),
-            ],
-            Expanded(
-              child: OutlinedButton.icon(
-                onPressed: _isSendingMessage ? null : _sendMessage,
-                icon:
-                    _isSendingMessage
-                        ? SizedBox(
-                          width: 16,
-                          height: 16,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2,
-                            valueColor: AlwaysStoppedAnimation<Color>(
-                              const Color(0xFF7153DF),
-                            ),
-                          ),
-                        )
-                        : const Icon(Icons.message),
-                label: Text(
-                  _isSendingMessage ? 'Connecting...' : 'Send Message',
-                ),
-                style: OutlinedButton.styleFrom(
-                  foregroundColor: const Color(0xFF7153DF),
-                  side: const BorderSide(color: Color(0xFF7153DF)),
-                  padding: const EdgeInsets.symmetric(vertical: 16),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                ),
-              ),
+              ],
             ),
-          ],
-        ),
-      ),
+          ),
+        );
+      },
     );
   }
 
   Future<void> _joinUserExperience(ExperienceModel experience) async {
     try {
+      final currentUser = FirebaseAuth.instance.currentUser;
+      if (currentUser == null) {
+        throw Exception('You must be logged in to join experiences');
+      }
+
+      // Check if we're trying to join our own experience
+      if (currentUser.uid == widget.userId) {
+        throw Exception('You cannot join your own experience');
+      }
+
       // Show loading indicator
       showDialog(
         context: context,
@@ -1546,30 +1575,36 @@ class _UserDetailPageState extends State<UserDetailPage>
             ),
       );
 
-      // Simulate joining the experience (replace with actual API call)
-      await Future.delayed(const Duration(seconds: 1));
+      // Create or get existing conversation
+      final conversationId = await _chatService.createConversation(
+        otherUserId: widget.userId,
+      );
+
+      // Send the predefined message automatically
+      final predefinedMessage = "I'd like to join this experience.";
+      await _chatService.sendMessage(
+        conversationId: conversationId,
+        text: predefinedMessage,
+      );
+
+      // Mark that this button has been used for this user (prevent future use)
+      await _markJoinButtonUsed(widget.userId);
 
       // Close loading dialog
       if (mounted) Navigator.of(context).pop();
 
-      // Show success message and navigate to experience detail
+      // Navigate directly to the chat interface and stay there
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Successfully joined "${experience.title}"!'),
-            backgroundColor: Colors.green,
-            duration: const Duration(seconds: 3),
-          ),
-        );
-
-        // Navigate to experience detail page
-        Navigator.pushNamed(
+        Navigator.pushReplacement(
           context,
-          '/experience-detail',
-          arguments: {
-            'experienceId': experience.experienceId,
-            'experience': experience,
-          },
+          MaterialPageRoute(
+            builder:
+                (context) => ChatDetailScreen(
+                  chatId: conversationId,
+                  userName: _user!.displayName,
+                  userAvatar: _user!.avatarUrl,
+                ),
+          ),
         );
       }
     } catch (e) {
@@ -1587,6 +1622,50 @@ class _UserDetailPageState extends State<UserDetailPage>
           ),
         );
       }
+    }
+  }
+
+  // Mark that the join button has been used for this user
+  Future<void> _markJoinButtonUsed(String targetUserId) async {
+    try {
+      final currentUser = FirebaseAuth.instance.currentUser;
+      if (currentUser == null) return;
+
+      // Store in Firestore that this user has used the join button for this target user
+      await FirebaseFirestore.instance
+          .collection('users')
+          .doc(currentUser.uid)
+          .collection('join_button_used')
+          .doc(targetUserId)
+          .set({
+            'usedAt': FieldValue.serverTimestamp(),
+            'targetUserId': targetUserId,
+          });
+
+      print('✅ Join button marked as used for user: $targetUserId');
+    } catch (e) {
+      print('❌ Error marking join button as used: $e');
+    }
+  }
+
+  // Check if the join button has already been used for this user
+  Future<bool> _hasJoinButtonBeenUsed(String targetUserId) async {
+    try {
+      final currentUser = FirebaseAuth.instance.currentUser;
+      if (currentUser == null) return false;
+
+      final doc =
+          await FirebaseFirestore.instance
+              .collection('users')
+              .doc(currentUser.uid)
+              .collection('join_button_used')
+              .doc(targetUserId)
+              .get();
+
+      return doc.exists;
+    } catch (e) {
+      print('❌ Error checking join button usage: $e');
+      return false; // Default to allowing the button if check fails
     }
   }
 

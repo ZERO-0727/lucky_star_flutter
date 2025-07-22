@@ -208,6 +208,8 @@ class _UserPlazaScreenState extends State<UserPlazaScreen> {
                                           (context) => UserDetailPage(
                                             userId: user.userId,
                                             displayName: user.displayName,
+                                            entryPath:
+                                                'user_plaza', // Track entry from User Plaza
                                           ),
                                     ),
                                   );

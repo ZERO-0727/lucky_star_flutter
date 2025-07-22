@@ -4,8 +4,9 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'firebase_options.dart';
+import 'services/chat_service.dart';
+import 'widgets/notification_indicator.dart';
 import 'home_screen.dart';
-import 'plaza_feed_screen.dart';
 import 'wish_wall_screen.dart';
 import 'edit_profile_screen.dart';
 import 'plaza_post_detail_screen.dart';
@@ -212,6 +213,8 @@ class MainNavigation extends StatefulWidget {
 
 class _MainNavigationState extends State<MainNavigation> {
   int _currentIndex = 0;
+  int _unreadCount = 0;
+  final ChatService _chatService = ChatService();
 
   // Define the 4 core navigation tabs (temporarily hiding Plaza)
   final List<Widget> _tabs = [
@@ -237,6 +240,77 @@ class _MainNavigationState extends State<MainNavigation> {
   ];
 
   @override
+  void initState() {
+    super.initState();
+    _loadUnreadCount();
+    // Set up a timer to periodically check for unread messages
+    _setupUnreadCountListener();
+  }
+
+  @override
+  void dispose() {
+    super.dispose();
+  }
+
+  void _loadUnreadCount() async {
+    try {
+      final count = await _chatService.getTotalUnreadCount();
+      if (mounted) {
+        setState(() {
+          _unreadCount = count;
+        });
+      }
+    } catch (e) {
+      print('Error loading unread count: $e');
+      // If there's an error, don't show notification indicator
+      if (mounted) {
+        setState(() {
+          _unreadCount = 0;
+        });
+      }
+    }
+  }
+
+  void _setupUnreadCountListener() {
+    // Listen to conversations stream to update unread count in real-time
+    _chatService.listenToUserConversations().listen(
+      (conversations) {
+        if (mounted) {
+          int totalUnread = 0;
+          for (final conversation in conversations) {
+            final currentUserId = FirebaseAuth.instance.currentUser?.uid;
+            if (currentUserId != null) {
+              totalUnread += conversation.unreadCounts[currentUserId] ?? 0;
+            }
+          }
+          setState(() {
+            _unreadCount = totalUnread;
+          });
+        }
+      },
+      onError: (error) {
+        print('Error listening to conversations: $error');
+        if (mounted) {
+          setState(() {
+            _unreadCount = 0;
+          });
+        }
+      },
+    );
+  }
+
+  Widget _buildTabIcon(int index) {
+    final icon = Icon(_tabIcons[index]);
+
+    // Add notification indicator to "Soul Talk" tab (index 2)
+    if (index == 2) {
+      return NotificationIndicator(unreadCount: _unreadCount, child: icon);
+    }
+
+    return icon;
+  }
+
+  @override
   Widget build(BuildContext context) {
     return Scaffold(
       body: _tabs[_currentIndex],
@@ -247,7 +321,7 @@ class _MainNavigationState extends State<MainNavigation> {
         items: List.generate(
           _tabs.length,
           (index) => BottomNavigationBarItem(
-            icon: Icon(_tabIcons[index]),
+            icon: _buildTabIcon(index),
             label: _tabLabels[index],
           ),
         ),

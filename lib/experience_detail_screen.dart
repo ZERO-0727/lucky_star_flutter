@@ -35,7 +35,7 @@ class _ExperienceDetailScreenState extends State<ExperienceDetailScreen> {
   UserModel? _publisher;
   bool _isLoading = true;
   bool _isLoadingPublisher = true;
-  bool _isJoining = false;
+  bool _isProcessingAction = false;
   bool _isFavorited = false;
   String? _error;
   String? _currentUserId;
@@ -177,7 +177,7 @@ class _ExperienceDetailScreenState extends State<ExperienceDetailScreen> {
     }
   }
 
-  void _joinExperience() {
+  void _joinExperience() async {
     if (_experience == null) return;
     if (_currentUserId == null) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -188,11 +188,74 @@ class _ExperienceDetailScreenState extends State<ExperienceDetailScreen> {
       );
       return;
     }
-    _showJoinExperienceDialog(_experience!);
+
+    // Check if we're trying to join our own experience
+    if (_currentUserId == _experience!.userId) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('You cannot join your own experience'),
+          backgroundColor: Colors.orange,
+        ),
+      );
+      return;
+    }
+
+    // Show the editable message dialog instead of directly proceeding
+    await _showJoinExperienceDialog(_experience!);
+  }
+
+  // Mark that the join experience button has been used for this experience
+  Future<void> _markJoinExperienceButtonUsed(String experienceId) async {
+    try {
+      final currentUser = FirebaseAuth.instance.currentUser;
+      if (currentUser == null) return;
+
+      // Store in Firestore that this user has used the join button for this experience
+      await FirebaseFirestore.instance
+          .collection('users')
+          .doc(currentUser.uid)
+          .collection('join_experience_used')
+          .doc(experienceId)
+          .set({
+            'usedAt': FieldValue.serverTimestamp(),
+            'experienceId': experienceId,
+          });
+
+      print(
+        '✅ Join experience button marked as used for experience: $experienceId',
+      );
+    } catch (e) {
+      print('❌ Error marking join experience button as used: $e');
+    }
+  }
+
+  // Check if the join experience button has already been used for this experience
+  Future<bool> _hasJoinExperienceButtonBeenUsed(String experienceId) async {
+    try {
+      final currentUser = FirebaseAuth.instance.currentUser;
+      if (currentUser == null) return false;
+
+      final doc =
+          await FirebaseFirestore.instance
+              .collection('users')
+              .doc(currentUser.uid)
+              .collection('join_experience_used')
+              .doc(experienceId)
+              .get();
+
+      return doc.exists;
+    } catch (e) {
+      print('❌ Error checking join experience button usage: $e');
+      return false; // Default to allowing the button if check fails
+    }
   }
 
   Future<void> _showJoinExperienceDialog(ExperienceModel experience) async {
     final TextEditingController messageController = TextEditingController();
+
+    // Set default message
+    messageController.text =
+        'Hi, I would like to join your experience: ${experience.title}!';
 
     await showDialog(
       context: context,
@@ -215,37 +278,19 @@ class _ExperienceDetailScreenState extends State<ExperienceDetailScreen> {
                     ),
                     child: Row(
                       children: [
-                        // Thumbnail
+                        // Icon
                         Container(
                           width: 50,
                           height: 50,
                           decoration: BoxDecoration(
                             borderRadius: BorderRadius.circular(6),
-                            color: Colors.grey.shade300,
+                            color: Colors.blue.shade100,
                           ),
-                          child:
-                              experience.photoUrls.isNotEmpty
-                                  ? ClipRRect(
-                                    borderRadius: BorderRadius.circular(6),
-                                    child: Image.network(
-                                      experience.photoUrls.first,
-                                      fit: BoxFit.cover,
-                                      errorBuilder: (
-                                        context,
-                                        error,
-                                        stackTrace,
-                                      ) {
-                                        return const Icon(
-                                          Icons.image,
-                                          color: Colors.grey,
-                                        );
-                                      },
-                                    ),
-                                  )
-                                  : const Icon(
-                                    Icons.explore,
-                                    color: Colors.grey,
-                                  ),
+                          child: Icon(
+                            Icons.explore,
+                            color: Colors.blue.shade600,
+                            size: 30,
+                          ),
                         ),
                         const SizedBox(width: 12),
                         // Content
@@ -335,82 +380,21 @@ class _ExperienceDetailScreenState extends State<ExperienceDetailScreen> {
               ElevatedButton(
                 onPressed: () async {
                   if (messageController.text.trim().isEmpty) {
-                    if (mounted) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text('Please enter a message'),
-                          backgroundColor: Colors.orange,
-                        ),
-                      );
-                    }
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('Please enter a message'),
+                        backgroundColor: Colors.orange,
+                      ),
+                    );
                     return;
                   }
 
-                  // Close the dialog and show loading indicator
                   Navigator.of(context).pop();
-
-                  setState(() {
-                    _isJoining = true;
-                  });
-
-                  try {
-                    final initialMessage = messageController.text.trim();
-
-                    // Create or get the conversation
-                    final conversationId = await _chatService
-                        .createConversation(
-                          otherUserId: experience.userId,
-                          experienceId: experience.experienceId,
-                          initialMessage: initialMessage,
-                        );
-
-                    // Get the host details
-                    String hostName = 'Host';
-                    String? hostAvatar;
-
-                    if (_publisher != null) {
-                      hostName =
-                          _publisher!.displayName.isNotEmpty
-                              ? _publisher!.displayName
-                              : 'Host';
-                      hostAvatar = _publisher!.avatarUrl;
-                    }
-
-                    if (mounted) {
-                      // Navigate to chat detail screen
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder:
-                              (context) => ChatDetailScreen(
-                                chatId: conversationId,
-                                userName: hostName,
-                                userAvatar: hostAvatar,
-                                experience: experience,
-                                initialMessage: initialMessage,
-                              ),
-                        ),
-                      );
-                    }
-                  } catch (e, stackTrace) {
-                    // Print detailed error information to terminal
-                    _printDetailedError('Join Experience', e, stackTrace);
-
-                    if (mounted) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: Text('Failed to start chat: $e'),
-                          backgroundColor: Colors.red,
-                        ),
-                      );
-                    }
-                  } finally {
-                    if (mounted) {
-                      setState(() {
-                        _isJoining = false;
-                      });
-                    }
-                  }
+                  _createChatWithHost(
+                    experience,
+                    messageController.text.trim(),
+                    true,
+                  );
                 },
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Colors.blue.shade600,
@@ -421,6 +405,93 @@ class _ExperienceDetailScreenState extends State<ExperienceDetailScreen> {
             ],
           ),
     );
+  }
+
+  Future<void> _createChatWithHost(
+    ExperienceModel experience,
+    String initialMessage,
+    bool navigate,
+  ) async {
+    if (_currentUserId == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('You must be logged in to send messages'),
+          backgroundColor: Colors.orange,
+        ),
+      );
+      return;
+    }
+
+    if (_isProcessingAction) return;
+
+    setState(() {
+      _isProcessingAction = true;
+    });
+
+    try {
+      // Check if we're trying to message ourselves
+      if (_currentUserId == experience.userId) {
+        throw Exception('You cannot send messages to yourself');
+      }
+
+      // Create or get existing conversation
+      final conversationId = await _chatService.createConversation(
+        otherUserId: experience.userId,
+        experienceId: experience.experienceId,
+        initialMessage: initialMessage,
+      );
+
+      // Mark that the join experience button has been used (one-time action)
+      await _markJoinExperienceButtonUsed(experience.experienceId);
+
+      if (mounted) {
+        // Show success message
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Message sent successfully'),
+            backgroundColor: Colors.green,
+          ),
+        );
+
+        // Navigate to chat detail screen if requested
+        if (navigate) {
+          final hostName = _publisher?.displayName ?? 'Host';
+          final hostAvatar = _publisher?.avatarUrl;
+
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder:
+                  (context) => ChatDetailScreen(
+                    chatId: conversationId,
+                    userName: hostName,
+                    userAvatar: hostAvatar,
+                    experience: experience,
+                    initialMessage: initialMessage,
+                  ),
+            ),
+          );
+        }
+      }
+    } catch (e, stackTrace) {
+      // Print detailed error information to terminal
+      _printDetailedError('Join Experience', e, stackTrace);
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error sending message: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isProcessingAction = false;
+        });
+      }
+    }
   }
 
   Future<void> _contactHost() async {
@@ -435,7 +506,7 @@ class _ExperienceDetailScreenState extends State<ExperienceDetailScreen> {
     }
 
     setState(() {
-      _isJoining = true;
+      _isProcessingAction = true;
     });
 
     try {
@@ -487,10 +558,163 @@ class _ExperienceDetailScreenState extends State<ExperienceDetailScreen> {
     } finally {
       if (mounted) {
         setState(() {
-          _isJoining = false;
+          _isProcessingAction = false;
         });
       }
     }
+  }
+
+  bool _isCurrentUserAuthor() {
+    if (_currentUserId == null || _experience == null) return false;
+    return _currentUserId == _experience!.userId;
+  }
+
+  void _handleMenuAction(String action) async {
+    switch (action) {
+      case 'share':
+        await _sharePost();
+        break;
+      case 'delete':
+        await _showDeleteConfirmation();
+        break;
+    }
+  }
+
+  Future<void> _sharePost() async {
+    try {
+      final experienceUrl =
+          'https://luckystar.app/experience/${widget.experienceId}';
+      await Clipboard.setData(ClipboardData(text: experienceUrl));
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Link copied to clipboard!'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to copy link: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
+  Future<void> _showDeleteConfirmation() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder:
+          (context) => AlertDialog(
+            title: const Text('Delete Experience'),
+            content: const Text(
+              'Are you sure you want to delete this experience? This action cannot be undone.',
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(false),
+                child: const Text('Cancel'),
+              ),
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(true),
+                style: TextButton.styleFrom(foregroundColor: Colors.red),
+                child: const Text('Delete'),
+              ),
+            ],
+          ),
+    );
+
+    if (confirmed == true) {
+      await _deleteExperience();
+    }
+  }
+
+  Future<void> _deleteExperience() async {
+    try {
+      await FirebaseFirestore.instance
+          .collection('experiences')
+          .doc(widget.experienceId)
+          .delete();
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Experience deleted successfully'),
+            backgroundColor: Colors.green,
+          ),
+        );
+        Navigator.of(context).pop();
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to delete experience: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
+  String _formatTimeAgo(DateTime dateTime) {
+    final now = DateTime.now();
+    final difference = now.difference(dateTime);
+
+    if (difference.inDays > 0) {
+      return '${difference.inDays} day${difference.inDays == 1 ? '' : 's'} ago';
+    } else if (difference.inHours > 0) {
+      return '${difference.inHours} hour${difference.inHours == 1 ? '' : 's'} ago';
+    } else if (difference.inMinutes > 0) {
+      return '${difference.inMinutes} minute${difference.inMinutes == 1 ? '' : 's'} ago';
+    } else {
+      return 'Just now';
+    }
+  }
+
+  void _printDetailedError(
+    String actionType,
+    dynamic error,
+    StackTrace? stackTrace,
+  ) {
+    print('\n${'=' * 80}');
+    print('🚨 CHAT/MESSAGING ERROR DETAILS');
+    print('=' * 80);
+    print('Action Type: $actionType');
+    print('Screen: Experience Detail Screen');
+    print('Timestamp: ${DateTime.now().toIso8601String()}');
+
+    if (_experience != null) {
+      print('\nExperience Context:');
+      print('  - Experience ID: ${_experience!.experienceId}');
+      print('  - Host User ID: ${_experience!.userId}');
+      print('  - Experience Title: ${_experience!.title}');
+      print('  - Experience Location: ${_experience!.location}');
+    }
+
+    if (_currentUserId != null) {
+      print('\nUser Context:');
+      print('  - Current User ID: $_currentUserId');
+    }
+
+    print('\nError Details:');
+    print('  Error Type: ${error.runtimeType}');
+    print('  Error Message: $error');
+
+    // Print stack trace if available
+    if (stackTrace != null) {
+      print('\nStack Trace:');
+      print(stackTrace.toString());
+    }
+
+    print('=' * 80);
+    print('END ERROR DETAILS');
+    print('=' * 80 + '\n');
   }
 
   @override
@@ -773,8 +997,6 @@ class _ExperienceDetailScreenState extends State<ExperienceDetailScreen> {
                   _buildDescription(experience),
                   const SizedBox(height: 24),
 
-                  // Details Section removed - no need for spacing
-
                   // Tags
                   _buildTags(experience),
                   const SizedBox(height: 24),
@@ -1041,7 +1263,6 @@ class _ExperienceDetailScreenState extends State<ExperienceDetailScreen> {
     );
   }
 
-  // Method to show fullscreen image viewer
   void _showFullscreenImage(
     BuildContext context,
     List<String> photoUrls,
@@ -1140,70 +1361,6 @@ class _ExperienceDetailScreenState extends State<ExperienceDetailScreen> {
                   ),
                 ),
               ),
-
-              // Navigation arrows (only show for multiple images)
-              if (photoUrls.length > 1)
-                Positioned.fill(
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      // Left arrow
-                      IconButton(
-                        icon: const Icon(
-                          Icons.arrow_back_ios,
-                          color: Colors.white,
-                          size: 32,
-                        ),
-                        onPressed: () {
-                          if (currentIndex.value > 0) {
-                            currentIndex.value--;
-                          } else {
-                            currentIndex.value =
-                                photoUrls.length - 1; // Loop to end
-                          }
-                        },
-                      ),
-                      // Right arrow
-                      IconButton(
-                        icon: const Icon(
-                          Icons.arrow_forward_ios,
-                          color: Colors.white,
-                          size: 32,
-                        ),
-                        onPressed: () {
-                          if (currentIndex.value < photoUrls.length - 1) {
-                            currentIndex.value++;
-                          } else {
-                            currentIndex.value = 0; // Loop to beginning
-                          }
-                        },
-                      ),
-                    ],
-                  ),
-                ),
-
-              // Hint text for zooming
-              Positioned(
-                bottom: 16,
-                left: 0,
-                right: 0,
-                child: Center(
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 16,
-                      vertical: 8,
-                    ),
-                    decoration: BoxDecoration(
-                      color: Colors.black.withOpacity(0.5),
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                    child: const Text(
-                      'Pinch to zoom • Swipe to navigate',
-                      style: TextStyle(color: Colors.white, fontSize: 14),
-                    ),
-                  ),
-                ),
-              ),
             ],
           ),
         );
@@ -1223,36 +1380,6 @@ class _ExperienceDetailScreenState extends State<ExperienceDetailScreen> {
         Text(
           experience.description,
           style: const TextStyle(fontSize: 16, height: 1.5),
-        ),
-      ],
-    );
-  }
-
-  // Details section completely removed as it's redundant
-  Widget _buildDetails(ExperienceModel experience) {
-    // Return an empty widget as this section is no longer needed
-    return const SizedBox.shrink();
-  }
-
-  Widget _buildDetailRow(IconData icon, String label, String value) {
-    return Row(
-      children: [
-        Icon(icon, size: 20, color: Colors.grey.shade600),
-        const SizedBox(width: 8),
-        Text(
-          label,
-          style: TextStyle(
-            fontSize: 14,
-            color: Colors.grey.shade600,
-            fontWeight: FontWeight.w500,
-          ),
-        ),
-        const SizedBox(width: 8),
-        Expanded(
-          child: Text(
-            value,
-            style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
-          ),
         ),
       ],
     );
@@ -1327,279 +1454,74 @@ class _ExperienceDetailScreenState extends State<ExperienceDetailScreen> {
   }
 
   Widget _buildActionButtons(ExperienceModel experience) {
-    return Column(
-      children: [
-        SizedBox(
-          width: double.infinity,
-          height: 52,
-          child: ElevatedButton(
-            onPressed: _isJoining ? null : _joinExperience,
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.blue.shade600,
-              foregroundColor: Colors.white,
-              elevation: 0,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
-              disabledBackgroundColor: Colors.grey.shade400,
-            ),
-            child:
-                _isJoining
-                    ? SizedBox(
-                      width: 24,
-                      height: 24,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2,
-                        valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                      ),
-                    )
-                    : const Text(
-                      'Join Experience',
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.w600,
-                      ),
+    return FutureBuilder<bool>(
+      future: _hasJoinExperienceButtonBeenUsed(experience.experienceId),
+      builder: (context, snapshot) {
+        final hasBeenUsed = snapshot.data ?? false;
+
+        return Column(
+          children: [
+            // Show "Join Experience" button only if it hasn't been used
+            if (!hasBeenUsed) ...[
+              SizedBox(
+                width: double.infinity,
+                height: 52,
+                child: ElevatedButton(
+                  onPressed: _isProcessingAction ? null : _joinExperience,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.blue.shade600,
+                    foregroundColor: Colors.white,
+                    elevation: 0,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
                     ),
-          ),
-        ),
-        const SizedBox(height: 12),
-        SizedBox(
-          width: double.infinity,
-          height: 48,
-          child: OutlinedButton(
-            onPressed: _isJoining ? null : _contactHost,
-            style: OutlinedButton.styleFrom(
-              foregroundColor: Colors.blue.shade600,
-              side: BorderSide(color: Colors.blue.shade600),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
+                    disabledBackgroundColor: Colors.grey.shade400,
+                  ),
+                  child:
+                      _isProcessingAction
+                          ? SizedBox(
+                            width: 24,
+                            height: 24,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              valueColor: AlwaysStoppedAnimation<Color>(
+                                Colors.white,
+                              ),
+                            ),
+                          )
+                          : const Text(
+                            'Join Experience',
+                            style: TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                ),
               ),
-            ),
-            child: const Text(
-              'Contact Host',
-              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-
-  bool _isCurrentUserAuthor() {
-    if (_currentUserId == null || _experience == null) return false;
-    return _currentUserId == _experience!.userId;
-  }
-
-  void _handleMenuAction(String action) async {
-    switch (action) {
-      case 'share':
-        await _sharePost();
-        break;
-      case 'delete':
-        await _showDeleteConfirmation();
-        break;
-    }
-  }
-
-  Future<void> _sharePost() async {
-    try {
-      final experienceUrl =
-          'https://luckystar.app/experience/${widget.experienceId}';
-      await Clipboard.setData(ClipboardData(text: experienceUrl));
-
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Link copied to clipboard!'),
-            backgroundColor: Colors.green,
-          ),
-        );
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Failed to copy link: $e'),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
-    }
-  }
-
-  Future<void> _showDeleteConfirmation() async {
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder:
-          (context) => AlertDialog(
-            title: const Text('Delete Experience'),
-            content: const Text(
-              'Are you sure you want to delete this experience? This action cannot be undone.',
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.of(context).pop(false),
-                child: const Text('Cancel'),
-              ),
-              TextButton(
-                onPressed: () => Navigator.of(context).pop(true),
-                style: TextButton.styleFrom(foregroundColor: Colors.red),
-                child: const Text('Delete'),
-              ),
+              const SizedBox(height: 12),
             ],
-          ),
-    );
-
-    if (confirmed == true) {
-      await _deleteExperience();
-    }
-  }
-
-  Future<void> _deleteExperience() async {
-    try {
-      await FirebaseFirestore.instance
-          .collection('experiences')
-          .doc(widget.experienceId)
-          .delete();
-
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Experience deleted successfully'),
-            backgroundColor: Colors.green,
-          ),
+            // Always show "Contact Host" button
+            SizedBox(
+              width: double.infinity,
+              height: 48,
+              child: OutlinedButton(
+                onPressed: _isProcessingAction ? null : _contactHost,
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: Colors.blue.shade600,
+                  side: BorderSide(color: Colors.blue.shade600),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+                child: const Text(
+                  'Contact Host',
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+                ),
+              ),
+            ),
+          ],
         );
-        Navigator.of(context).pop();
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Failed to delete experience: $e'),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
-    }
-  }
-
-  String _formatDateTime(DateTime dateTime) {
-    return DateFormat('MMM dd, yyyy • hh:mm a').format(dateTime);
-  }
-
-  String _formatTimeAgo(DateTime dateTime) {
-    final now = DateTime.now();
-    final difference = now.difference(dateTime);
-
-    if (difference.inDays > 0) {
-      return '${difference.inDays} day${difference.inDays == 1 ? '' : 's'} ago';
-    } else if (difference.inHours > 0) {
-      return '${difference.inHours} hour${difference.inHours == 1 ? '' : 's'} ago';
-    } else if (difference.inMinutes > 0) {
-      return '${difference.inMinutes} minute${difference.inMinutes == 1 ? '' : 's'} ago';
-    } else {
-      return 'Just now';
-    }
-  }
-
-  /// Print detailed error information to terminal for debugging
-  /// This is especially useful for Firestore database index errors
-  void _printDetailedError(
-    String actionType,
-    dynamic error,
-    StackTrace? stackTrace,
-  ) {
-    print('\n' + '=' * 80);
-    print('🚨 CHAT/MESSAGING ERROR DETAILS');
-    print('=' * 80);
-    print('Action Type: $actionType');
-    print('Screen: Experience Detail Screen');
-    print('Timestamp: ${DateTime.now().toIso8601String()}');
-
-    if (_experience != null) {
-      print('\nExperience Context:');
-      print('  - Experience ID: ${_experience!.experienceId}');
-      print('  - Host User ID: ${_experience!.userId}');
-      print('  - Experience Title: ${_experience!.title}');
-      print('  - Experience Location: ${_experience!.location}');
-    }
-
-    if (_currentUserId != null) {
-      print('\nUser Context:');
-      print('  - Current User ID: $_currentUserId');
-    }
-
-    print('\nError Details:');
-    print('  Error Type: ${error.runtimeType}');
-    print('  Error Message: $error');
-
-    // Check if this looks like a Firestore index error
-    final errorString = error.toString().toLowerCase();
-    if (errorString.contains('index') ||
-        errorString.contains('composite') ||
-        errorString.contains('requires an index')) {
-      print('\n🔍 INDEX ERROR DETECTED!');
-      print('This error indicates that a Firestore database index is missing.');
-      print('Follow these steps to resolve:');
-      print('');
-      print('1. Go to Firebase Console: https://console.firebase.google.com/');
-      print('2. Navigate to your project');
-      print('3. Go to Firestore Database > Indexes');
-      print(
-        '4. Look for the suggested index configuration in the error message above',
-      );
-      print('5. Create the composite index as suggested');
-      print('');
-      print(
-        'Alternative: Check the Firebase Console for automatic index creation suggestions.',
-      );
-    }
-
-    // Check for permission errors
-    if (errorString.contains('permission') || errorString.contains('denied')) {
-      print('\n🔒 PERMISSION ERROR DETECTED!');
-      print(
-        'This error indicates insufficient Firestore security rules permissions.',
-      );
-      print(
-        'Check your Firestore security rules for the chats/conversations collection.',
-      );
-    }
-
-    // Print current action configuration for debugging
-    print('\nAction Configuration:');
-    print('  Collection: chats/conversations');
-    print('  Operation: Create conversation and send message');
-
-    if (actionType.contains('Contact Host')) {
-      print('  Scenario: Direct contact to experience host');
-      print(
-        '  Required Fields: participants, experienceId, lastMessage, createdAt, updatedAt',
-      );
-    } else if (actionType.contains('Join Experience')) {
-      print('  Scenario: Join experience with initial message');
-      print(
-        '  Required Fields: participants, experienceId, lastMessage, initialMessage, createdAt, updatedAt',
-      );
-    }
-
-    print('\n💡 Common Chat Service Index Requirements:');
-    print('  Collection: chats');
-    print('  Typical indexes needed:');
-    print('    - participants (Arrays), updatedAt (Descending)');
-    print(
-      '    - participants (Arrays), experienceId (Ascending), updatedAt (Descending)',
+      },
     );
-    print('    - experienceId (Ascending), updatedAt (Descending)');
-
-    // Print stack trace if available
-    if (stackTrace != null) {
-      print('\nStack Trace:');
-      print(stackTrace.toString());
-    }
-
-    print('=' * 80);
-    print('END ERROR DETAILS');
-    print('=' * 80 + '\n');
   }
 }

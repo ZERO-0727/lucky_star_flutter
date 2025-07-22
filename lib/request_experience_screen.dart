@@ -1,8 +1,20 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'services/chat_service.dart';
+import 'chat_detail_screen.dart';
 
 class RequestExperienceScreen extends StatefulWidget {
-  const RequestExperienceScreen({super.key});
+  final String? targetUserId;
+  final String? targetUserName;
+  final String? targetUserAvatar;
+
+  const RequestExperienceScreen({
+    super.key,
+    this.targetUserId,
+    this.targetUserName,
+    this.targetUserAvatar,
+  });
 
   @override
   _RequestExperienceScreenState createState() =>
@@ -11,6 +23,7 @@ class RequestExperienceScreen extends StatefulWidget {
 
 class _RequestExperienceScreenState extends State<RequestExperienceScreen> {
   final _formKey = GlobalKey<FormState>();
+  final ChatService _chatService = ChatService();
   DateTime? _selectedDate;
   TimeOfDay? _selectedTime;
   final List<String> _categories = ['Food', 'Sport', 'Travel'];
@@ -20,6 +33,7 @@ class _RequestExperienceScreenState extends State<RequestExperienceScreen> {
   final TextEditingController _descController = TextEditingController();
   final TextEditingController _budgetController = TextEditingController();
   final TextEditingController _participantsController = TextEditingController();
+  bool _isSubmitting = false;
 
   @override
   void initState() {
@@ -58,13 +72,130 @@ class _RequestExperienceScreenState extends State<RequestExperienceScreen> {
     });
   }
 
-  void _submitForm() {
-    if (_formKey.currentState!.validate()) {
-      // Form is valid, process data
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('Request submitted!')));
+  Future<void> _submitForm() async {
+    if (!_formKey.currentState!.validate()) {
+      return;
     }
+
+    // Check if user is logged in
+    final currentUser = FirebaseAuth.instance.currentUser;
+    if (currentUser == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Please log in to submit a request'),
+          backgroundColor: Colors.orange,
+        ),
+      );
+      return;
+    }
+
+    // Check if we have a target user to send the request to
+    if (widget.targetUserId == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('No target user specified for this request'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
+    setState(() {
+      _isSubmitting = true;
+    });
+
+    try {
+      // Build the request message with form details
+      final requestMessage = _buildRequestMessage();
+
+      // Create or get existing conversation
+      final conversationId = await _chatService.createConversation(
+        otherUserId: widget.targetUserId!,
+        initialMessage: requestMessage,
+      );
+
+      if (mounted) {
+        // Navigate to chat detail screen
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(
+            builder:
+                (context) => ChatDetailScreen(
+                  chatId: conversationId,
+                  userName: widget.targetUserName ?? 'Host',
+                  userAvatar: widget.targetUserAvatar,
+                  initialMessage: requestMessage,
+                ),
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to submit request: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isSubmitting = false;
+        });
+      }
+    }
+  }
+
+  String _buildRequestMessage() {
+    final buffer = StringBuffer();
+    buffer.writeln('🌟 Experience Request');
+    buffer.writeln();
+    buffer.writeln('Title: ${_titleController.text}');
+    buffer.writeln();
+    buffer.writeln('Description: ${_descController.text}');
+
+    if (_selectedDate != null) {
+      buffer.writeln();
+      buffer.writeln(
+        'Preferred Date: ${DateFormat.yMd().format(_selectedDate!)}',
+      );
+    }
+
+    if (_selectedTime != null) {
+      buffer.writeln('Preferred Time: ${_selectedTime!.format(context)}');
+    }
+
+    // Add selected categories
+    final selectedCategories =
+        _selectedCategories.entries
+            .where((entry) => entry.value)
+            .map((entry) => entry.key)
+            .toList();
+
+    if (selectedCategories.isNotEmpty) {
+      buffer.writeln();
+      buffer.writeln('Categories: ${selectedCategories.join(', ')}');
+    }
+
+    // Add budget if specified
+    if (_budgetController.text.isNotEmpty) {
+      buffer.writeln();
+      buffer.writeln('Budget: \$${_budgetController.text}');
+    }
+
+    // Add participants if specified
+    if (_participantsController.text.isNotEmpty) {
+      buffer.writeln();
+      buffer.writeln('Participants: ${_participantsController.text}');
+    }
+
+    buffer.writeln();
+    buffer.writeln(
+      'I would love to connect with you about this experience! 😊',
+    );
+
+    return buffer.toString();
   }
 
   @override
@@ -296,7 +427,7 @@ class _RequestExperienceScreenState extends State<RequestExperienceScreen> {
               // Submit Button
               Center(
                 child: ElevatedButton(
-                  onPressed: _submitForm,
+                  onPressed: _isSubmitting ? null : _submitForm,
                   style: ElevatedButton.styleFrom(
                     backgroundColor: const Color(0xFF7153DF),
                     padding: const EdgeInsets.symmetric(
@@ -307,11 +438,37 @@ class _RequestExperienceScreenState extends State<RequestExperienceScreen> {
                       borderRadius: BorderRadius.circular(30.0),
                     ),
                     minimumSize: const Size(double.infinity, 50),
+                    disabledBackgroundColor: Colors.grey.shade400,
                   ),
-                  child: const Text(
-                    'Submit Request',
-                    style: TextStyle(fontSize: 18, color: Colors.white),
-                  ),
+                  child:
+                      _isSubmitting
+                          ? Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: const [
+                              SizedBox(
+                                width: 20,
+                                height: 20,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  valueColor: AlwaysStoppedAnimation<Color>(
+                                    Colors.white,
+                                  ),
+                                ),
+                              ),
+                              SizedBox(width: 12),
+                              Text(
+                                'Submitting...',
+                                style: TextStyle(
+                                  fontSize: 18,
+                                  color: Colors.white,
+                                ),
+                              ),
+                            ],
+                          )
+                          : const Text(
+                            'Submit Request',
+                            style: TextStyle(fontSize: 18, color: Colors.white),
+                          ),
                 ),
               ),
             ],

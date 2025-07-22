@@ -1,8 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'my_wishes_page.dart';
-import 'my_published_experiences_page.dart';
 import 'trust_reputation_page.dart';
 import 'widgets/upload_progress_bar.dart';
 import 'services/web_image_service.dart';
@@ -18,6 +16,7 @@ import 'models/experience_model.dart';
 import 'chat_detail_screen.dart';
 import 'wish_detail_screen.dart';
 import 'experience_detail_screen.dart';
+import 'user_detail_page.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
@@ -496,18 +495,27 @@ class _HomeScreenState extends State<HomeScreen> {
       role = '${user.bio.substring(0, 20)}...';
     }
 
-    return GestureDetector(
-      onTap: () async {
-        // Open chat directly with this user
-        await _openChatWithUser(user);
-      },
-      child: Container(
-        margin: const EdgeInsets.only(right: 12),
-        width: 105,
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
+    return Container(
+      margin: const EdgeInsets.only(right: 12),
+      width: 105,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          // Avatar - tappable to go to user profile
+          GestureDetector(
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder:
+                      (context) => UserDetailPage(
+                        userId: user.userId,
+                        displayName: user.displayName,
+                      ),
+                ),
+              );
+            },
+            child: Container(
               width: 80,
               height: 80,
               decoration: BoxDecoration(
@@ -559,25 +567,39 @@ class _HomeScreenState extends State<HomeScreen> {
                         ),
               ),
             ),
-            const SizedBox(height: 6),
-            Text(
-              user.displayName,
-              style: GoogleFonts.poppins(
-                fontSize: 14,
-                fontWeight: FontWeight.bold,
-              ),
-              textAlign: TextAlign.center,
-              overflow: TextOverflow.ellipsis,
+          ),
+          const SizedBox(height: 6),
+          // Text areas - tappable to open chat
+          GestureDetector(
+            onTap: () async {
+              // Open chat directly with this user
+              await _openChatWithUser(user);
+            },
+            child: Column(
+              children: [
+                Text(
+                  user.displayName,
+                  style: GoogleFonts.poppins(
+                    fontSize: 14,
+                    fontWeight: FontWeight.bold,
+                  ),
+                  textAlign: TextAlign.center,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                Text(
+                  role,
+                  style: GoogleFonts.poppins(
+                    fontSize: 12,
+                    color: Colors.grey[600],
+                  ),
+                  textAlign: TextAlign.center,
+                  overflow: TextOverflow.ellipsis,
+                  maxLines: 1,
+                ),
+              ],
             ),
-            Text(
-              role,
-              style: GoogleFonts.poppins(fontSize: 12, color: Colors.grey[600]),
-              textAlign: TextAlign.center,
-              overflow: TextOverflow.ellipsis,
-              maxLines: 1,
-            ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }

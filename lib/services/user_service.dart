@@ -134,7 +134,7 @@ class UserService {
     }
   }
 
-  // Search users by displayName
+  // Search users by displayName (excludes blocked users)
   Future<List<UserModel>> searchUsersByName(
     String query, {
     int limit = 20,
@@ -142,6 +142,10 @@ class UserService {
     try {
       // Convert query to lowercase for case-insensitive search
       final String searchQuery = query.toLowerCase();
+      final String currentUserId = _getCurrentUserId();
+
+      // Get blocked users list to filter out
+      final blockedUsers = await getBlockedUsers();
 
       // Get all users and filter in memory
       // Note: Firestore doesn't support case-insensitive search directly
@@ -149,7 +153,9 @@ class UserService {
       final QuerySnapshot querySnapshot =
           await _usersCollection
               .orderBy('displayName')
-              .limit(limit * 5) // Get more to filter
+              .limit(
+                limit * 10,
+              ) // Get more to filter (accounting for blocked users)
               .get();
 
       final List<UserModel> allUsers =
@@ -158,10 +164,15 @@ class UserService {
               .toList();
 
       // Filter users whose displayName contains the search query (case-insensitive)
+      // and exclude blocked users and current user
       final List<UserModel> filteredUsers =
           allUsers
               .where(
-                (user) => user.displayName.toLowerCase().contains(searchQuery),
+                (user) =>
+                    user.displayName.toLowerCase().contains(searchQuery) &&
+                    !blockedUsers.contains(user.userId) &&
+                    !user.blockedByUsers.contains(currentUserId) &&
+                    user.userId != currentUserId,
               )
               .take(limit)
               .toList();
@@ -321,13 +332,34 @@ class UserService {
   }
 
   // Block a user
-  Future<void> blockUser(String blockedUserId) async {
+  Future<void> blockUser(
+    String blockedUserId, {
+    String? reason,
+    Map<String, dynamic>? metadata,
+  }) async {
     try {
       final String currentUserId = _getCurrentUserId();
+
+      // Prevent self-blocking
+      if (currentUserId == blockedUserId) {
+        throw Exception('Cannot block yourself');
+      }
+
+      // Check if user is already blocked
+      final isAlreadyBlocked = await isUserBlocked(blockedUserId);
+      if (isAlreadyBlocked) {
+        return; // Already blocked, no action needed
+      }
 
       // Add to current user's blocked users list
       await _usersCollection.doc(currentUserId).update({
         'blockedUsers': FieldValue.arrayUnion([blockedUserId]),
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
+
+      // Add to blocked user's blockedByUsers array for reverse lookup
+      await _usersCollection.doc(blockedUserId).update({
+        'blockedByUsers': FieldValue.arrayUnion([currentUserId]),
         'updatedAt': FieldValue.serverTimestamp(),
       });
 
@@ -336,13 +368,54 @@ class UserService {
         'blockerId': currentUserId,
         'blockedUserId': blockedUserId,
         'createdAt': FieldValue.serverTimestamp(),
-        'type': 'user_block',
         'status': 'active',
+        'reason': reason ?? 'user_initiated',
+        'metadata': metadata ?? {},
       });
 
       print('User $blockedUserId blocked successfully');
     } catch (e) {
       print('Error blocking user: $e');
+      rethrow;
+    }
+  }
+
+  // Unblock a user
+  Future<void> unblockUser(String blockedUserId) async {
+    try {
+      final String currentUserId = _getCurrentUserId();
+
+      // Remove from current user's blocked users list
+      await _usersCollection.doc(currentUserId).update({
+        'blockedUsers': FieldValue.arrayRemove([blockedUserId]),
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
+
+      // Remove from blocked user's blockedByUsers array
+      await _usersCollection.doc(blockedUserId).update({
+        'blockedByUsers': FieldValue.arrayRemove([currentUserId]),
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
+
+      // Update block record status to 'removed'
+      final blocksQuery =
+          await _firestore
+              .collection('blocks')
+              .where('blockerId', isEqualTo: currentUserId)
+              .where('blockedUserId', isEqualTo: blockedUserId)
+              .where('status', isEqualTo: 'active')
+              .get();
+
+      for (final doc in blocksQuery.docs) {
+        await doc.reference.update({
+          'status': 'removed',
+          'removedAt': FieldValue.serverTimestamp(),
+        });
+      }
+
+      print('User $blockedUserId unblocked successfully');
+    } catch (e) {
+      print('Error unblocking user: $e');
       rethrow;
     }
   }
@@ -386,7 +459,7 @@ class UserService {
         return [];
       }
 
-      final userData = userDoc.data() as Map<String, dynamic>?;
+      final userData = userDoc.data();
       final blockedUsers = userData?['blockedUsers'] as List<dynamic>?;
 
       return blockedUsers?.cast<String>() ?? [];

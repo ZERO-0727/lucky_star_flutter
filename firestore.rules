@@ -79,5 +79,34 @@ service cloud.firestore {
         allow write: if isOwner(userId);
       }
     }
+
+    // Blocks collection
+    match /blocks/{blockId} {
+      // Only the blocker can read their own block records
+      allow read: if isSignedIn() && resource.data.blockerId == request.auth.uid;
+      // Only authenticated users can create blocks, and only for themselves as the blocker
+      allow create: if isSignedIn() && request.resource.data.blockerId == request.auth.uid;
+      // Only the blocker can update their block status (e.g., to 'removed')
+      allow update: if isSignedIn() && resource.data.blockerId == request.auth.uid;
+      // Blocks cannot be deleted, only status updated
+      allow delete: if false;
+    }
+
+    // Reports collection
+    match /reports/{reportId} {
+      // Only the reporter can read their own reports
+      allow read: if isSignedIn() && resource.data.reporterId == request.auth.uid;
+      // Only authenticated users can create reports, and only as the reporter
+      allow create: if isSignedIn() && 
+        request.resource.data.reporterId == request.auth.uid &&
+        request.resource.data.reporterId != request.resource.data.reportedUserId; // Can't report yourself
+      // Only admins can update report status (this would need admin role checking)
+      // For now, reporters can only add evidence to their own reports
+      allow update: if isSignedIn() && 
+        resource.data.reporterId == request.auth.uid &&
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['evidence', 'updatedAt']);
+      // Reports cannot be deleted by regular users
+      allow delete: if false;
+    }
   }
 }

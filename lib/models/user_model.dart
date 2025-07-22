@@ -16,6 +16,8 @@ class UserModel {
   final List<String> languages;
   final int trustScore;
   final bool isVerified;
+  final List<String> blockedUsers;
+  final List<String> blockedByUsers;
   final DateTime createdAt;
   final DateTime updatedAt;
 
@@ -35,6 +37,8 @@ class UserModel {
     this.languages = const [],
     this.trustScore = 0,
     this.isVerified = false,
+    this.blockedUsers = const [],
+    this.blockedByUsers = const [],
     required this.createdAt,
     required this.updatedAt,
   });
@@ -56,6 +60,8 @@ class UserModel {
     List<String>? languages,
     int? trustScore,
     bool? isVerified,
+    List<String>? blockedUsers,
+    List<String>? blockedByUsers,
     DateTime? createdAt,
     DateTime? updatedAt,
   }) {
@@ -75,6 +81,8 @@ class UserModel {
       languages: languages ?? this.languages,
       trustScore: trustScore ?? this.trustScore,
       isVerified: isVerified ?? this.isVerified,
+      blockedUsers: blockedUsers ?? this.blockedUsers,
+      blockedByUsers: blockedByUsers ?? this.blockedByUsers,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
     );
@@ -116,6 +124,8 @@ class UserModel {
       languages: toStringList(data['languages']),
       trustScore: data['trustScore'] ?? 0,
       isVerified: data['isVerified'] ?? false,
+      blockedUsers: toStringList(data['blockedUsers']),
+      blockedByUsers: toStringList(data['blockedByUsers']),
       createdAt: timestampToDateTime(data['createdAt']) ?? DateTime.now(),
       updatedAt: timestampToDateTime(data['updatedAt']) ?? DateTime.now(),
     );
@@ -139,6 +149,8 @@ class UserModel {
       'languages': languages,
       'trustScore': trustScore,
       'isVerified': isVerified,
+      'blockedUsers': blockedUsers,
+      'blockedByUsers': blockedByUsers,
       'createdAt': Timestamp.fromDate(createdAt),
       'updatedAt': Timestamp.fromDate(updatedAt),
     };
@@ -150,6 +162,12 @@ class UserModel {
   int get wishesFullfilledCount =>
       statistics['wishesFullfilledCount'] as int? ?? 0;
   int get responseRate => statistics['responseRate'] as int? ?? 0;
+
+  // Helper methods for blocking functionality
+  bool isUserBlocked(String userId) => blockedUsers.contains(userId);
+  bool isBlockedByUser(String userId) => blockedByUsers.contains(userId);
+  bool isBlockingMutual(String userId) =>
+      isUserBlocked(userId) || isBlockedByUser(userId);
 
   // Create an empty user model with default values
   factory UserModel.empty() {

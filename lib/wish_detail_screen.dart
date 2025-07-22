@@ -157,9 +157,72 @@ class _WishDetailScreenState extends State<WishDetailScreen> {
     }
   }
 
-  void _helpFulfillWish() {
+  void _helpFulfillWish() async {
     if (_wish == null) return;
-    _showHelpFulfillDialog(_wish!);
+    if (_currentUserId == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Please log in to help fulfill wishes'),
+          backgroundColor: Colors.orange,
+        ),
+      );
+      return;
+    }
+
+    // Check if we're trying to help our own wish
+    if (_currentUserId == _wish!.userId) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('You cannot help fulfill your own wish'),
+          backgroundColor: Colors.orange,
+        ),
+      );
+      return;
+    }
+
+    // Show the editable message dialog instead of directly proceeding
+    await _showHelpFulfillDialog(_wish!);
+  }
+
+  // Mark that the help wish button has been used for this wish
+  Future<void> _markHelpWishButtonUsed(String wishId) async {
+    try {
+      final currentUser = FirebaseAuth.instance.currentUser;
+      if (currentUser == null) return;
+
+      // Store in Firestore that this user has used the help button for this wish
+      await FirebaseFirestore.instance
+          .collection('users')
+          .doc(currentUser.uid)
+          .collection('help_wish_used')
+          .doc(wishId)
+          .set({'usedAt': FieldValue.serverTimestamp(), 'wishId': wishId});
+
+      print('✅ Help wish button marked as used for wish: $wishId');
+    } catch (e) {
+      print('❌ Error marking help wish button as used: $e');
+    }
+  }
+
+  // Check if the help wish button has already been used for this wish
+  Future<bool> _hasHelpWishButtonBeenUsed(String wishId) async {
+    try {
+      final currentUser = FirebaseAuth.instance.currentUser;
+      if (currentUser == null) return false;
+
+      final doc =
+          await FirebaseFirestore.instance
+              .collection('users')
+              .doc(currentUser.uid)
+              .collection('help_wish_used')
+              .doc(wishId)
+              .get();
+
+      return doc.exists;
+    } catch (e) {
+      print('❌ Error checking help wish button usage: $e');
+      return false; // Default to allowing the button if check fails
+    }
   }
 
   Future<void> _showHelpFulfillDialog(WishModel wish) async {
@@ -352,6 +415,9 @@ class _WishDetailScreenState extends State<WishDetailScreen> {
         wishId: wish.wishId,
         initialMessage: initialMessage,
       );
+
+      // Mark that the help wish button has been used (one-time action)
+      await _markHelpWishButtonUsed(wish.wishId);
 
       if (mounted) {
         // Show success message
@@ -697,47 +763,74 @@ class _WishDetailScreenState extends State<WishDetailScreen> {
   }
 
   Widget _buildActionButtons(WishModel wish) {
-    return Column(
-      children: [
-        SizedBox(
-          width: double.infinity,
-          height: 52,
-          child: ElevatedButton(
-            onPressed: _helpFulfillWish,
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.blue.shade600,
-              foregroundColor: Colors.white,
-              elevation: 0,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
+    return FutureBuilder<bool>(
+      future: _hasHelpWishButtonBeenUsed(wish.wishId),
+      builder: (context, snapshot) {
+        final hasBeenUsed = snapshot.data ?? false;
+
+        return Column(
+          children: [
+            // Show "Help Fulfill This Wish" button only if it hasn't been used
+            if (!hasBeenUsed) ...[
+              SizedBox(
+                width: double.infinity,
+                height: 52,
+                child: ElevatedButton(
+                  onPressed: _isProcessingAction ? null : _helpFulfillWish,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.blue.shade600,
+                    foregroundColor: Colors.white,
+                    elevation: 0,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    disabledBackgroundColor: Colors.grey.shade400,
+                  ),
+                  child:
+                      _isProcessingAction
+                          ? SizedBox(
+                            width: 24,
+                            height: 24,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              valueColor: AlwaysStoppedAnimation<Color>(
+                                Colors.white,
+                              ),
+                            ),
+                          )
+                          : const Text(
+                            'Help Fulfill This Wish',
+                            style: TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                ),
+              ),
+              const SizedBox(height: 12),
+            ],
+            // Always show "Contact Wisher" button
+            SizedBox(
+              width: double.infinity,
+              height: 48,
+              child: OutlinedButton(
+                onPressed: _isProcessingAction ? null : _contactWisher,
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: Colors.blue.shade600,
+                  side: BorderSide(color: Colors.blue.shade600),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+                child: const Text(
+                  'Contact Wisher',
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+                ),
               ),
             ),
-            child: const Text(
-              'Help Fulfill This Wish',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
-            ),
-          ),
-        ),
-        const SizedBox(height: 12),
-        SizedBox(
-          width: double.infinity,
-          height: 48,
-          child: OutlinedButton(
-            onPressed: _contactWisher,
-            style: OutlinedButton.styleFrom(
-              foregroundColor: Colors.blue.shade600,
-              side: BorderSide(color: Colors.blue.shade600),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
-            ),
-            child: const Text(
-              'Contact Wisher',
-              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
-            ),
-          ),
-        ),
-      ],
+          ],
+        );
+      },
     );
   }
 
@@ -1529,7 +1622,7 @@ class _WishDetailScreenState extends State<WishDetailScreen> {
     dynamic error,
     StackTrace? stackTrace,
   ) {
-    print('\n' + '=' * 80);
+    print('\n${'=' * 80}');
     print('🚨 CHAT/MESSAGING ERROR DETAILS');
     print('=' * 80);
     print('Action Type: $actionType');
