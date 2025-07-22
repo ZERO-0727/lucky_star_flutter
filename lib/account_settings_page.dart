@@ -3,6 +3,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'feedback_page.dart';
 import 'donation_page.dart';
 import 'user_verification_page.dart';
+import 'privacy_policy_screen.dart';
 import 'screens/auth/account_management_screen.dart';
 import 'screens/auth/change_password_screen.dart';
 import 'services/auth_service.dart';
@@ -363,9 +364,12 @@ class _AccountSettingsPageState extends State<AccountSettingsPage> {
               icon: Icons.privacy_tip,
               title: 'Privacy Policy',
               onTap: () {
-                // Navigate to privacy policy
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Privacy Policy coming soon')),
+                // Navigate to privacy policy screen
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => const PrivacyPolicyScreen(),
+                  ),
                 );
               },
             ),

@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'screens/auth/login_screen.dart';
 import 'screens/auth/signup_screen.dart';
 
 class WelcomePage extends StatelessWidget {
@@ -26,12 +25,12 @@ class WelcomePage extends StatelessWidget {
             padding: const EdgeInsets.all(24.0),
             child: Column(
               children: [
-                // Logo and star icon at the top
+                // Logo at the top
                 const Spacer(flex: 2),
-                const Icon(
-                  Icons.star,
-                  size: 80,
-                  color: Color(0xFFFFD700), // Gold color for the star
+                Image.asset(
+                  'assets/images/cosmosoul_logo.png',
+                  width: 80,
+                  height: 80,
                 ),
                 const SizedBox(height: 24),
 

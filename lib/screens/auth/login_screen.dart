@@ -7,8 +7,7 @@ import '../../auth/phone_auth_screen.dart';
 class LoginScreen extends StatefulWidget {
   final VoidCallback onSignUpPressed;
 
-  const LoginScreen({Key? key, required this.onSignUpPressed})
-    : super(key: key);
+  const LoginScreen({super.key, required this.onSignUpPressed});
 
   @override
   State<LoginScreen> createState() => _LoginScreenState();
@@ -298,7 +297,11 @@ class _LoginScreenState extends State<LoginScreen> {
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   // Logo or App Name
-                  const Icon(Icons.star, size: 80, color: Color(0xFF7153DF)),
+                  Image.asset(
+                    'assets/images/cosmosoul_logo.png',
+                    width: 80,
+                    height: 80,
+                  ),
                   const SizedBox(height: 16),
                   const Text(
                     'CosmoSoul',
