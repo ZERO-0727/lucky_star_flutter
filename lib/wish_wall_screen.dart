@@ -228,17 +228,18 @@ class _WishWallScreenState extends State<WishWallScreen>
     return Scaffold(
       appBar: AppBar(
         title: const Text('Space Station'),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.search),
-            onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (context) => const SearchPage()),
-              );
-            },
-          ),
-        ],
+        // Hidden search icon for MVP - keeping search functionality intact
+        // actions: [
+        //   IconButton(
+        //     icon: const Icon(Icons.search),
+        //     onPressed: () {
+        //       Navigator.push(
+        //         context,
+        //         MaterialPageRoute(builder: (context) => const SearchPage()),
+        //       );
+        //     },
+        //   ),
+        // ],
         bottom: TabBar(
           controller: _tabController,
           tabs: const [Tab(text: 'Wishes'), Tab(text: 'Experiences')],

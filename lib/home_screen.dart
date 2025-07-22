@@ -394,8 +394,9 @@ class _HomeScreenState extends State<HomeScreen> {
                 _buildMyExchanges(),
                 const SizedBox(height: 20),
 
-                // Trust & Reputation
-                _buildTrustReputation(),
+                // Hidden Trust & Reputation section for MVP
+                // Will be fully implemented after v1 release
+                // _buildTrustReputation(),
               ],
             ),
           ),
