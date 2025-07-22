@@ -66,7 +66,7 @@ class _ChatListScreenState extends State<ChatListScreen> {
         backgroundColor: Colors.white,
         elevation: 0,
         title: const Text(
-          'Soul Talk',
+          'Chat',
           style: TextStyle(
             fontSize: 28,
             fontWeight: FontWeight.w600,
@@ -136,7 +136,23 @@ class _ChatListScreenState extends State<ChatListScreen> {
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting &&
             _conversations.isEmpty) {
-          return const Center(child: CircularProgressIndicator());
+          return const Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                CircularProgressIndicator(color: Color(0xFF7153DF)),
+                SizedBox(height: 16),
+                Text(
+                  'Loading messages...',
+                  style: TextStyle(
+                    fontSize: 16,
+                    color: Colors.grey,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ],
+            ),
+          );
         }
 
         if (snapshot.hasError) {
@@ -586,7 +602,7 @@ class _ChatListScreenState extends State<ChatListScreen> {
     dynamic error,
     StackTrace? stackTrace,
   ) {
-    print('\n' + '=' * 80);
+    print('\n${'=' * 80}');
     print('🚨 CHAT LIST ERROR DETAILS');
     print('=' * 80);
     print('Action Type: $actionType');

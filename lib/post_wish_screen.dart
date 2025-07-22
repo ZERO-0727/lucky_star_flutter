@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
 import 'package:image_picker/image_picker.dart';
 import 'dart:io';
 import 'package:flutter/foundation.dart' show kIsWeb;
@@ -57,7 +56,15 @@ class _PostWishScreenState extends State<PostWishScreen> {
 
   final TextEditingController _titleController = TextEditingController();
   final TextEditingController _descController = TextEditingController();
-  final TextEditingController _locationController = TextEditingController();
+
+  // Location dropdown (same as Edit Profile)
+  final List<String> _availableLocations = [
+    'Canada',
+    'United States',
+    'Australia',
+    'Japan',
+  ];
+  String? _selectedLocation;
 
   final WishService _wishService = WishService();
   bool _isLoading = false;
@@ -495,9 +502,9 @@ class _PostWishScreenState extends State<PostWishScreen> {
 
     try {
       print('🗑️ DELETING TEMPORARY WISH: $_currentWishId');
-      
+
       await _firestore.collection('wishes').doc(_currentWishId!).delete();
-      
+
       print('✅ TEMPORARY WISH DELETED: $_currentWishId');
       _currentWishId = null;
     } catch (e) {
@@ -510,34 +517,33 @@ class _PostWishScreenState extends State<PostWishScreen> {
   Future<bool> _showCancelConfirmationDialog() async {
     final result = await showDialog<bool>(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Cancel Creating Wish?'),
-        content: const Text(
-          'Are you sure you want to cancel creating this wish? Any progress will be lost.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(false),
-            child: const Text('No'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(true),
-            style: TextButton.styleFrom(
-              foregroundColor: Colors.red,
+      builder:
+          (context) => AlertDialog(
+            title: const Text('Cancel Creating Wish?'),
+            content: const Text(
+              'Are you sure you want to cancel creating this wish? Any progress will be lost.',
             ),
-            child: const Text('Yes, Cancel'),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(false),
+                child: const Text('No'),
+              ),
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(true),
+                style: TextButton.styleFrom(foregroundColor: Colors.red),
+                child: const Text('Yes, Cancel'),
+              ),
+            ],
           ),
-        ],
-      ),
     );
-    
+
     return result ?? false;
   }
 
   // Handle back button press
   Future<bool> _onWillPop() async {
     // If user hasn't entered any meaningful content, allow back without confirmation
-    if (_titleController.text.trim().isEmpty && 
+    if (_titleController.text.trim().isEmpty &&
         _descController.text.trim().isEmpty &&
         _images.isEmpty) {
       // Still delete the empty document
@@ -547,13 +553,13 @@ class _PostWishScreenState extends State<PostWishScreen> {
 
     // Show confirmation dialog
     final shouldCancel = await _showCancelConfirmationDialog();
-    
+
     if (shouldCancel) {
       // Delete the temporary wish document
       await _deleteTemporaryWish();
       return true; // Allow navigation
     }
-    
+
     return false; // Prevent navigation
   }
 
@@ -654,10 +660,7 @@ class _PostWishScreenState extends State<PostWishScreen> {
       Map<String, dynamic> updateData = {
         'title': _titleController.text.trim(),
         'description': _descController.text.trim(),
-        'location':
-            _locationController.text.trim().isEmpty
-                ? 'Location TBD'
-                : _locationController.text.trim(),
+        'location': _selectedLocation ?? 'Location TBD',
         'categories': selectedTags,
         'updatedAt': FieldValue.serverTimestamp(),
         'status': 'Open', // Mark as active when user submits
@@ -745,7 +748,7 @@ class _PostWishScreenState extends State<PostWishScreen> {
       canPop: false,
       onPopInvoked: (didPop) async {
         if (didPop) return;
-        
+
         final shouldPop = await _onWillPop();
         if (shouldPop && context.mounted) {
           Navigator.of(context).pop();
@@ -870,33 +873,46 @@ class _PostWishScreenState extends State<PostWishScreen> {
                 ),
                 const SizedBox(height: 20),
 
-              // Location Field
-              TextFormField(
-                controller: _locationController,
-                decoration: InputDecoration(
-                  labelText: 'Preferred Location',
-                  hintText: 'Where would you like this experience?',
-                  filled: true,
-                  fillColor: Colors.white,
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(16.0),
-                    borderSide: BorderSide(color: Colors.grey.shade300),
-                  ),
-                  enabledBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(16.0),
-                    borderSide: BorderSide(color: Colors.grey.shade300),
-                  ),
-                  focusedBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(16.0),
-                    borderSide: BorderSide(
-                      color: Colors.blue.shade400,
-                      width: 2,
+                // Location Dropdown (same as Edit Profile)
+                DropdownButtonFormField<String>(
+                  value: _selectedLocation,
+                  decoration: InputDecoration(
+                    labelText: 'Preferred Location',
+                    hintText: 'Where would you like this experience?',
+                    filled: true,
+                    fillColor: Colors.white,
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(16.0),
+                      borderSide: BorderSide(color: Colors.grey.shade300),
                     ),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(16.0),
+                      borderSide: BorderSide(color: Colors.grey.shade300),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(16.0),
+                      borderSide: BorderSide(
+                        color: Colors.blue.shade400,
+                        width: 2,
+                      ),
+                    ),
+                    contentPadding: const EdgeInsets.all(20),
                   ),
-                  contentPadding: const EdgeInsets.all(20),
+                  hint: const Text('Select Location'),
+                  items:
+                      _availableLocations.map((String location) {
+                        return DropdownMenuItem<String>(
+                          value: location,
+                          child: Text(location),
+                        );
+                      }).toList(),
+                  onChanged: (String? newValue) {
+                    setState(() {
+                      _selectedLocation = newValue;
+                    });
+                  },
                 ),
-              ),
-              const SizedBox(height: 24),
+                const SizedBox(height: 24),
 
                 // Category Selection
                 Text(
@@ -1046,7 +1062,9 @@ class _PostWishScreenState extends State<PostWishScreen> {
                                         return Container(
                                           width: 80,
                                           height: 80,
-                                          margin: const EdgeInsets.only(right: 8),
+                                          margin: const EdgeInsets.only(
+                                            right: 8,
+                                          ),
                                           decoration: BoxDecoration(
                                             borderRadius: BorderRadius.circular(
                                               8,
@@ -1081,7 +1099,9 @@ class _PostWishScreenState extends State<PostWishScreen> {
                                                                 snapshot.data!,
                                                                 width: 80,
                                                                 height: 80,
-                                                                fit: BoxFit.cover,
+                                                                fit:
+                                                                    BoxFit
+                                                                        .cover,
                                                               );
                                                             }
                                                             return const Center(
@@ -1132,20 +1152,27 @@ class _PostWishScreenState extends State<PostWishScreen> {
                                                     },
                                                     child: Container(
                                                       padding:
-                                                          const EdgeInsets.all(8),
+                                                          const EdgeInsets.all(
+                                                            8,
+                                                          ),
                                                       decoration: BoxDecoration(
-                                                        color: Colors.red.shade700
+                                                        color: Colors
+                                                            .red
+                                                            .shade700
                                                             .withOpacity(0.9),
                                                         shape: BoxShape.circle,
                                                         boxShadow: [
                                                           BoxShadow(
                                                             color: Colors.black
-                                                                .withOpacity(0.3),
+                                                                .withOpacity(
+                                                                  0.3,
+                                                                ),
                                                             blurRadius: 3,
-                                                            offset: const Offset(
-                                                              0,
-                                                              1,
-                                                            ),
+                                                            offset:
+                                                                const Offset(
+                                                                  0,
+                                                                  1,
+                                                                ),
                                                           ),
                                                         ],
                                                       ),
@@ -1172,7 +1199,9 @@ class _PostWishScreenState extends State<PostWishScreen> {
                                                     shape: BoxShape.circle,
                                                   ),
                                                   child: Icon(
-                                                    _getStatusIcon(image.status),
+                                                    _getStatusIcon(
+                                                      image.status,
+                                                    ),
                                                     size: 12,
                                                     color: Colors.white,
                                                   ),
@@ -1186,10 +1215,13 @@ class _PostWishScreenState extends State<PostWishScreen> {
                                                   right: 2,
                                                   child: InkWell(
                                                     onTap:
-                                                        () => _retryUpload(image),
+                                                        () =>
+                                                            _retryUpload(image),
                                                     child: Container(
                                                       padding:
-                                                          const EdgeInsets.all(2),
+                                                          const EdgeInsets.all(
+                                                            2,
+                                                          ),
                                                       decoration:
                                                           const BoxDecoration(
                                                             color: Colors.red,

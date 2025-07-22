@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
 import 'package:image_picker/image_picker.dart';
 import 'dart:io';
 import 'package:flutter/foundation.dart' show kIsWeb;
@@ -59,8 +58,16 @@ class _PostExperienceScreenState extends State<PostExperienceScreen> {
 
   final TextEditingController _titleController = TextEditingController();
   final TextEditingController _descController = TextEditingController();
-  final TextEditingController _locationController = TextEditingController();
   final TextEditingController _slotsController = TextEditingController();
+
+  // Location dropdown (same as Edit Profile)
+  final List<String> _availableLocations = [
+    'Canada',
+    'United States',
+    'Australia',
+    'Japan',
+  ];
+  String? _selectedLocation;
 
   final ExperienceService _experienceService = ExperienceService();
   bool _isLoading = false;
@@ -602,10 +609,7 @@ class _PostExperienceScreenState extends State<PostExperienceScreen> {
           .update({
             'title': _titleController.text.trim(),
             'description': _descController.text.trim(),
-            'location':
-                _locationController.text.trim().isEmpty
-                    ? 'Location TBD'
-                    : _locationController.text.trim(),
+            'location': _selectedLocation ?? 'Location TBD',
             'tags': selectedTags,
             'availableSlots': int.tryParse(_slotsController.text) ?? 1,
             'updatedAt': FieldValue.serverTimestamp(),
@@ -689,9 +693,12 @@ class _PostExperienceScreenState extends State<PostExperienceScreen> {
 
     try {
       print('🗑️ DELETING TEMPORARY EXPERIENCE: $_currentExperienceId');
-      
-      await _firestore.collection('experiences').doc(_currentExperienceId!).delete();
-      
+
+      await _firestore
+          .collection('experiences')
+          .doc(_currentExperienceId!)
+          .delete();
+
       print('✅ TEMPORARY EXPERIENCE DELETED: $_currentExperienceId');
       _currentExperienceId = null;
     } catch (e) {
@@ -704,34 +711,33 @@ class _PostExperienceScreenState extends State<PostExperienceScreen> {
   Future<bool> _showCancelConfirmationDialog() async {
     final result = await showDialog<bool>(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Cancel Creating Experience?'),
-        content: const Text(
-          'Are you sure you want to cancel creating this experience? Any progress will be lost.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(false),
-            child: const Text('No'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(true),
-            style: TextButton.styleFrom(
-              foregroundColor: Colors.red,
+      builder:
+          (context) => AlertDialog(
+            title: const Text('Cancel Creating Experience?'),
+            content: const Text(
+              'Are you sure you want to cancel creating this experience? Any progress will be lost.',
             ),
-            child: const Text('Yes, Cancel'),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(false),
+                child: const Text('No'),
+              ),
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(true),
+                style: TextButton.styleFrom(foregroundColor: Colors.red),
+                child: const Text('Yes, Cancel'),
+              ),
+            ],
           ),
-        ],
-      ),
     );
-    
+
     return result ?? false;
   }
 
   // Handle back button press
   Future<bool> _onWillPop() async {
     // If user hasn't entered any meaningful content, allow back without confirmation
-    if (_titleController.text.trim().isEmpty && 
+    if (_titleController.text.trim().isEmpty &&
         _descController.text.trim().isEmpty &&
         _images.isEmpty) {
       // Still delete the empty document
@@ -741,13 +747,13 @@ class _PostExperienceScreenState extends State<PostExperienceScreen> {
 
     // Show confirmation dialog
     final shouldCancel = await _showCancelConfirmationDialog();
-    
+
     if (shouldCancel) {
       // Delete the temporary experience document
       await _deleteTemporaryExperience();
       return true; // Allow navigation
     }
-    
+
     return false; // Prevent navigation
   }
 
@@ -757,7 +763,7 @@ class _PostExperienceScreenState extends State<PostExperienceScreen> {
       canPop: false,
       onPopInvoked: (didPop) async {
         if (didPop) return;
-        
+
         final shouldPop = await _onWillPop();
         if (shouldPop && context.mounted) {
           Navigator.of(context).pop();
@@ -882,9 +888,9 @@ class _PostExperienceScreenState extends State<PostExperienceScreen> {
                 ),
                 const SizedBox(height: 20),
 
-                // Location Field
-                TextFormField(
-                  controller: _locationController,
+                // Location Dropdown (same as Edit Profile)
+                DropdownButtonFormField<String>(
+                  value: _selectedLocation,
                   decoration: InputDecoration(
                     labelText: 'Location',
                     hintText: 'Where will this experience take place?',
@@ -907,6 +913,25 @@ class _PostExperienceScreenState extends State<PostExperienceScreen> {
                     ),
                     contentPadding: const EdgeInsets.all(20),
                   ),
+                  hint: const Text('Select Location'),
+                  items:
+                      _availableLocations.map((String location) {
+                        return DropdownMenuItem<String>(
+                          value: location,
+                          child: Text(location),
+                        );
+                      }).toList(),
+                  onChanged: (String? newValue) {
+                    setState(() {
+                      _selectedLocation = newValue;
+                    });
+                  },
+                  validator: (value) {
+                    if (value == null || value.isEmpty) {
+                      return 'Please select a location';
+                    }
+                    return null;
+                  },
                 ),
                 const SizedBox(height: 20),
 
@@ -1015,257 +1040,273 @@ class _PostExperienceScreenState extends State<PostExperienceScreen> {
                 ),
                 const SizedBox(height: 16),
 
-              // Photo upload area matching Post Wish design
-              InkWell(
-                onTap: _pickAndUploadImages,
-                child: Container(
-                  height: 150,
-                  width: double.infinity,
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(16),
-                    border: Border.all(
-                      color: Colors.grey.shade300,
-                      style: BorderStyle.solid,
+                // Photo upload area matching Post Wish design
+                InkWell(
+                  onTap: _pickAndUploadImages,
+                  child: Container(
+                    height: 150,
+                    width: double.infinity,
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(
+                        color: Colors.grey.shade300,
+                        style: BorderStyle.solid,
+                      ),
                     ),
-                  ),
-                  child:
-                      _images.isEmpty
-                          ? Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Icon(
-                                Icons.add,
-                                size: 48,
-                                color: Colors.grey.shade400,
-                              ),
-                              const SizedBox(height: 8),
-                              Text(
-                                'Add Photo',
-                                style: TextStyle(
-                                  fontSize: 16,
-                                  color: Colors.grey.shade600,
-                                  fontWeight: FontWeight.w500,
-                                ),
-                              ),
-                              const SizedBox(height: 4),
-                              Text(
-                                '${_images.length}/6 photos',
-                                style: TextStyle(
-                                  fontSize: 12,
-                                  color: Colors.grey.shade500,
-                                ),
-                              ),
-                            ],
-                          )
-                          : Padding(
-                            padding: const EdgeInsets.all(12),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
+                    child:
+                        _images.isEmpty
+                            ? Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
                               children: [
-                                Row(
-                                  mainAxisAlignment:
-                                      MainAxisAlignment.spaceBetween,
-                                  children: [
-                                    Text(
-                                      'Photos (${_images.length}/6)',
-                                      style: TextStyle(
-                                        fontSize: 14,
-                                        fontWeight: FontWeight.w500,
-                                        color: Colors.grey.shade700,
-                                      ),
-                                    ),
-                                    if (_images.length < 6)
-                                      InkWell(
-                                        onTap: _pickAndUploadImages,
-                                        child: Icon(
-                                          Icons.add_circle,
-                                          color: Colors.blue.shade500,
-                                          size: 24,
-                                        ),
-                                      ),
-                                  ],
+                                Icon(
+                                  Icons.add,
+                                  size: 48,
+                                  color: Colors.grey.shade400,
                                 ),
                                 const SizedBox(height: 8),
-                                Expanded(
-                                  child: ListView.builder(
-                                    scrollDirection: Axis.horizontal,
-                                    itemCount: _images.length,
-                                    itemBuilder: (context, index) {
-                                      final image = _images[index];
-                                      return Container(
-                                        width: 80,
-                                        height: 80,
-                                        margin: const EdgeInsets.only(right: 8),
-                                        decoration: BoxDecoration(
-                                          borderRadius: BorderRadius.circular(
-                                            8,
-                                          ),
-                                          border: Border.all(
-                                            color: _getStatusColor(
-                                              image.status,
-                                            ),
-                                            width: 2,
-                                          ),
-                                        ),
-                                        child: Stack(
-                                          children: [
-                                            ClipRRect(
-                                              borderRadius:
-                                                  BorderRadius.circular(6),
-                                              child:
-                                                  kIsWeb
-                                                      ? FutureBuilder<
-                                                        Uint8List
-                                                      >(
-                                                        future:
-                                                            image.file
-                                                                .readAsBytes(),
-                                                        builder: (
-                                                          context,
-                                                          snapshot,
-                                                        ) {
-                                                          if (snapshot
-                                                              .hasData) {
-                                                            return Image.memory(
-                                                              snapshot.data!,
-                                                              width: 80,
-                                                              height: 80,
-                                                              fit: BoxFit.cover,
-                                                            );
-                                                          }
-                                                          return const Center(
-                                                            child:
-                                                                CircularProgressIndicator(
-                                                                  strokeWidth:
-                                                                      2,
-                                                                ),
-                                                          );
-                                                        },
-                                                      )
-                                                      : Image.file(
-                                                        File(image.file.path),
-                                                        width: 80,
-                                                        height: 80,
-                                                        fit: BoxFit.cover,
-                                                      ),
-                                            ),
-                                            // Enhanced delete button for all images (except those currently uploading)
-                                            if (image.status !=
-                                                    ImageStatus.uploading &&
-                                                image.status !=
-                                                    ImageStatus.retrying)
-                                              Positioned(
-                                                top: 2,
-                                                right: 2,
-                                                child: GestureDetector(
-                                                  onTap: () {
-                                                    // Show a confirmation snackbar after removal
-                                                    _removeImage(image).then((
-                                                      _,
-                                                    ) {
-                                                      ScaffoldMessenger.of(
-                                                        context,
-                                                      ).showSnackBar(
-                                                        const SnackBar(
-                                                          content: Text(
-                                                            'Image removed successfully',
-                                                          ),
-                                                          backgroundColor:
-                                                              Colors.green,
-                                                          duration: Duration(
-                                                            seconds: 1,
-                                                          ),
-                                                        ),
-                                                      );
-                                                    });
-                                                  },
-                                                  child: Container(
-                                                    padding:
-                                                        const EdgeInsets.all(8),
-                                                    decoration: BoxDecoration(
-                                                      color: Colors.red.shade700
-                                                          .withOpacity(0.9),
-                                                      shape: BoxShape.circle,
-                                                      boxShadow: [
-                                                        BoxShadow(
-                                                          color: Colors.black
-                                                              .withOpacity(0.3),
-                                                          blurRadius: 3,
-                                                          offset: const Offset(
-                                                            0,
-                                                            1,
-                                                          ),
-                                                        ),
-                                                      ],
-                                                    ),
-                                                    child: const Icon(
-                                                      Icons.close,
-                                                      size: 18,
-                                                      color: Colors.white,
-                                                    ),
-                                                  ),
-                                                ),
-                                              ),
-                                            // Status indicator (moved to bottom left)
-                                            Positioned(
-                                              bottom: 2,
-                                              left: 2,
-                                              child: Container(
-                                                padding: const EdgeInsets.all(
-                                                  2,
-                                                ),
-                                                decoration: BoxDecoration(
-                                                  color: _getStatusColor(
-                                                    image.status,
-                                                  ),
-                                                  shape: BoxShape.circle,
-                                                ),
-                                                child: Icon(
-                                                  _getStatusIcon(image.status),
-                                                  size: 12,
-                                                  color: Colors.white,
-                                                ),
-                                              ),
-                                            ),
-                                            // Retry button for failed uploads
-                                            if (image.status ==
-                                                ImageStatus.failed)
-                                              Positioned(
-                                                bottom: 2,
-                                                right: 2,
-                                                child: InkWell(
-                                                  onTap:
-                                                      () => _retryUpload(image),
-                                                  child: Container(
-                                                    padding:
-                                                        const EdgeInsets.all(2),
-                                                    decoration:
-                                                        const BoxDecoration(
-                                                          color: Colors.red,
-                                                          shape:
-                                                              BoxShape.circle,
-                                                        ),
-                                                    child: const Icon(
-                                                      Icons.refresh,
-                                                      size: 12,
-                                                      color: Colors.white,
-                                                    ),
-                                                  ),
-                                                ),
-                                              ),
-                                          ],
-                                        ),
-                                      );
-                                    },
+                                Text(
+                                  'Add Photo',
+                                  style: TextStyle(
+                                    fontSize: 16,
+                                    color: Colors.grey.shade600,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  '${_images.length}/6 photos',
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    color: Colors.grey.shade500,
                                   ),
                                 ),
                               ],
+                            )
+                            : Padding(
+                              padding: const EdgeInsets.all(12),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Row(
+                                    mainAxisAlignment:
+                                        MainAxisAlignment.spaceBetween,
+                                    children: [
+                                      Text(
+                                        'Photos (${_images.length}/6)',
+                                        style: TextStyle(
+                                          fontSize: 14,
+                                          fontWeight: FontWeight.w500,
+                                          color: Colors.grey.shade700,
+                                        ),
+                                      ),
+                                      if (_images.length < 6)
+                                        InkWell(
+                                          onTap: _pickAndUploadImages,
+                                          child: Icon(
+                                            Icons.add_circle,
+                                            color: Colors.blue.shade500,
+                                            size: 24,
+                                          ),
+                                        ),
+                                    ],
+                                  ),
+                                  const SizedBox(height: 8),
+                                  Expanded(
+                                    child: ListView.builder(
+                                      scrollDirection: Axis.horizontal,
+                                      itemCount: _images.length,
+                                      itemBuilder: (context, index) {
+                                        final image = _images[index];
+                                        return Container(
+                                          width: 80,
+                                          height: 80,
+                                          margin: const EdgeInsets.only(
+                                            right: 8,
+                                          ),
+                                          decoration: BoxDecoration(
+                                            borderRadius: BorderRadius.circular(
+                                              8,
+                                            ),
+                                            border: Border.all(
+                                              color: _getStatusColor(
+                                                image.status,
+                                              ),
+                                              width: 2,
+                                            ),
+                                          ),
+                                          child: Stack(
+                                            children: [
+                                              ClipRRect(
+                                                borderRadius:
+                                                    BorderRadius.circular(6),
+                                                child:
+                                                    kIsWeb
+                                                        ? FutureBuilder<
+                                                          Uint8List
+                                                        >(
+                                                          future:
+                                                              image.file
+                                                                  .readAsBytes(),
+                                                          builder: (
+                                                            context,
+                                                            snapshot,
+                                                          ) {
+                                                            if (snapshot
+                                                                .hasData) {
+                                                              return Image.memory(
+                                                                snapshot.data!,
+                                                                width: 80,
+                                                                height: 80,
+                                                                fit:
+                                                                    BoxFit
+                                                                        .cover,
+                                                              );
+                                                            }
+                                                            return const Center(
+                                                              child:
+                                                                  CircularProgressIndicator(
+                                                                    strokeWidth:
+                                                                        2,
+                                                                  ),
+                                                            );
+                                                          },
+                                                        )
+                                                        : Image.file(
+                                                          File(image.file.path),
+                                                          width: 80,
+                                                          height: 80,
+                                                          fit: BoxFit.cover,
+                                                        ),
+                                              ),
+                                              // Enhanced delete button for all images (except those currently uploading)
+                                              if (image.status !=
+                                                      ImageStatus.uploading &&
+                                                  image.status !=
+                                                      ImageStatus.retrying)
+                                                Positioned(
+                                                  top: 2,
+                                                  right: 2,
+                                                  child: GestureDetector(
+                                                    onTap: () {
+                                                      // Show a confirmation snackbar after removal
+                                                      _removeImage(image).then((
+                                                        _,
+                                                      ) {
+                                                        ScaffoldMessenger.of(
+                                                          context,
+                                                        ).showSnackBar(
+                                                          const SnackBar(
+                                                            content: Text(
+                                                              'Image removed successfully',
+                                                            ),
+                                                            backgroundColor:
+                                                                Colors.green,
+                                                            duration: Duration(
+                                                              seconds: 1,
+                                                            ),
+                                                          ),
+                                                        );
+                                                      });
+                                                    },
+                                                    child: Container(
+                                                      padding:
+                                                          const EdgeInsets.all(
+                                                            8,
+                                                          ),
+                                                      decoration: BoxDecoration(
+                                                        color: Colors
+                                                            .red
+                                                            .shade700
+                                                            .withOpacity(0.9),
+                                                        shape: BoxShape.circle,
+                                                        boxShadow: [
+                                                          BoxShadow(
+                                                            color: Colors.black
+                                                                .withOpacity(
+                                                                  0.3,
+                                                                ),
+                                                            blurRadius: 3,
+                                                            offset:
+                                                                const Offset(
+                                                                  0,
+                                                                  1,
+                                                                ),
+                                                          ),
+                                                        ],
+                                                      ),
+                                                      child: const Icon(
+                                                        Icons.close,
+                                                        size: 18,
+                                                        color: Colors.white,
+                                                      ),
+                                                    ),
+                                                  ),
+                                                ),
+                                              // Status indicator (moved to bottom left)
+                                              Positioned(
+                                                bottom: 2,
+                                                left: 2,
+                                                child: Container(
+                                                  padding: const EdgeInsets.all(
+                                                    2,
+                                                  ),
+                                                  decoration: BoxDecoration(
+                                                    color: _getStatusColor(
+                                                      image.status,
+                                                    ),
+                                                    shape: BoxShape.circle,
+                                                  ),
+                                                  child: Icon(
+                                                    _getStatusIcon(
+                                                      image.status,
+                                                    ),
+                                                    size: 12,
+                                                    color: Colors.white,
+                                                  ),
+                                                ),
+                                              ),
+                                              // Retry button for failed uploads
+                                              if (image.status ==
+                                                  ImageStatus.failed)
+                                                Positioned(
+                                                  bottom: 2,
+                                                  right: 2,
+                                                  child: InkWell(
+                                                    onTap:
+                                                        () =>
+                                                            _retryUpload(image),
+                                                    child: Container(
+                                                      padding:
+                                                          const EdgeInsets.all(
+                                                            2,
+                                                          ),
+                                                      decoration:
+                                                          const BoxDecoration(
+                                                            color: Colors.red,
+                                                            shape:
+                                                                BoxShape.circle,
+                                                          ),
+                                                      child: const Icon(
+                                                        Icons.refresh,
+                                                        size: 12,
+                                                        color: Colors.white,
+                                                      ),
+                                                    ),
+                                                  ),
+                                                ),
+                                            ],
+                                          ),
+                                        );
+                                      },
+                                    ),
+                                  ),
+                                ],
+                              ),
                             ),
-                          ),
+                  ),
                 ),
-              ),
-              const SizedBox(height: 40),
+                const SizedBox(height: 40),
 
                 // Submit Button
                 SizedBox(

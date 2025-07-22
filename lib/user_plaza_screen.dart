@@ -143,7 +143,7 @@ class _UserPlazaScreenState extends State<UserPlazaScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Soul Plaza'),
+        title: const Text('Soul'),
         centerTitle: true,
         backgroundColor: const Color(0xFF7153DF),
         foregroundColor: Colors.white,

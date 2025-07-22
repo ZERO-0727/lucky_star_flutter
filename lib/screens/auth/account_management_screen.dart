@@ -121,38 +121,6 @@ class _AccountManagementScreenState extends State<AccountManagementScreen> {
     }
   }
 
-  // Sign out
-  Future<void> _signOut() async {
-    setState(() {
-      _isLoading = true;
-    });
-
-    try {
-      print('ACCOUNT: Signing out user');
-      await _authService.signOut();
-      print('ACCOUNT: User signed out successfully');
-
-      // The AuthWrapper will automatically redirect to login screen
-      setState(() {
-        _isLoading = false;
-      });
-    } catch (e) {
-      print('ACCOUNT ERROR: Failed to sign out: $e');
-      setState(() {
-        _isLoading = false;
-      });
-
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error signing out: ${e.toString()}'),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -325,6 +293,28 @@ class _AccountManagementScreenState extends State<AccountManagementScreen> {
                         ),
                       ),
                     ),
+                    const SizedBox(height: 32),
+
+                    // Delete Account Button
+                    SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton(
+                        onPressed: _showDeleteAccountConfirmation,
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.red,
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(vertical: 16),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                        ),
+                        child: const Text(
+                          'Delete Account',
+                          style: TextStyle(fontSize: 18),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 24),
                   ],
                 ),
               ),
