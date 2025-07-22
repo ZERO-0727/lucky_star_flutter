@@ -6,6 +6,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'dart:typed_data';
 import 'models/user_model.dart';
 import 'services/user_service.dart';
+import 'services/optimized_image_service.dart';
 
 class EditProfileScreen extends StatefulWidget {
   final UserModel? user;
@@ -135,11 +136,15 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
 
   Future<void> _pickImage() async {
     try {
+      // Show image source selection dialog
+      final ImageSource? source = await _showImageSourceDialog();
+      if (source == null) return;
+
       final XFile? image = await _picker.pickImage(
-        source: ImageSource.gallery,
-        maxWidth: 512,
-        maxHeight: 512,
-        imageQuality: 80,
+        source: source,
+        maxWidth: 1080,
+        maxHeight: 1080,
+        imageQuality: 85,
       );
 
       if (image != null) {
@@ -164,6 +169,35 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     }
   }
 
+  Future<ImageSource?> _showImageSourceDialog() async {
+    return showDialog<ImageSource>(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('Select Image Source'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              ListTile(
+                leading: const Icon(Icons.camera_alt, color: Color(0xFF7153DF)),
+                title: const Text('Camera'),
+                onTap: () => Navigator.of(context).pop(ImageSource.camera),
+              ),
+              ListTile(
+                leading: const Icon(
+                  Icons.photo_library,
+                  color: Color(0xFF7153DF),
+                ),
+                title: const Text('Gallery'),
+                onTap: () => Navigator.of(context).pop(ImageSource.gallery),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
   Future<String?> _uploadAvatar() async {
     if (_selectedImageBytes == null || _currentUserId == null) return null;
 
@@ -174,20 +208,42 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
         });
       }
 
+      // Compress and optimize the image for avatar use
+      // Use higher quality for avatars (90%) and optimal size for face recognition
+      final compressedBytes = await OptimizedImageService.compressImage(
+        _selectedImageBytes!,
+        'jpg',
+        512, // Optimal size for avatars - good balance of quality and performance
+        90, // Higher quality for profile photos
+      );
+
+      print(
+        'Avatar compression: ${_selectedImageBytes!.length} -> ${compressedBytes.length} bytes',
+      );
+
       final storageRef = FirebaseStorage.instance
           .ref()
           .child('user_avatars')
           .child('$_currentUserId.jpg');
 
       final uploadTask = storageRef.putData(
-        _selectedImageBytes!,
-        SettableMetadata(contentType: 'image/jpeg'),
+        compressedBytes,
+        SettableMetadata(
+          contentType: 'image/jpeg',
+          customMetadata: {
+            'compressed': 'true',
+            'optimized_for': 'avatar',
+            'face_centered': 'true',
+          },
+        ),
       );
 
       // Monitor upload progress
       uploadTask.snapshotEvents.listen((TaskSnapshot snapshot) {
         final progress = snapshot.bytesTransferred / snapshot.totalBytes;
-        print('Upload progress: ${(progress * 100).toStringAsFixed(2)}%');
+        print(
+          'Avatar upload progress: ${(progress * 100).toStringAsFixed(2)}%',
+        );
       });
 
       final snapshot = await uploadTask;
@@ -200,6 +256,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
         });
       }
 
+      print('Avatar uploaded successfully: $downloadUrl');
       return downloadUrl;
     } catch (e) {
       if (mounted) {
@@ -208,7 +265,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
         });
       }
       print('Error uploading avatar: $e');
-      throw e;
+      rethrow;
     }
   }
 
@@ -444,25 +501,82 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   }
 
   Widget _buildAvatarSection() {
-    return Container(
-      decoration: BoxDecoration(
-        shape: BoxShape.circle,
-        border: Border.all(color: const Color(0xFF7153DF), width: 3),
-      ),
-      child: CircleAvatar(
-        radius: 60,
-        backgroundColor: Colors.grey[300],
-        backgroundImage:
-            _selectedImageBytes != null
-                ? MemoryImage(_selectedImageBytes!)
-                : (_currentAvatarUrl != null && _currentAvatarUrl!.isNotEmpty)
-                ? NetworkImage(_currentAvatarUrl!)
-                : null,
-        child:
-            (_selectedImageBytes == null &&
-                    (_currentAvatarUrl == null || _currentAvatarUrl!.isEmpty))
-                ? const Icon(Icons.person, size: 60, color: Colors.grey)
-                : null,
+    return GestureDetector(
+      onTap: _pickImage,
+      child: Stack(
+        children: [
+          Container(
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              border: Border.all(color: const Color(0xFF7153DF), width: 3),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.1),
+                  blurRadius: 8,
+                  offset: const Offset(0, 4),
+                ),
+              ],
+            ),
+            child: CircleAvatar(
+              radius: 60,
+              backgroundColor: Colors.grey[300],
+              backgroundImage:
+                  _selectedImageBytes != null
+                      ? MemoryImage(_selectedImageBytes!)
+                      : (_currentAvatarUrl != null &&
+                          _currentAvatarUrl!.isNotEmpty)
+                      ? NetworkImage(_currentAvatarUrl!)
+                      : null,
+              child:
+                  (_selectedImageBytes == null &&
+                          (_currentAvatarUrl == null ||
+                              _currentAvatarUrl!.isEmpty))
+                      ? const Icon(Icons.person, size: 60, color: Colors.grey)
+                      : null,
+            ),
+          ),
+          // Camera icon overlay
+          Positioned(
+            bottom: 0,
+            right: 0,
+            child: Container(
+              width: 36,
+              height: 36,
+              decoration: BoxDecoration(
+                color: const Color(0xFF7153DF),
+                shape: BoxShape.circle,
+                border: Border.all(color: Colors.white, width: 2),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.2),
+                    blurRadius: 4,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
+              ),
+              child: const Icon(
+                Icons.camera_alt,
+                color: Colors.white,
+                size: 18,
+              ),
+            ),
+          ),
+          // Upload progress overlay
+          if (_isUploading)
+            Positioned.fill(
+              child: Container(
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: Colors.black.withOpacity(0.5),
+                ),
+                child: const Center(
+                  child: CircularProgressIndicator(
+                    valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                  ),
+                ),
+              ),
+            ),
+        ],
       ),
     );
   }

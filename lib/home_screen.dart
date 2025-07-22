@@ -320,7 +320,7 @@ class _HomeScreenState extends State<HomeScreen> {
     return Scaffold(
       appBar: AppBar(
         title: const Text(
-          'CosmoSoul',
+          'Base',
           style: TextStyle(
             color: Colors.white,
             fontWeight: FontWeight.bold,

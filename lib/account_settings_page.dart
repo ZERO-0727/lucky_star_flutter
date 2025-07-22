@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'dart:math';
 import 'feedback_page.dart';
 import 'donation_page.dart';
 import 'user_verification_page.dart';
@@ -28,6 +29,30 @@ class _AccountSettingsPageState extends State<AccountSettingsPage> {
     'French',
     'German',
     'Chinese',
+  ];
+
+  // Farewell messages pool
+  final List<String> _farewellMessages = [
+    'Wishing you all the best in your next journey.',
+    'Thank you for being part of CosmoSoul.',
+    'Take care, and stay inspired.',
+    'May your path ahead be full of light.',
+    'Every ending is a new beginning.',
+    'Goodbye for now, but not forever.',
+    'Wherever you go, go with all your heart.',
+    'Stay true, stay kind.',
+    'Wishing you happiness and peace ahead.',
+    'Thank you for sharing your soul with us.',
+    'Your presence mattered here.',
+    'May the stars guide your next steps.',
+    'Until our paths cross again.',
+    'Here\'s to your next great adventure.',
+    'You\'ll always be part of the CosmoSoul galaxy.',
+    'Keep shining, wherever you are.',
+    'One chapter ends, another begins.',
+    'Farewell, and thank you.',
+    'Go forward with courage.',
+    'You\'re always welcome back.',
   ];
 
   @override

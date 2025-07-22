@@ -225,12 +225,7 @@ class _MainNavigationState extends State<MainNavigation> {
     const HomeScreen(), // 🏠 Home Page
   ];
 
-  final List<String> _tabLabels = [
-    'Space Station',
-    'Soul Plaza',
-    'Soul Talk',
-    'Home',
-  ];
+  final List<String> _tabLabels = ['Cosmos', 'Soul', 'Chat', 'Base'];
 
   final List<IconData> _tabIcons = [
     Icons.star,

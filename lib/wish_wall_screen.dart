@@ -227,7 +227,7 @@ class _WishWallScreenState extends State<WishWallScreen>
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Space Station'),
+        title: const Text('Cosmos'),
         // Hidden search icon for MVP - keeping search functionality intact
         // actions: [
         //   IconButton(
@@ -922,7 +922,7 @@ class _WishWallScreenState extends State<WishWallScreen>
     dynamic error,
     StackTrace? stackTrace,
   ) {
-    print('\n' + '=' * 80);
+    print('\n${'=' * 80}');
     print('🚨 FIRESTORE QUERY ERROR DETAILS');
     print('=' * 80);
     print('Query Type: $queryType');
