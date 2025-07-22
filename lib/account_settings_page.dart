@@ -5,6 +5,7 @@ import 'feedback_page.dart';
 import 'donation_page.dart';
 import 'user_verification_page.dart';
 import 'privacy_policy_screen.dart';
+import 'terms_of_service_screen.dart';
 import 'screens/auth/account_management_screen.dart';
 import 'screens/auth/change_password_screen.dart';
 import 'services/auth_service.dart';
@@ -403,9 +404,12 @@ class _AccountSettingsPageState extends State<AccountSettingsPage> {
               icon: Icons.description,
               title: 'Terms of Service',
               onTap: () {
-                // Navigate to terms of service
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Terms of Service coming soon')),
+                // Navigate to terms of service screen
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => const TermsOfServiceScreen(),
+                  ),
                 );
               },
             ),

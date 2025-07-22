@@ -4,28 +4,28 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:webview_flutter/webview_flutter.dart';
 
-class PrivacyPolicyScreen extends StatefulWidget {
-  const PrivacyPolicyScreen({super.key});
+class TermsOfServiceScreen extends StatefulWidget {
+  const TermsOfServiceScreen({super.key});
 
   @override
-  State<PrivacyPolicyScreen> createState() => _PrivacyPolicyScreenState();
+  State<TermsOfServiceScreen> createState() => _TermsOfServiceScreenState();
 }
 
-class _PrivacyPolicyScreenState extends State<PrivacyPolicyScreen> {
+class _TermsOfServiceScreenState extends State<TermsOfServiceScreen> {
   bool _darkModeEnabled = false;
   bool _isLoading = true;
   WebViewController? _controller;
   String? _errorMessage;
   bool _hasTimedOut = false;
 
-  static const String privacyPolicyUrl =
-      'https://ittend.notion.site/CosmoSoul-Privacy-Policy-238e1800c49480239003cc91853c8779';
+  static const String termsOfServiceUrl =
+      'https://ittend.notion.site/CosmoSoul-Terms-of-Service-238e1800c49480078a77fa858f2aa38c';
 
   @override
   void initState() {
     super.initState();
     _loadDarkModePreference();
-    _initializePrivacyPolicy();
+    _initializeTermsOfService();
     _startLoadingTimeout();
   }
 
@@ -51,8 +51,8 @@ class _PrivacyPolicyScreenState extends State<PrivacyPolicyScreen> {
     });
   }
 
-  // Initialize privacy policy based on platform
-  Future<void> _initializePrivacyPolicy() async {
+  // Initialize terms of service based on platform
+  Future<void> _initializeTermsOfService() async {
     if (kIsWeb) {
       // On web, open in new tab
       _openInBrowser();
@@ -122,7 +122,7 @@ class _PrivacyPolicyScreenState extends State<PrivacyPolicyScreen> {
 
       // Load the URL after controller is fully configured
       _controller!
-          .loadRequest(Uri.parse(privacyPolicyUrl))
+          .loadRequest(Uri.parse(termsOfServiceUrl))
           .then((_) {
             print('WebView load request initiated');
           })
@@ -131,7 +131,7 @@ class _PrivacyPolicyScreenState extends State<PrivacyPolicyScreen> {
             if (mounted) {
               setState(() {
                 _isLoading = false;
-                _errorMessage = 'Failed to load Privacy Policy: $error';
+                _errorMessage = 'Failed to load Terms of Service: $error';
               });
             }
           });
@@ -153,7 +153,7 @@ class _PrivacyPolicyScreenState extends State<PrivacyPolicyScreen> {
     });
 
     try {
-      final Uri url = Uri.parse(privacyPolicyUrl);
+      final Uri url = Uri.parse(termsOfServiceUrl);
       bool launched = false;
 
       try {
@@ -165,7 +165,7 @@ class _PrivacyPolicyScreenState extends State<PrivacyPolicyScreen> {
       }
 
       if (!launched) {
-        throw Exception('Could not open privacy policy');
+        throw Exception('Could not open terms of service');
       }
 
       // For web, we can immediately go back since the link opens in a new tab
@@ -176,7 +176,7 @@ class _PrivacyPolicyScreenState extends State<PrivacyPolicyScreen> {
       if (mounted) {
         setState(() {
           _isLoading = false;
-          _errorMessage = 'Unable to open Privacy Policy: $e';
+          _errorMessage = 'Unable to open Terms of Service: $e';
         });
       }
     }
@@ -210,7 +210,7 @@ class _PrivacyPolicyScreenState extends State<PrivacyPolicyScreen> {
     return Scaffold(
       backgroundColor: _backgroundColor,
       appBar: AppBar(
-        title: Text('Privacy Policy', style: TextStyle(color: _textColor)),
+        title: Text('Terms of Service', style: TextStyle(color: _textColor)),
         centerTitle: true,
         backgroundColor: _backgroundColor,
         elevation: 1,
@@ -232,7 +232,7 @@ class _PrivacyPolicyScreenState extends State<PrivacyPolicyScreen> {
             icon: Icon(Icons.open_in_browser, color: _textColor),
             onPressed: () async {
               try {
-                final Uri url = Uri.parse(privacyPolicyUrl);
+                final Uri url = Uri.parse(termsOfServiceUrl);
                 await launchUrl(url, mode: LaunchMode.externalApplication);
               } catch (e) {
                 if (mounted) {
@@ -281,7 +281,7 @@ class _PrivacyPolicyScreenState extends State<PrivacyPolicyScreen> {
                   ),
                   const SizedBox(height: 16),
                   Text(
-                    'Loading Privacy Policy...',
+                    'Loading Terms of Service...',
                     style: TextStyle(color: _textColor, fontSize: 16),
                   ),
                 ],
@@ -302,7 +302,7 @@ class _PrivacyPolicyScreenState extends State<PrivacyPolicyScreen> {
             Icon(Icons.error_outline, size: 64, color: _subtitleColor),
             const SizedBox(height: 16),
             Text(
-              'Unable to Load Privacy Policy',
+              'Unable to Load Terms of Service',
               style: TextStyle(
                 fontSize: 20,
                 fontWeight: FontWeight.bold,
@@ -337,7 +337,7 @@ class _PrivacyPolicyScreenState extends State<PrivacyPolicyScreen> {
             OutlinedButton.icon(
               onPressed: () async {
                 try {
-                  final Uri url = Uri.parse(privacyPolicyUrl);
+                  final Uri url = Uri.parse(termsOfServiceUrl);
                   await launchUrl(url, mode: LaunchMode.externalApplication);
                 } catch (e) {
                   if (mounted) {
@@ -377,10 +377,10 @@ class _PrivacyPolicyScreenState extends State<PrivacyPolicyScreen> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.privacy_tip_outlined, size: 64, color: _primaryColor),
+            Icon(Icons.description_outlined, size: 64, color: _primaryColor),
             const SizedBox(height: 24),
             Text(
-              'Privacy Policy',
+              'Terms of Service',
               style: TextStyle(
                 fontSize: 24,
                 fontWeight: FontWeight.bold,
@@ -390,7 +390,7 @@ class _PrivacyPolicyScreenState extends State<PrivacyPolicyScreen> {
             ),
             const SizedBox(height: 16),
             Text(
-              'The Privacy Policy will open in a new browser tab.',
+              'The Terms of Service will open in a new browser tab.',
               style: TextStyle(fontSize: 16, color: _subtitleColor),
               textAlign: TextAlign.center,
             ),
@@ -398,14 +398,14 @@ class _PrivacyPolicyScreenState extends State<PrivacyPolicyScreen> {
             ElevatedButton.icon(
               onPressed: () async {
                 try {
-                  final Uri url = Uri.parse(privacyPolicyUrl);
+                  final Uri url = Uri.parse(termsOfServiceUrl);
                   await launchUrl(url, mode: LaunchMode.externalApplication);
                   Navigator.pop(context);
                 } catch (e) {
                   if (mounted) {
                     ScaffoldMessenger.of(context).showSnackBar(
                       SnackBar(
-                        content: Text('Could not open Privacy Policy: $e'),
+                        content: Text('Could not open Terms of Service: $e'),
                         backgroundColor: Colors.red,
                       ),
                     );
@@ -413,7 +413,7 @@ class _PrivacyPolicyScreenState extends State<PrivacyPolicyScreen> {
                 }
               },
               icon: const Icon(Icons.open_in_browser),
-              label: const Text('Open Privacy Policy'),
+              label: const Text('Open Terms of Service'),
               style: ElevatedButton.styleFrom(
                 backgroundColor: _primaryColor,
                 foregroundColor: Colors.white,

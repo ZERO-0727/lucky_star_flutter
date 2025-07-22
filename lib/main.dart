@@ -35,6 +35,8 @@ import 'favorites_list_screen.dart';
 import 'about_cosmosoul_page.dart';
 import 'all_favorite_wishes_page.dart';
 import 'all_favorite_experiences_page.dart';
+import 'privacy_policy_screen.dart';
+import 'terms_of_service_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -162,6 +164,8 @@ class CosmoSoulApp extends StatelessWidget {
         '/all-favorite-wishes': (context) => const AllFavoriteWishesPage(),
         '/all-favorite-experiences':
             (context) => const AllFavoriteExperiencesPage(),
+        '/privacy-policy': (context) => const PrivacyPolicyScreen(),
+        '/terms-of-service': (context) => const TermsOfServiceScreen(),
       },
       onGenerateRoute: (settings) {
         switch (settings.name) {
