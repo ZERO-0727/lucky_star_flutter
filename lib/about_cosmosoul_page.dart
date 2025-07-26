@@ -1,8 +1,33 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 
-class AboutCosmosoulPage extends StatelessWidget {
+class AboutCosmosoulPage extends StatefulWidget {
   const AboutCosmosoulPage({super.key});
+
+  @override
+  State<AboutCosmosoulPage> createState() => _AboutCosmosoulPageState();
+}
+
+class _AboutCosmosoulPageState extends State<AboutCosmosoulPage> {
+  String _version = '';
+  String _buildNumber = '';
+  String _appName = '';
+
+  @override
+  void initState() {
+    super.initState();
+    _getPackageInfo();
+  }
+
+  Future<void> _getPackageInfo() async {
+    final packageInfo = await PackageInfo.fromPlatform();
+    setState(() {
+      _version = packageInfo.version;
+      _buildNumber = packageInfo.buildNumber;
+      _appName = packageInfo.appName;
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -47,6 +72,19 @@ class AboutCosmosoulPage extends StatelessWidget {
                     height: 2,
                     color: const Color(0xFF7153DF).withOpacity(0.3),
                   ),
+                  // Version information
+                  if (_version.isNotEmpty) ...[
+                    const SizedBox(height: 12),
+                    Text(
+                      'Version $_version${_buildNumber.isNotEmpty ? ' ($_buildNumber)' : ''}',
+                      style: GoogleFonts.poppins(
+                        fontSize: 14,
+                        color: const Color(0xFF7153DF).withOpacity(0.7),
+                        fontWeight: FontWeight.w500,
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                  ],
                 ],
               ),
             ),
